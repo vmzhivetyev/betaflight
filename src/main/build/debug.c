@@ -116,5 +116,9 @@ const char * const debugModeNames[DEBUG_COUNT] = {
     "RC_STATS",
     "MAG_CALIB",
     "MAG_TASK_RATE",
+<<<<<<< HEAD
     "EZLANDING",
+=======
+    "ALTHOLD",
+>>>>>>> f15bfcb1a (Add Altitude Hold Mode)
 };
