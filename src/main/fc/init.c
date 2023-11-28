@@ -102,6 +102,7 @@
 #include "flight/pid.h"
 #include "flight/pid_init.h"
 #include "flight/position.h"
+#include "flight/alt_hold.h"
 #include "flight/servos.h"
 
 #include "io/asyncfatfs/asyncfatfs.h"
@@ -1000,8 +1001,8 @@ void init(void)
     spiInitBusDMA();
 #endif
 
-#ifdef USE_ALT_HOLD_MODE
-    altHoldInit();
+#ifdef USE_ALTHOLD_MODE
+    initAltHoldState();
 #endif
 
     debugInit();

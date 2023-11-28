@@ -725,10 +725,11 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs)
     }
 #endif
 
-#ifdef USE_ALT_HOLD_MODE
-    // Throttle value to be used during altitude hold mode (and failsafe landing mode)
-    if (FLIGHT_MODE(ALT_HOLD_MODE)) {
-        throttle = altHoldGetThrottle();
+#ifdef USE_ALTHOLD_MODE
+    if (ARMING_FLAG(ARMED) && !failsafeIsActive()) {
+        float altHoldThrottle = getAltHoldThrottle();
+        float altHoldThrottleFactor = getAltHoldThrottleFactor(throttle);
+        throttle = throttle * (1.0f - altHoldThrottleFactor) + altHoldThrottle * altHoldThrottleFactor;
     }
 #endif
 
@@ -762,7 +763,7 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs)
         && ARMING_FLAG(ARMED)
         && !mixerRuntime.feature3dEnabled
         && !airmodeEnabled
-        && !FLIGHT_MODE(GPS_RESCUE_MODE | ALT_HOLD_MODE)   // disable motor_stop while GPS Rescue / Altitude Hold is active
+        && !FLIGHT_MODE(GPS_RESCUE_MODE | ALTHOLD_MODE)   // disable motor_stop while GPS Rescue / Altitude Hold is active
         && (rcData[THROTTLE] < rxConfig()->mincheck)) {
         // motor_stop handling
         applyMotorStop();

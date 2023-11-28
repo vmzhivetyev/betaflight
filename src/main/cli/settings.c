@@ -1097,13 +1097,24 @@ const clivalue_t valueTable[] = {
     { "yaw_control_reversed",       VAR_INT8   | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_RC_CONTROLS_CONFIG, offsetof(rcControlsConfig_t, yaw_control_reversed) },
 
 #ifdef USE_ALT_HOLD_MODE
-    { PARAM_NAME_ALT_HOLD_P, VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 255 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, alt_hold_pid_p) },
-    { PARAM_NAME_ALT_HOLD_I, VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 255 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, alt_hold_pid_i) },
-    { PARAM_NAME_ALT_HOLD_D, VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 255 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, alt_hold_pid_d) },
+    { "althold_pid_p",              VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 255 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, throttlePidP) },
+    { "althold_pid_d",              VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 255 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, throttlePidD) },
+    { "althold_pid_i",              VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 255 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, throttlePidI) },
+    { "althold_pid_imax",           VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 50 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, throttlePidIMax) },
+    
+    { "althold_pid_d_cutoff",       VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 5, 255 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, throttlePidDFiltCutoffFreq) },
+    { "althold_throttle_cutoff",    VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 5, 255 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, throttleFiltCutoffFreq) },
+    { "althold_altitude_cutoff",    VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 5, 255 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, altitudeFiltCutoffFreq) },
 
-    { PARAM_NAME_ALT_HOLD_THROTTLE_MIN,    VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 1050, 1400 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, alt_hold_throttle_min) },
-    { PARAM_NAME_ALT_HOLD_THROTTLE_MAX,    VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 1400, 2000 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, alt_hold_throttle_max) },
-    { PARAM_NAME_ALT_HOLD_TARGET_ADJUST_RATE,    VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, alt_hold_target_adjust_rate) },
+    { "althold_throttle_min",       VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 50 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, minThrottle) },
+    { "althold_throttle_max",       VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, maxThrottle) },
+    { "althold_throttle_hover",     VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, hoverThrottle) },
+
+    { "althold_max_altitude",      VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 4000 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, maxAltitude) },
+
+    { "althold_enter_fade_deciseconds", VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 10 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, enterFadeTimeDecisec) },
+    { "althold_exit_fade_deciseconds",  VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 30 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, exitFadeTimeDecisec) },
+
 #endif
 
 // PG_PID_CONFIG

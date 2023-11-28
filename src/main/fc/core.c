@@ -1009,6 +1009,11 @@ void processRxModes(timeUs_t currentTimeUs)
 
     if (IS_RC_MODE_ACTIVE(BOXHORIZON) && canUseHorizonMode) {
         DISABLE_FLIGHT_MODE(ANGLE_MODE);
+
+#ifdef USE_ALTHOLD_MODE
+        DISABLE_FLIGHT_MODE(ALTHOLD_MODE);
+#endif
+
         if (!FLIGHT_MODE(HORIZON_MODE)) {
             ENABLE_FLIGHT_MODE(HORIZON_MODE);
         }
@@ -1026,7 +1031,7 @@ void processRxModes(timeUs_t currentTimeUs)
     }
 #endif
 
-    if (FLIGHT_MODE(ANGLE_MODE | ALT_HOLD_MODE | HORIZON_MODE)) {
+    if (FLIGHT_MODE(ANGLE_MODE | ALTHOLD_MODE | HORIZON_MODE)) {
         LED1_ON;
         // increase frequency of attitude task to reduce drift when in angle or horizon mode
         rescheduleTask(TASK_ATTITUDE, TASK_PERIOD_HZ(acc.sampleRateHz / (float)imuConfig()->imu_process_denom));

@@ -1,134 +1,160 @@
-/*
- * This file is part of Betaflight.
- *
- * Betaflight is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * Betaflight is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Betaflight. If not, see <http://www.gnu.org/licenses/>.
- */
-
-
-#include <stdint.h>
-#include <stdbool.h>
-#include <limits.h>
-
-extern "C" {
-
-    #include "platform.h"
-    #include "build/debug.h"
-    #include "pg/pg_ids.h"
-
-    #include "fc/core.h"
-    #include "fc/rc_controls.h"
-    #include "fc/runtime_config.h"
-
-    #include "flight/alt_hold.h"
-    #include "flight/failsafe.h"
-    #include "flight/imu.h"
-    #include "flight/position.h"
-
-    #include "rx/rx.h"
-
-    #include "sensors/acceleration.h"
-
-    PG_REGISTER(accelerometerConfig_t, accelerometerConfig, PG_ACCELEROMETER_CONFIG, 0);
-    PG_REGISTER(positionConfig_t, positionConfig, PG_POSITION, 0);
-    PG_REGISTER(altholdConfig_t, altholdConfig, PG_ALTHOLD_CONFIG, 0);
-
-    extern altHoldState_t altHoldState;
-    void altHoldReset(void);
-    void altHoldProcessTransitions(void);
-    void altHoldInit(void);
-    void updateAltHoldState(timeUs_t);
-    bool failsafeIsActive(void) { return false; }
-    timeUs_t currentTimeUs = 0;
-}
-
 #include "unittest_macros.h"
 #include "gtest/gtest.h"
 
-uint32_t millisRW;
-uint32_t millis() {
-    return millisRW;
-}
-
-TEST(AltholdUnittest, altHoldTransitionsTest)
-{
-    updateAltHoldState(currentTimeUs);
-    EXPECT_EQ(altHoldState.isAltHoldActive, false);
-
-    flightModeFlags |= ALT_HOLD_MODE;
-    millisRW = 42;
-    updateAltHoldState(currentTimeUs);
-    EXPECT_EQ(altHoldState.isAltHoldActive, true);
-
-    flightModeFlags ^= ALT_HOLD_MODE;
-    millisRW = 56;
-    updateAltHoldState(currentTimeUs);
-    EXPECT_EQ(altHoldState.isAltHoldActive, false);
-
-    flightModeFlags |= ALT_HOLD_MODE;
-    millisRW = 64;
-    updateAltHoldState(currentTimeUs);
-    EXPECT_EQ(altHoldState.isAltHoldActive, true);
-}
-
-TEST(AltholdUnittest, altHoldTransitionsTestUnfinishedExitEnter)
-{
-    altHoldInit();
-    EXPECT_EQ(altHoldState.isAltHoldActive, false);
-
-    flightModeFlags |= ALT_HOLD_MODE;
-    millisRW = 42;
-    updateAltHoldState(currentTimeUs);
-    EXPECT_EQ(altHoldState.isAltHoldActive, true);
-}
-
-// STUBS
 
 extern "C" {
-    acc_t acc;
 
-    void pt2FilterInit(pt2Filter_t *altHoldDeltaLpf, float) {
-        UNUSED(altHoldDeltaLpf);
-    }
-    float pt2FilterGain(float, float) {
-        return 0.0f;
-    }
-    float pt2FilterApply(pt2Filter_t *altHoldDeltaLpf, float) {
-        UNUSED(altHoldDeltaLpf);
-        return 0.0f;
+    #include "sensors/acceleration.h"
+    FAST_DATA_ZERO_INIT acc_t acc;
+
+    #include "build/debug.h"
+    int16_t debug[DEBUG16_VALUE_COUNT];
+    uint8_t debugMode;
+
+    #include "fc/runtime_config.h"
+    uint8_t armingFlags = 0;
+    uint8_t stateFlags = 0;
+    uint16_t flightModeFlags = 0;
+
+    #include "flight/imu.h"
+    void imuTransformVectorBodyToEarth(t_fp_vector * v)
+    {
+        (void)v;
     }
 
-    bool isAltitudeAvailable(void) { return true; }
-    float getAltitude(void) { return 0.0f; }
-    bool isAltitudeLow(void) { return true; }
-    float getCosTiltAngle(void) { return 0.0f; }
-    float rcCommand[4];
+    #include "drivers/time.h"
+    uint32_t millisRW;
+    uint32_t millis() {
+        return millisRW;
+    }
 
+    #include "sensors/barometer.h"
+    baro_t baro;
+
+    #include "flight/position.h"
+    int32_t getEstimatedAltitudeCm(void)
+    {
+        return 0;
+    }
+    int16_t getEstimatedVario(void)
+    {
+        return 0;
+    }
+
+    // other
     float getRcDeflection(int)
     {
         return 0;
     }
 
-    void parseRcChannels(const char *input, rxConfig_t *rxConfig)
+    bool baroIsCalibrated(void)
     {
-        UNUSED(input);
-        UNUSED(rxConfig);
+        return 1;
     }
 
-    int16_t debug[DEBUG16_VALUE_COUNT];
-    uint8_t debugMode;
+    bool sensors(uint32_t)
+    {
+        return 1;
+    }
 
-    uint8_t armingFlags = 0;
-    uint8_t stateFlags = 0;
-    uint16_t flightModeFlags = 0;
+    bool failsafeIsActive(void)
+    {
+        return 0;
+    }
+
+    #include "flight/alt_hold.h"
+
+    extern altHoldState_s altHoldState;
+
+    void altHoldReset(altHoldState_s* altHoldState);
+    void altHoldProcessTransitions(altHoldState_s* altHoldState);
+    void altHoldInit(altHoldState_s* altHoldState);
+    void altHoldUpdate(altHoldState_s* altHoldState);
+}
+
+
+TEST(AltholdUnittest, altHoldTransitionsTest)
+{
+    altHoldInit(&altHoldState);
+    EXPECT_EQ(altHoldState.altHoldEnabled, false);
+
+    flightModeFlags |= ALTHOLD_MODE;
+    millisRW = 42;
+    altHoldUpdate(&altHoldState);
+    EXPECT_EQ(altHoldState.altHoldEnabled, true);
+    EXPECT_EQ(altHoldState.enterTime, 42);
+    EXPECT_EQ(altHoldState.exitTime, 0);
+    EXPECT_TRUE(getAltHoldThrottleFactor(0) < 0.01f);
+
+    millisRW = 56;
+    flightModeFlags ^= ALTHOLD_MODE;
+    altHoldUpdate(&altHoldState);
+    EXPECT_EQ(altHoldState.altHoldEnabled, false);
+    EXPECT_EQ(altHoldState.exitTime, 56);
+
+
+    flightModeFlags |= ALTHOLD_MODE;
+    millisRW = 64;
+    altHoldUpdate(&altHoldState);
+    EXPECT_EQ(altHoldState.altHoldEnabled, true);
+    EXPECT_EQ(altHoldState.enterTime, 64);
+    EXPECT_EQ(altHoldState.exitTime, 0);
+    EXPECT_TRUE(getAltHoldThrottleFactor(0) < 0.01f);
+
+    millisRW = 64 + 0.3f * ALTHOLD_ENTER_PERIOD;
+    altHoldUpdate(&altHoldState);
+    EXPECT_TRUE(ABS(getAltHoldThrottleFactor(0) - 0.3f) < 0.01f);
+
+    millisRW = 64 + 0.9f * ALTHOLD_ENTER_PERIOD;
+    altHoldUpdate(&altHoldState);
+    EXPECT_TRUE(ABS(getAltHoldThrottleFactor(0) - 0.9f) < 0.01f);
+
+    millisRW = 64 + 1.4f * ALTHOLD_ENTER_PERIOD;
+    altHoldUpdate(&altHoldState);
+    EXPECT_TRUE(ABS(getAltHoldThrottleFactor(0) - 1.0f) < 0.01f);
+
+
+    millisRW = 10042;
+    flightModeFlags ^= ALTHOLD_MODE;
+    altHoldUpdate(&altHoldState);
+    EXPECT_TRUE(ABS(getAltHoldThrottleFactor(1.5f) - 1.0f) < 0.01f);
+
+    millisRW = 10042 + 0.3f * ALTHOLD_MAX_EXIT_PERIOD;
+    altHoldUpdate(&altHoldState);
+    EXPECT_TRUE(ABS(getAltHoldThrottleFactor(1.5f) - 0.7f) < 0.01f);
+
+    millisRW = 10042 + 0.5f * ALTHOLD_MAX_EXIT_PERIOD;
+    altHoldState.throttle = 0.5f;
+    getAltHoldThrottleFactor(0.5f);
+    altHoldUpdate(&altHoldState);
+    EXPECT_TRUE(ABS(getAltHoldThrottleFactor(0.5f)) < 0.01f);
+}
+
+TEST(AltholdUnittest, altHoldTransitionsTestUnfinishedExitEnter)
+{
+    altHoldInit(&altHoldState);
+    EXPECT_EQ(altHoldState.altHoldEnabled, false);
+
+    flightModeFlags |= ALTHOLD_MODE;
+    millisRW = 42;
+    altHoldUpdate(&altHoldState);
+    EXPECT_EQ(altHoldState.altHoldEnabled, true);
+    EXPECT_EQ(altHoldState.enterTime, 42);
+    EXPECT_EQ(altHoldState.exitTime, 0);
+    EXPECT_TRUE(getAltHoldThrottleFactor(0) < 0.01f);
+
+    millisRW += ALTHOLD_ENTER_PERIOD * 2;
+    altHoldUpdate(&altHoldState);
+    EXPECT_TRUE(ABS(getAltHoldThrottleFactor(0) - 1.0f) < 0.01f);
+
+    flightModeFlags ^= ALTHOLD_MODE;
+    altHoldUpdate(&altHoldState);
+    millisRW += 0.5f * ALTHOLD_MAX_EXIT_PERIOD;
+    altHoldUpdate(&altHoldState);
+    EXPECT_TRUE(ABS(getAltHoldThrottleFactor(1.5f) - 0.5f) < 0.01f);
+
+    flightModeFlags |= ALTHOLD_MODE;
+    millisRW += 1;
+    altHoldUpdate(&altHoldState);
+    EXPECT_TRUE(ABS(getAltHoldThrottleFactor(1.5f) - 0.5f) < 0.01f);
 }
