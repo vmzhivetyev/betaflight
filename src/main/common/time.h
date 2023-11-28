@@ -48,6 +48,8 @@ typedef uint32_t timeUs_t;
 static inline timeDelta_t cmpTimeUs(timeUs_t a, timeUs_t b) { return (timeDelta_t)(a - b); }
 static inline int32_t cmpTimeCycles(uint32_t a, uint32_t b) { return (int32_t)(a - b); }
 
+static inline uint32_t decisecondsToMillis(uint32_t ds) { return ds * 100; }
+
 #define FORMATTED_DATE_TIME_BUFSIZE 30
 
 #ifdef USE_RTC_TIME
