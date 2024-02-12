@@ -176,6 +176,9 @@ typedef enum {
 #ifdef USE_CRSF_V3
     TASK_SPEED_NEGOTIATION,
 #endif
+#ifdef USE_THRUST_IMBALANCE_DETECTION
+    TASK_THRUST_IMBALANCE_DETECTION,
+#endif
 
     /* Count of real tasks */
     TASK_COUNT,

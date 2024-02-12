@@ -223,6 +223,9 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .tpa_mode = TPA_MODE_D,
         .tpa_rate = 65,
         .tpa_breakpoint = 1350,
+        .thrust_imbalance_isum_threshold = 200,
+        .thrust_imbalance_trigger_delay = 1,
+        .thrust_imbalance_untrigger_delay = 5,
     );
 
 #ifndef USE_D_MIN

@@ -528,6 +528,7 @@ extern uint8_t _dmaram_end__;
 #define USE_BATTERY_VOLTAGE_SAG_COMPENSATION
 #define USE_SIMPLIFIED_TUNING
 #define USE_CRAFTNAME_MSGS
+#define USE_THRUST_IMBALANCE_DETECTION
 
 #if !defined(CORE_BUILD)
 // CORE_BUILD is only hardware drivers, and the bare minimum

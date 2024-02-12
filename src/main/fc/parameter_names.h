@@ -122,6 +122,9 @@
 #define PARAM_NAME_POSITION_ALTITUDE_PREFER_BARO "altitude_prefer_baro"
 #define PARAM_NAME_POSITION_ALTITUDE_LPF "altitude_lpf"
 #define PARAM_NAME_POSITION_ALTITUDE_D_LPF "altitude_d_lpf"
+#define PARAM_NAME_THRUST_IMBALANCE_THRESHOLD "thrust_imbalance_isum_threshold"
+#define PARAM_NAME_THRUST_IMBALANCE_TRIGGER_DELAY "thrust_imbalance_trigger_delay"
+#define PARAM_NAME_THRUST_IMBALANCE_UNTRIGGER_DELAY "thrust_imbalance_untrigger_delay"
 
 #ifdef USE_GPS
 #define PARAM_NAME_GPS_PROVIDER "gps_provider"

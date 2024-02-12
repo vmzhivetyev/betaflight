@@ -58,6 +58,7 @@
 #include "flight/mixer.h"
 #include "flight/pid.h"
 #include "flight/position.h"
+#include "flight/flight_health.h"
 
 #include "io/asyncfatfs/asyncfatfs.h"
 #include "io/beeper.h"
@@ -457,6 +458,10 @@ task_attribute_t task_attributes[TASK_COUNT] = {
 #ifdef USE_CRSF_V3
     [TASK_SPEED_NEGOTIATION] = DEFINE_TASK("SPEED_NEGOTIATION", NULL, NULL, speedNegotiationProcess, TASK_PERIOD_HZ(100), TASK_PRIORITY_LOW),
 #endif
+
+#ifdef USE_THRUST_IMBALANCE_DETECTION
+    [TASK_THRUST_IMBALANCE_DETECTION] = DEFINE_TASK("THRUST_IMBALANCE_DETECTION", NULL, NULL, thrustImbalanceDetectionProcess, TASK_PERIOD_HZ(TASK_THRUST_IMBALANCE_RATE_HZ), TASK_PRIORITY_MEDIUM),
+#endif
 };
 
 task_t *getTask(unsigned taskId)
@@ -623,6 +628,10 @@ void tasksInit(void)
 #ifdef USE_CRSF_V3
     const bool useCRSF = rxRuntimeState.serialrxProvider == SERIALRX_CRSF;
     setTaskEnabled(TASK_SPEED_NEGOTIATION, useCRSF);
+#endif
+
+#ifdef USE_THRUST_IMBALANCE_DETECTION
+    setTaskEnabled(TASK_THRUST_IMBALANCE_DETECTION, true);
 #endif
 }
 
