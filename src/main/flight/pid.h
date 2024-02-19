@@ -234,9 +234,9 @@ typedef struct pidProfile_s {
     uint8_t tpa_rate;                       // Percent reduction in P or D at full throttle
     uint16_t tpa_breakpoint;                // Breakpoint where TPA is activated
 
-    uint16_t thrust_imbalance_isum_threshold;
-    uint8_t thrust_imbalance_trigger_delay;   // tenths of a second
-    uint8_t thrust_imbalance_untrigger_delay; // tenths of a second
+    uint8_t thrust_imbalance_threshold;       // Min abs multiplication of I terms (of all axes) to show the warning.
+    uint8_t thrust_imbalance_trigger_delay;   // Tenths of a second. Minimum time of exceeding the threshold to show the warning.
+    uint8_t thrust_imbalance_untrigger_delay; // Tenths of a second. Minimum time under the threshold to hide the warning.
 } pidProfile_t;
 
 PG_DECLARE_ARRAY(pidProfile_t, PID_PROFILE_COUNT, pidProfiles);

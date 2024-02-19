@@ -553,7 +553,7 @@ static uint8_t cmsx_tpa_rate;
 static uint16_t cmsx_tpa_breakpoint;
 
 #ifdef USE_THRUST_IMBALANCE_DETECTION
-static uint16_t cmsx_thrust_imbalance_threshold;
+static uint8_t cmsx_thrust_imbalance_threshold;
 #endif
 
 static const void *cmsx_profileOtherOnEnter(displayPort_t *pDisp)
@@ -605,7 +605,7 @@ static const void *cmsx_profileOtherOnEnter(displayPort_t *pDisp)
     cmsx_tpa_breakpoint = pidProfile->tpa_breakpoint;
 
 #ifdef USE_THRUST_IMBALANCE_DETECTION
-    cmsx_thrust_imbalance_threshold = pidProfile->thrust_imbalance_isum_threshold;
+    cmsx_thrust_imbalance_threshold = pidProfile->thrust_imbalance_threshold;
 #endif
 
     return NULL;
@@ -660,7 +660,7 @@ static const void *cmsx_profileOtherOnExit(displayPort_t *pDisp, const OSD_Entry
     pidProfile->tpa_breakpoint = cmsx_tpa_breakpoint;
 
 #ifdef USE_THRUST_IMBALANCE_DETECTION
-    pidProfile->thrust_imbalance_isum_threshold = cmsx_thrust_imbalance_threshold;
+    pidProfile->thrust_imbalance_threshold = cmsx_thrust_imbalance_threshold;
 #endif
 
     initEscEndpoints();
@@ -717,7 +717,7 @@ static const OSD_Entry cmsx_menuProfileOtherEntries[] = {
     { "TPA BRKPT",   OME_UINT16, NULL, &(OSD_UINT16_t){ &cmsx_tpa_breakpoint, 1000, 2000, 10} },
 
 #ifdef USE_THRUST_IMBALANCE_DETECTION
-    { "THRST IMBL THRS", OME_UINT16, NULL, &(OSD_UINT16_t){ &cmsx_thrust_imbalance_threshold, 0, 1000, 10 } },
+    { "THRST IMBL THRS", OME_UINT8, NULL, &(OSD_UINT8_t){ &cmsx_thrust_imbalance_threshold, 0, 255, 1 } },
 #endif
 
     { "BACK", OME_Back, NULL, NULL },
