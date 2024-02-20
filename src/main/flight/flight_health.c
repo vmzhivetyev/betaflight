@@ -45,11 +45,12 @@
 
 #include "flight_health.h"
 
-#define THRUST_IMBALANCE_GYRO_RATE_MAX 200
-#define THRUST_IMBALANCE_THROTTLE_MIN 10
-#define THRUST_IMBALANCE_TEMP_DISABLE_US 500000 // 0.5 sec
+#define THRUST_IMBALANCE_GYRO_RATE_MAX_DPS 200
+#define THRUST_IMBALANCE_THROTTLE_MIN_PCT 10
+#define THRUST_IMBALANCE_BLANKING_TIME_US 500000 // 0.5 sec
+#define THRUST_IMBALANCE_CONFIG_TO_WORKING_DOMAIN 1e5f
 
-// Becomes `true` when sum of absolute I terms for all axes exceeds the threshold.
+// Becomes `true` when product of absolute I terms for all axes exceeds the threshold.
 // This indicates a high likelihood of issues with props or motors, signaling the need for mechanical inspection.
 static bool thrustImbalanceDetected = false;
 
@@ -60,6 +61,32 @@ bool isThrustImbalanceDetected(void)
 #else
     return false;
 #endif    
+}
+
+// Returns `true` if `timeToReach` is reached or was reached before (== 0).
+bool checkTimeReached(timeUs_t currentTimeUs, timeUs_t* timeToReach) {
+    if (*timeToReach == 0) {
+        return true;
+    } else if (cmpTimeUs(currentTimeUs, *timeToReach) >= 0) {
+        *timeToReach = 0;
+        return true;
+    }
+    return false;
+}
+
+// Returns `true` and resets `triggerTime` to zero if the trigger was scheduled beforehand and it's `triggerTime` is reached.
+// A trigger is considered not scheduled if it's `triggerTime` is zero.
+// Checking a scheduled trigger won't change it's `triggerTime` if it's not yet reached.
+bool checkOrScheduleTrigger(timeUs_t currentTimeUs, timeUs_t* triggerTime, timeUs_t triggerDelay) {
+    if (triggerDelay == 0) {
+        *triggerTime = 0;
+        return true;
+    }
+    if (*triggerTime == 0) {
+        *triggerTime = currentTimeUs + triggerDelay;
+        return false;
+    } 
+    return checkTimeReached(currentTimeUs, triggerTime);
 }
 
 #ifdef USE_THRUST_IMBALANCE_DETECTION
@@ -75,47 +102,44 @@ void thrustImbalanceDetectionProcess(timeUs_t currentTimeUs)
         && !isFlipOverAfterCrashActive()) {
 
         // Convert threshold to the working domain.
-        const float threshold = currentPidProfile->thrust_imbalance_threshold * 1e5f;
+        const float threshold = currentPidProfile->thrust_imbalance_threshold * THRUST_IMBALANCE_CONFIG_TO_WORKING_DOMAIN;
         // Convert tenths to us.
         const timeUs_t triggerDelayUs = currentPidProfile->thrust_imbalance_trigger_delay * 100000;
         // Convert tenths to us.
         const timeUs_t untriggerDelayUs = currentPidProfile->thrust_imbalance_untrigger_delay * 100000;
 
-        if (calculateThrottlePercentAbs() < THRUST_IMBALANCE_THROTTLE_MIN
-            || gyroAbsRateDps(FD_ROLL) > THRUST_IMBALANCE_GYRO_RATE_MAX
-            || gyroAbsRateDps(FD_PITCH) > THRUST_IMBALANCE_GYRO_RATE_MAX
-            || gyroAbsRateDps(FD_YAW) > THRUST_IMBALANCE_GYRO_RATE_MAX) {
-            thrustImbalanceDisabledUntilUs = currentTimeUs + THRUST_IMBALANCE_TEMP_DISABLE_US;
+        if (calculateThrottlePercentAbs() < THRUST_IMBALANCE_THROTTLE_MIN_PCT
+            || gyroAbsRateDps(FD_ROLL) > THRUST_IMBALANCE_GYRO_RATE_MAX_DPS
+            || gyroAbsRateDps(FD_PITCH) > THRUST_IMBALANCE_GYRO_RATE_MAX_DPS
+            || gyroAbsRateDps(FD_YAW) > THRUST_IMBALANCE_GYRO_RATE_MAX_DPS) {
+            thrustImbalanceDisabledUntilUs = currentTimeUs + THRUST_IMBALANCE_BLANKING_TIME_US;
         }
 
-        const bool detectionEnabled = cmpTimeUs(currentTimeUs, thrustImbalanceDisabledUntilUs) >= 0;
-        if (detectionEnabled) {
-            thrustImbalanceDisabledUntilUs = 0;
-        }
+        const bool detectionEnabled = checkTimeReached(currentTimeUs, &thrustImbalanceDisabledUntilUs);
 
         // Multiplication of I terms gives us a measure of total thrust imbalance in all of the axes.
         // A bad or loose prop will cause coupled I term buildup in roll, pitch, and yaw at the same time.
         const float iMult = fabsf(pidData[FD_ROLL].I * pidData[FD_PITCH].I * pidData[FD_YAW].I);
 
         if (detectionEnabled && iMult >= threshold) {
-            if (thrustImbalanceTriggerUs == 0) {
-                thrustImbalanceTriggerUs = currentTimeUs + triggerDelayUs;
-            }
-            if (cmpTimeUs(currentTimeUs, thrustImbalanceTriggerUs) >= 0) {
-                thrustImbalanceUntriggerUs = currentTimeUs + untriggerDelayUs;
+            thrustImbalanceUntriggerUs = 0;
+
+            if (!thrustImbalanceDetected 
+                && checkOrScheduleTrigger(currentTimeUs, &thrustImbalanceTriggerUs, triggerDelayUs)) {
                 thrustImbalanceDetected = true;
             }
         } else {
             thrustImbalanceTriggerUs = 0;
-            if (thrustImbalanceUntriggerUs != 0 && cmpTimeUs(currentTimeUs, thrustImbalanceUntriggerUs) >= 0) {
-                thrustImbalanceUntriggerUs = 0;
+
+            if (thrustImbalanceDetected 
+                && checkOrScheduleTrigger(currentTimeUs, &thrustImbalanceUntriggerUs, untriggerDelayUs)) {
                 thrustImbalanceDetected = false;
             }
         }
 
         DEBUG_SET(DEBUG_THRUST_IMBALANCE, 0, thrustImbalanceDetected ? 1 : 0);
         DEBUG_SET(DEBUG_THRUST_IMBALANCE, 1, currentPidProfile->thrust_imbalance_threshold);
-        DEBUG_SET(DEBUG_THRUST_IMBALANCE, 2, iMult / 1e5f);
+        DEBUG_SET(DEBUG_THRUST_IMBALANCE, 2, iMult / THRUST_IMBALANCE_CONFIG_TO_WORKING_DOMAIN);
         DEBUG_SET(DEBUG_THRUST_IMBALANCE, 3, detectionEnabled ? 1 : 0);
     } else {
         thrustImbalanceTriggerUs = 0;
