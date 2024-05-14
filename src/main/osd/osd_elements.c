@@ -1044,7 +1044,7 @@ static void osdElementFlymode(osdElementParms_t *element)
     } else if (FLIGHT_MODE(ANGLE_MODE)) {
         strcpy(element->buff, "ANGL");
     } else if (FLIGHT_MODE(ALTHOLD_MODE)) {
-        strcpy(element->buff, "AHM ");
+        strcpy(element->buff, "ALTH");
     } else if (FLIGHT_MODE(HORIZON_MODE)) {
         strcpy(element->buff, "HOR ");
     } else if (IS_RC_MODE_ACTIVE(BOXACROTRAINER)) {
