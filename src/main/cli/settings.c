@@ -1094,6 +1094,10 @@ const clivalue_t valueTable[] = {
 
     { "althold_throttle_min",       VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, minThrottle) },
     { "althold_throttle_max",       VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, maxThrottle) },
+
+    { "althold_enter_fade_deciseconds", VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 10 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, enterFadeTimeDecisec) },
+    { "althold_exit_fade_deciseconds",  VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 30 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, exitFadeTimeDecisec) },
+
 #endif
 
 // PG_PID_CONFIG

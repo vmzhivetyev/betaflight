@@ -25,11 +25,8 @@
 #include "pg/pg_ids.h"
 
 #define ALTHOLD_TASK_PERIOD 100         // hz
-#define ALTHOLD_ENTER_PERIOD 50         // ms
-#define ALTHOLD_MAX_EXIT_PERIOD 3000    // ms
 
-
-typedef struct altholdConfig_s {
+typedef struct {
     uint8_t velPidP;
     uint8_t velPidD;
 
@@ -39,7 +36,8 @@ typedef struct altholdConfig_s {
     uint8_t minThrottle;
     uint8_t maxThrottle;
 
-    uint8_t angleLimit;
+    uint8_t enterFadeTimeDecisec;
+    uint8_t exitFadeTimeDecisec;
 } altholdConfig_t;
 
 PG_DECLARE(altholdConfig_t, altholdConfig);

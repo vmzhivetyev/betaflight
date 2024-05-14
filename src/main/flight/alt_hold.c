@@ -47,6 +47,9 @@ PG_RESET_TEMPLATE(altholdConfig_t, altholdConfig,
 
     .minThrottle = 6,
     .maxThrottle = 65,
+
+    .enterFadeTimeDecisec = 1, // 0.1s
+    .exitFadeTimeDecisec = 1, // 0.1s
 );
 
 
@@ -128,6 +131,8 @@ void altHoldInit(altHoldState_s* altHoldState)
 
 void altHoldProcessTransitions(altHoldState_s* altHoldState) {
     bool newAltHoldEnabled = FLIGHT_MODE(ALTHOLD_MODE);
+    uint32_t enterFadeMs = decisecondsToMillis(altholdConfig()->enterFadeTimeDecisec);
+    uint32_t exitFadeMs = decisecondsToMillis(altholdConfig()->exitFadeTimeDecisec);
 
     if (FLIGHT_MODE(GPS_RESCUE_MODE) || failsafeIsActive()) {
         newAltHoldEnabled = false;
@@ -146,8 +151,8 @@ void altHoldProcessTransitions(altHoldState_s* altHoldState) {
 
     if (newAltHoldEnabled) {
         uint32_t timeSinceEnter = currTime - altHoldState->enterTime;
-        if (timeSinceEnter < ALTHOLD_ENTER_PERIOD) {
-            float delta = (float)timeSinceEnter / ALTHOLD_ENTER_PERIOD;
+        if (timeSinceEnter < enterFadeMs) {
+            float delta = (float)timeSinceEnter / (float)enterFadeMs;
             altHoldState->throttleFactor = MAX(delta, altHoldState->throttleFactor);
         } else {
             altHoldState->throttleFactor = 1.0f;
@@ -161,13 +166,15 @@ void altHoldProcessTransitions(altHoldState_s* altHoldState) {
     }
 
     uint32_t timeSinceExit = currTime - altHoldState->exitTime;
-    if (timeSinceExit < ALTHOLD_MAX_EXIT_PERIOD) {
-        float delta = (float)timeSinceExit / ALTHOLD_MAX_EXIT_PERIOD;
+    if (timeSinceExit < exitFadeMs) {
+        float delta = (float)timeSinceExit / (float)exitFadeMs;
         altHoldState->throttleFactor = MIN(altHoldState->throttleFactor, 1.0f - delta);
         return;
     }
 
     altHoldState->throttleFactor = 0.0f;
+    // Probably a good idea to add this. Tho currTime is millis and it overflows in 49 days.
+    // altHoldState->exitTime = 0;
 }
 
 void altHoldUpdate(altHoldState_s* altHoldState)
