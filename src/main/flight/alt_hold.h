@@ -27,6 +27,8 @@
 #define ALTHOLD_TASK_PERIOD 100         // hz
 
 typedef struct {
+    // Needs throttle PID loop like GPS rescue?
+
     uint8_t velPidP;
     uint8_t velPidD;
 
