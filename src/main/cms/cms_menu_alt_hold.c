@@ -41,9 +41,10 @@
 
 static uint8_t altholdConfig_velPidP;
 static uint8_t altholdConfig_velPidD;
+static uint8_t altholdConfig_velPidI;
 
 static uint8_t altholdConfig_altPidP;
-static uint8_t altholdConfig_altPidI;
+static uint8_t altholdConfig_altPidD;
 
 static uint8_t altholdConfig_minThrottle;
 static uint8_t altholdConfig_maxThrottle;
@@ -57,9 +58,10 @@ static const void *cmsx_menuAltitudeHoldOnEnter(displayPort_t *pDisp)
 
     altholdConfig_velPidP = altholdConfig()->velPidP;
     altholdConfig_velPidD = altholdConfig()->velPidD;
+    altholdConfig_velPidI = altholdConfig()->velPidI;
 
     altholdConfig_altPidP = altholdConfig()->altPidP;
-    altholdConfig_altPidI = altholdConfig()->altPidI;
+    altholdConfig_altPidD = altholdConfig()->altPidD;
 
     altholdConfig_minThrottle = altholdConfig()->minThrottle;
     altholdConfig_maxThrottle = altholdConfig()->maxThrottle;
@@ -77,9 +79,10 @@ static const void *cmsx_menuAltitudeHoldOnExit(displayPort_t *pDisp, const OSD_E
 
     altholdConfigMutable()->velPidP = altholdConfig_velPidP;
     altholdConfigMutable()->velPidD = altholdConfig_velPidD;
+    altholdConfigMutable()->velPidI = altholdConfig_velPidI;
 
     altholdConfigMutable()->altPidP = altholdConfig_altPidP;
-    altholdConfigMutable()->altPidI = altholdConfig_altPidI;
+    altholdConfigMutable()->altPidD = altholdConfig_altPidD;
 
     altholdConfigMutable()->minThrottle = altholdConfig_minThrottle;
     altholdConfigMutable()->maxThrottle = altholdConfig_maxThrottle;
@@ -96,9 +99,10 @@ const OSD_Entry cmsx_menuAltitudeHoldEntries[] =
 
     { "VELOCITY P",        OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_velPidP, 0, 200, 1 } },
     { "VELOCITY D",        OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_velPidD, 0, 200, 1 } },
+    { "VELOCITY I",        OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_velPidI, 0, 200, 1 } },
 
     { "ALTITUDE P",        OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_altPidP, 0, 200, 1 } },
-    { "ALTITUDE I",        OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_altPidI, 0, 200, 1 } },
+    { "ALTITUDE D",        OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_altPidD, 0, 200, 1 } },
 
     { "MIN THRTL",         OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_minThrottle, 0, 50, 1 } },
     { "MAX THRTL",         OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_maxThrottle, 30, 100, 1 } },

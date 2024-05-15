@@ -21,22 +21,23 @@
 
 #ifdef USE_ALTHOLD_MODE
 #include "common/time.h"
+#include "common/filter.h"
 #include "pg/pg.h"
 #include "pg/pg_ids.h"
 
 #define ALTHOLD_TASK_PERIOD 100         // hz
 
 typedef struct {
-    // Needs throttle PID loop like GPS rescue?
+    uint8_t altPidP; // 1 - 100
+    uint8_t altPidD; // 1 - 100
+    // uint8_t altPidI;
 
-    uint8_t velPidP;
-    uint8_t velPidD;
+    uint8_t velPidP; // 1 - 100
+    uint8_t velPidD; // 1 - 100
+    uint8_t velPidI; // 1 - 100
 
-    uint8_t altPidP;
-    uint8_t altPidI;
-
-    uint8_t minThrottle;
-    uint8_t maxThrottle;
+    uint8_t minThrottle; // 1 - 100
+    uint8_t maxThrottle; // 1 - 100
 
     uint8_t enterFadeTimeDecisec;
     uint8_t exitFadeTimeDecisec;
@@ -62,12 +63,15 @@ typedef struct {
     float targetAltitude;
     float measuredAltitude;
     float measuredAccel;
-    float velocityEstimationAccel;  // based on acceleration
-    float startVelocityEstimationAccel;
+    float velocityEstimate;
     bool altHoldEnabled;
     uint32_t enterTime;
     uint32_t exitTime;
     float smoothedAltitude;
+    float smoothedVelocity;
+    pt2Filter_t throttleLpf;
+    pt1Filter_t altitudeLpf;
+    pt1Filter_t velocityLpf;
 } altHoldState_s;
 
 
