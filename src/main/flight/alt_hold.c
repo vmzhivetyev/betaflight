@@ -59,31 +59,42 @@ PG_RESET_TEMPLATE(altholdConfig_t, altholdConfig,
 );
 
 
-void simplePidInit(simplePid_s* simplePid, float min, float max, float kp, float kd, float ki, float iMax)
-{
+void nicePidInit(
+    nicePid_s* simplePid, 
+    float min, float max, 
+    float kp, float kd, float ki, float iMax, 
+    float dCutoff_f, float intervalSeconds
+) {
     simplePid->max = max;
     simplePid->min = min;
     simplePid->kp = kp;
     simplePid->kd = kd;
     simplePid->ki = ki;
+    simplePid->iMax = iMax;
+
     simplePid->lastErr = 0;
     simplePid->integral = 0;
-    simplePid->iMax = iMax;
+    float gain = pt2FilterGain(dCutoff_f, intervalSeconds);
+    pt2FilterInit(&simplePid->dTermLpf, gain);
 }
 
-float simplePidCalculate(simplePid_s* simplePid, float dt, float targetValue, float measuredValue)
+float nicePidCalculate(nicePid_s* simplePid, float dt, float targetValue, float measuredValue)
 {
+    // todo: update PT2 filter gain if dt changes.
+
     float error = targetValue - measuredValue;
 
-    float pOut = simplePid->kp * error;
-
-    float iOut = simplePid->integral;
-
+    // I term
     simplePid->integral += simplePid->ki * error * dt;
     simplePid->integral += constrainf(simplePid->integral, -simplePid->iMax, simplePid->iMax);
 
+    // D term
     float derivative = (error - simplePid->lastErr) / dt;
-    float dOut = simplePid->kd * derivative;
+
+    // output
+    float pOut = simplePid->kp * error;
+    float iOut = simplePid->integral;
+    float dOut = simplePid->kd * pt2FilterApply(&simplePid->dTermLpf, derivative);
 
     float output = pOut + iOut + dOut;
     output = constrainf(output, simplePid->min, simplePid->max);

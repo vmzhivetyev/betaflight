@@ -52,10 +52,12 @@ typedef struct {
     float kp;
     float kd;
     float ki;
+    float iMax;
+
     float lastErr;
     float integral;
-    float iMax;
-} simplePid_s;
+    pt2Filter_t dTermLpf;
+} nicePid_s;
 
 typedef struct {
     simplePid_s altPid;
