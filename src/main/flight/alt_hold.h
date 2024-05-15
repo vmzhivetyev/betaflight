@@ -28,20 +28,18 @@
 #define ALTHOLD_TASK_PERIOD 100         // hz
 
 typedef struct {
-    uint8_t altPidP; // 1 - 100
-    uint8_t altPidD; // 1 - 100
-    // uint8_t altPidI;
+    uint8_t throttlePidP; // %
+    uint8_t throttlePidD; // %
+    uint8_t throttlePidI; // %
+    uint8_t throttlePidIMax; // %
+    uint8_t throttlePidDFiltCutoffFreq; // 1 == 0.1 Hz
 
-    uint8_t velPidP; // 1 - 100
-    uint8_t velPidD; // 1 - 100
-    uint8_t velPidI; // 1 - 100
-    uint8_t velPidIMax; // 1 - 100
+    uint8_t minThrottle; // %
+    uint8_t maxThrottle; // %
+    uint8_t hoverThrottle; // %
 
-    uint8_t minThrottle; // 1 - 100
-    uint8_t maxThrottle; // 1 - 100
-
-    uint8_t enterFadeTimeDecisec;
-    uint8_t exitFadeTimeDecisec;
+    uint8_t enterFadeTimeDecisec; // 1 == 0.1s
+    uint8_t exitFadeTimeDecisec; // 1 == 0.1s
 } altholdConfig_t;
 
 PG_DECLARE(altholdConfig_t, altholdConfig);
@@ -60,22 +58,17 @@ typedef struct {
 } nicePid_s;
 
 typedef struct {
-    simplePid_s altPid;
-    simplePid_s velPid;
+    nicePid_s throttlePid;
     float throttle;
     float throttleFactor;
     float targetAltitude;
     float measuredAltitude;
-    float measuredAccel;
-    float velocityEstimate;
     bool altHoldEnabled;
     uint32_t enterTime;
     uint32_t exitTime;
     float smoothedAltitude;
-    float smoothedVelocity;
     pt2Filter_t throttleLpf;
-    pt1Filter_t altitudeLpf;
-    pt1Filter_t velocityLpf;
+    pt2Filter_t altitudeLpf;
 } altHoldState_s;
 
 

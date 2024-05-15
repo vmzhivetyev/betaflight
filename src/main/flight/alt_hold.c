@@ -38,24 +38,24 @@
 #include "build/debug.h"
 
 #define ALTHOLD_DELTATIME 1.0f/(float)ALTHOLD_TASK_PERIOD
+#define ALTHOLD_ALTITUDE_FILTER_CUTOFF_HZ 5
+#define ALTHOLD_THROTTLE_FILTER_CUTOFF_HZ 5
 
 PG_REGISTER_WITH_RESET_TEMPLATE(altholdConfig_t, altholdConfig, PG_ALTHOLD_CONFIG, 3);
 
 PG_RESET_TEMPLATE(altholdConfig_t, altholdConfig,
-    .altPidP = 70,
-    .altPidD = 2,
-    // .altPidI = 0,
+    .throttlePidP = 10, // %
+    .throttlePidD = 10, // %
+    .throttlePidI = 5, // %
+    .throttlePidIMax = 40, // %
+    .throttlePidDFiltCutoffFreq = 60, // 1 == 0.1 Hz
 
-    .velPidP = 10,
-    .velPidD = 5,
-    .velPidI = 40,
-    .velPidIMax = 40,
+    .minThrottle = 0, // %
+    .maxThrottle = 30, // %
+    .hoverThrottle = 20, // %
 
-    .minThrottle = 0,
-    .maxThrottle = 35,
-
-    .enterFadeTimeDecisec = 1, // 0.1s
-    .exitFadeTimeDecisec = 1, // 0.1s
+    .enterFadeTimeDecisec = 1, // 1 == 0.1s
+    .exitFadeTimeDecisec = 1, // 1 == 0.1s
 );
 
 
@@ -114,33 +114,19 @@ float getCurrentAltitude(void)
     return 0.01f * getEstimatedAltitudeCm(); // it is smoothed internally by PT2
 }
 
-// void altHoldUpdateSmoothedAltitude(altHoldState_s* altHoldState)
-// {
-//     float reportedAltitude = getCurrentAltitude();
-
-//     if (altHoldState->smoothedAltitude == 0.0f) {
-//         altHoldState->smoothedAltitude = reportedAltitude;
-//     }
-//     float smoothFactor = 0.98f;
-//     altHoldState->smoothedAltitude = (1.0f - smoothFactor) * reportedAltitude + smoothFactor * altHoldState->smoothedAltitude;
-
-
-// }
-
 void altHoldReset(altHoldState_s* altHoldState)
 {
-    simplePidInit(&altHoldState->altPid, -5.0f, 5.0f,
-                  0.01f * altholdConfig()->altPidP,
-                  0.01f * altholdConfig()->altPidD,
-                  0,
-                  5);
+    nicePidInit(
+        &altHoldState->throttlePid,
+        -1.0f, 1.0f,
+        0.01f * altholdConfig()->throttlePidP,
+        0.01f * altholdConfig()->throttlePidD,
+        0.01f * altholdConfig()->throttlePidI,
+        0.01f * altholdConfig()->throttlePidIMax,
+        0.1f * altholdConfig()->throttlePidDFiltCutoffFreq,
+        ALTHOLD_DELTATIME    
+    );
 
-    simplePidInit(&altHoldState->velPid, -1.0f, 1.0f,
-                  0.01f * altholdConfig()->velPidP,
-                  0.01f * altholdConfig()->velPidD,
-                  0.01f * altholdConfig()->velPidI,
-                  0.01f * altholdConfig()->velPidIMax);
-    
     altHoldState->throttle = mixerGetThrottle();
 
     altHoldState->enterTime = millis();
@@ -148,24 +134,21 @@ void altHoldReset(altHoldState_s* altHoldState)
     altHoldState->targetAltitude = altHoldState->smoothedAltitude;
 
     pt2FilterInit(&altHoldState->throttleLpf, 
-        pt2FilterGain(1, ALTHOLD_DELTATIME)
+        pt2FilterGain(ALTHOLD_THROTTLE_FILTER_CUTOFF_HZ, ALTHOLD_DELTATIME)
     );
+
+    pt2FilterInit(&altHoldState->altitudeLpf, 
+        pt2FilterGain(ALTHOLD_ALTITUDE_FILTER_CUTOFF_HZ, ALTHOLD_DELTATIME)
+    );
+
+    // Make next filter output to be equal to current throttle.
     pt2FilterSetState(&altHoldState->throttleLpf, altHoldState->throttle);
-
-    pt1FilterInit(&altHoldState->altitudeLpf, 
-        pt1FilterGain(1, ALTHOLD_DELTATIME)
-    );
-
-    pt1FilterInit(&altHoldState->velocityLpf, 
-        pt1FilterGain(1, ALTHOLD_DELTATIME)
-    );
 }
 
 void altHoldInit(altHoldState_s* altHoldState)
 {
     altHoldState->altHoldEnabled = false;
     altHoldState->throttleFactor = 0.0f;
-    altHoldState->velocityEstimate = 0.0f;
     altHoldReset(altHoldState);
 }
 
@@ -221,49 +204,26 @@ void altHoldUpdate(altHoldState_s* altHoldState)
 {
     altHoldProcessTransitions(altHoldState);
 
-    t_fp_vector accelerationVector = {{
-        acc.accADC[X],
-        acc.accADC[Y],
-        acc.accADC[Z]
-    }};
-
-    imuTransformVectorBodyToEarth(&accelerationVector);
-
     float measuredAltitude = getCurrentAltitude();
-    float measuredAccel = 9.8f * (accelerationVector.V.Z - acc.dev.acc_1G) / acc.dev.acc_1G;
-
     altHoldState->measuredAltitude = measuredAltitude;
-    altHoldState->measuredAccel = measuredAccel;
+    altHoldState->smoothedAltitude = pt2FilterApply(&altHoldState->altitudeLpf, altHoldState->measuredAltitude);
 
-    altHoldState->velocityEstimate += measuredAccel * ALTHOLD_DELTATIME;
-    altHoldState->velocityEstimate *= 0.999f;
-
-    altHoldState->smoothedAltitude = pt1FilterApply(&altHoldState->altitudeLpf, altHoldState->measuredAltitude);
-    altHoldState->smoothedVelocity = pt1FilterApply(&altHoldState->velocityLpf, altHoldState->velocityEstimate);
-
-    DEBUG_SET(DEBUG_ALTHOLD, 0, (int16_t)(100.0f * measuredAccel));
-
-    DEBUG_SET(DEBUG_ALTHOLD, 1, (int16_t)(100.0f * altHoldState->velocityEstimate));
-    DEBUG_SET(DEBUG_ALTHOLD, 2, (int16_t)(100.0f * altHoldState->smoothedVelocity));
-
-    DEBUG_SET(DEBUG_ALTHOLD, 3, (int16_t)(100.0f * altHoldState->measuredAltitude));
-    DEBUG_SET(DEBUG_ALTHOLD, 4, (int16_t)(100.0f * altHoldState->smoothedAltitude));
-    DEBUG_SET(DEBUG_ALTHOLD, 5, (int16_t)(100.0f * altHoldState->targetAltitude));
+    // DEBUG_SET(DEBUG_ALTHOLD, 3, (int16_t)(100.0f * altHoldState->measuredAltitude));
+    // DEBUG_SET(DEBUG_ALTHOLD, 4, (int16_t)(100.0f * altHoldState->smoothedAltitude));
+    // DEBUG_SET(DEBUG_ALTHOLD, 5, (int16_t)(100.0f * altHoldState->targetAltitude));
 
     if (altHoldState->altHoldEnabled) {
-        float velocityTarget = simplePidCalculate(&altHoldState->altPid, ALTHOLD_DELTATIME, altHoldState->targetAltitude, altHoldState->smoothedAltitude);
+        float throttleAdjustment = nicePidCalculate(
+            &altHoldState->throttlePid,
+            ALTHOLD_DELTATIME, 
+            altHoldState->targetAltitude,
+            altHoldState->smoothedAltitude
+        );
 
-        DEBUG_SET(DEBUG_ALTHOLD, 6, (int16_t)(100.0f * velocityTarget));
+        float newThrottle = altholdConfig()->hoverThrottle + throttleAdjustment;
 
-        float accelerationTarget = simplePidCalculate(&altHoldState->velPid, ALTHOLD_DELTATIME, velocityTarget, altHoldState->smoothedVelocity);
-
-        DEBUG_SET(DEBUG_ALTHOLD, 7, (int16_t)(100.0f * accelerationTarget));
-
-        // means it will go 100% throttle when max velPid PID output is produced.
-        float newThrottle = accelerationTarget + 0.2; // Roughly hover throttle is always around 20%. Let's be on the safe side.
-
-        // newThrottle = scaleRangef(newThrottle, 0.0f, 1.0f, 0.01f * altholdConfig()->minThrottle, 0.01f * altholdConfig()->maxThrottle);
         newThrottle = constrainf(newThrottle, 0.01f * altholdConfig()->minThrottle, 0.01f * altholdConfig()->maxThrottle);
+        newThrottle = constrainf(newThrottle, 0, 1);
 
         newThrottle = pt2FilterApply(&altHoldState->throttleLpf, newThrottle);
 
