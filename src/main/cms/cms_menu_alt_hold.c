@@ -49,6 +49,8 @@ static uint8_t altholdConfig_minThrottle;
 static uint8_t altholdConfig_maxThrottle;
 static uint8_t altholdConfig_hoverThrottle;
 
+static uint16_t altholdConfig_maxAltitude;
+
 static uint8_t altholdConfig_enterFadeTimeDecisec;
 static uint8_t altholdConfig_exitFadeTimeDecisec;
 
@@ -65,6 +67,8 @@ static const void *cmsx_menuAltitudeHoldOnEnter(displayPort_t *pDisp)
     altholdConfig_minThrottle = altholdConfig()->minThrottle;
     altholdConfig_maxThrottle = altholdConfig()->maxThrottle;
     altholdConfig_hoverThrottle = altholdConfig()->hoverThrottle;
+
+    altholdConfig_maxAltitude = altholdConfig()->maxAltitude;
 
     altholdConfig_enterFadeTimeDecisec = altholdConfig()->enterFadeTimeDecisec;
     altholdConfig_exitFadeTimeDecisec = altholdConfig()->exitFadeTimeDecisec;
@@ -87,6 +91,8 @@ static const void *cmsx_menuAltitudeHoldOnExit(displayPort_t *pDisp, const OSD_E
     altholdConfigMutable()->maxThrottle =                   altholdConfig_maxThrottle;
     altholdConfigMutable()->hoverThrottle =                 altholdConfig_hoverThrottle;
 
+    altholdConfigMutable()->maxAltitude =                   altholdConfig_maxAltitude;
+
     altholdConfigMutable()->enterFadeTimeDecisec = altholdConfig_enterFadeTimeDecisec;
     altholdConfigMutable()->exitFadeTimeDecisec = altholdConfig_exitFadeTimeDecisec;
 
@@ -106,6 +112,8 @@ const OSD_Entry cmsx_menuAltitudeHoldEntries[] =
     { "MIN THRTL",         OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_minThrottle, 0, 50, 1 } },
     { "MAX THRTL",         OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_maxThrottle, 20, 100, 1 } },
     { "HOVER THRTL",       OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_hoverThrottle, 0, 100, 1 } },
+
+    { "MAX ALTITUDE",       OME_UINT16, NULL, &(OSD_UINT8_t){ &altholdConfig_hoverThrottle, 0, 4000, 1 } },
 
     { "ENTER FADE T",      OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_enterFadeTimeDecisec, 0, 10, 1 } },
     { "EXIT  FADE T",      OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_exitFadeTimeDecisec, 0, 30, 1 } },

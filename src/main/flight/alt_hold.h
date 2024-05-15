@@ -38,6 +38,8 @@ typedef struct {
     uint8_t maxThrottle; // %
     uint8_t hoverThrottle; // %
 
+    uint16_t maxAltitude; // meters
+
     uint8_t enterFadeTimeDecisec; // 1 == 0.1s
     uint8_t exitFadeTimeDecisec; // 1 == 0.1s
 } altholdConfig_t;

@@ -54,6 +54,8 @@ PG_RESET_TEMPLATE(altholdConfig_t, altholdConfig,
     .maxThrottle = 30, // %
     .hoverThrottle = 20, // %
 
+    .maxAltitude = 100, // meters
+
     .enterFadeTimeDecisec = 1, // 1 == 0.1s
     .exitFadeTimeDecisec = 1, // 1 == 0.1s
 );
@@ -219,7 +221,18 @@ void processThrottleInput(altHoldState_s* altHoldState)
         return;
     }
 
+    float prevTargetAltitude = altHoldState->targetAltitude;
     altHoldState->targetAltitude += effect * maxAltitudeChangeSpeed * ALTHOLD_DELTATIME;
+
+    if (altholdConfig()->maxAltitude != 0) {
+        float altitudeLimit = (float)altholdConfig()->maxAltitude;
+
+        // if new > limit and old <= limit then clamp.
+        //      So we don't clamp in case when we enabled the ALTHOLD above limit.
+        if (altHoldState->targetAltitude > altitudeLimit && prevTargetAltitude <= altitudeLimit) {
+            altHoldState->targetAltitude = altitudeLimit;
+        }
+    }
 }
 
 void altHoldUpdate(altHoldState_s* altHoldState)
