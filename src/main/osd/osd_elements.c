@@ -341,7 +341,9 @@ static void osdFormatAltitudeString(char * buff, int32_t altitudeCm, osdElementT
         buff[pos++] = SYM_ARROW_EAST;
 
         // add target altitude float
-        osdPrintFloat(buff + pos, SYM_NONE, osdGetMetersToSelectedUnit(getAltHoldTargetAltitude()), "", 1, true, SYM_NONE);
+        // convert to cm because osdGetMetersToSelectedUnit() gets input as int.
+        float targetAltCm = getAltHoldTargetAltitude() * 100.0f;
+        osdPrintFloat(buff + pos, SYM_NONE, osdGetMetersToSelectedUnit(targetAltCm) / 100.0f, "", 1, true, SYM_NONE);
     }
 #else
     UNUSED(pos);
