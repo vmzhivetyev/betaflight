@@ -131,7 +131,6 @@ void altHoldReset(altHoldState_s* altHoldState)
                   0.01f * altholdConfig()->velPidIMax);
     
     altHoldState->throttle = mixerGetThrottle();
-    pt2FilterSetState(&altHoldState->throttleLpf, altHoldState->throttle);
 
     altHoldState->enterTime = millis();
     altHoldState->exitTime = 0;
@@ -141,6 +140,7 @@ void altHoldReset(altHoldState_s* altHoldState)
     pt2FilterInit(&altHoldState->throttleLpf, 
         pt2FilterGain(1, ALTHOLD_DELTATIME)
     );
+    pt2FilterSetState(&altHoldState->throttleLpf, altHoldState->throttle);
 
     pt1FilterInit(&altHoldState->altitudeLpf, 
         pt1FilterGain(1, ALTHOLD_DELTATIME)
