@@ -48,7 +48,8 @@ PG_RESET_TEMPLATE(altholdConfig_t, altholdConfig,
 
     .velPidP = 7,
     .velPidD = 2,
-    .velPidI = 80,
+    .velPidI = 20,
+    .velPidIMax = 40,
 
     .minThrottle = 0,
     .maxThrottle = 35,
@@ -75,9 +76,10 @@ float simplePidCalculate(simplePid_s* simplePid, float dt, float targetValue, fl
 
     float pOut = simplePid->kp * error;
 
-    float iOut = simplePid->ki * simplePid->integral;
+    float iOut = simplePid->integral;
 
-    simplePid->integral += error * dt;
+    simplePid->integral += simplePid->ki * error * dt;
+    simplePid->integral += constrainf(simplePid->integral, -simplePid->iMax, simplePid->iMax);
 
     float derivative = (error - simplePid->lastErr) / dt;
     float dOut = simplePid->kd * derivative;

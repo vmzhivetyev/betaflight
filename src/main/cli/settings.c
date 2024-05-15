@@ -1089,6 +1089,7 @@ const clivalue_t valueTable[] = {
     { "althold_vel_pid_p",          VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, velPidP) },
     { "althold_vel_pid_d",          VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, velPidD) },
     { "althold_vel_pid_i",          VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, velPidI) },
+    { "althold_vel_pid_imax",       VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, velPidIMax) },
 
     { "althold_alt_pid_p",          VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, altPidP) },
     { "althold_alt_pid_d",          VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, altPidD) },

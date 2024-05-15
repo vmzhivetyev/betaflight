@@ -42,6 +42,7 @@
 static uint8_t altholdConfig_velPidP;
 static uint8_t altholdConfig_velPidD;
 static uint8_t altholdConfig_velPidI;
+static uint8_t altholdConfig_velPidIMax;
 
 static uint8_t altholdConfig_altPidP;
 static uint8_t altholdConfig_altPidD;
@@ -59,6 +60,7 @@ static const void *cmsx_menuAltitudeHoldOnEnter(displayPort_t *pDisp)
     altholdConfig_velPidP = altholdConfig()->velPidP;
     altholdConfig_velPidD = altholdConfig()->velPidD;
     altholdConfig_velPidI = altholdConfig()->velPidI;
+    altholdConfig_velPidIMax = altholdConfig()->velPidIMax;
 
     altholdConfig_altPidP = altholdConfig()->altPidP;
     altholdConfig_altPidD = altholdConfig()->altPidD;
@@ -80,6 +82,7 @@ static const void *cmsx_menuAltitudeHoldOnExit(displayPort_t *pDisp, const OSD_E
     altholdConfigMutable()->velPidP = altholdConfig_velPidP;
     altholdConfigMutable()->velPidD = altholdConfig_velPidD;
     altholdConfigMutable()->velPidI = altholdConfig_velPidI;
+    altholdConfigMutable()->velPidIMax = altholdConfig_velPidIMax;
 
     altholdConfigMutable()->altPidP = altholdConfig_altPidP;
     altholdConfigMutable()->altPidD = altholdConfig_altPidD;
@@ -100,6 +103,7 @@ const OSD_Entry cmsx_menuAltitudeHoldEntries[] =
     { "VELOCITY P",        OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_velPidP, 0, 200, 1 } },
     { "VELOCITY D",        OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_velPidD, 0, 200, 1 } },
     { "VELOCITY I",        OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_velPidI, 0, 200, 1 } },
+    { "VELOC I MAX",        OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_velPidIMax, 0, 100, 1 } },
 
     { "ALTITUDE P",        OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_altPidP, 0, 200, 1 } },
     { "ALTITUDE D",        OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_altPidD, 0, 200, 1 } },

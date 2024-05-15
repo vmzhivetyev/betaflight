@@ -35,6 +35,7 @@ typedef struct {
     uint8_t velPidP; // 1 - 100
     uint8_t velPidD; // 1 - 100
     uint8_t velPidI; // 1 - 100
+    uint8_t velPidIMax; // 1 - 100
 
     uint8_t minThrottle; // 1 - 100
     uint8_t maxThrottle; // 1 - 100
@@ -53,6 +54,7 @@ typedef struct {
     float ki;
     float lastErr;
     float integral;
+    float iMax;
 } simplePid_s;
 
 typedef struct {
