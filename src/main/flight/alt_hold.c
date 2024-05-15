@@ -134,8 +134,7 @@ void altHoldReset(altHoldState_s* altHoldState)
 
     altHoldState->enterTime = millis();
     altHoldState->exitTime = 0;
-    altHoldState->targetAltitude = getCurrentAltitude();
-    altHoldState->smoothedAltitude = altHoldState->targetAltitude;
+    altHoldState->targetAltitude = altHoldState->smoothedAltitude;
 
     pt2FilterInit(&altHoldState->throttleLpf, 
         pt2FilterGain(1, ALTHOLD_DELTATIME)
