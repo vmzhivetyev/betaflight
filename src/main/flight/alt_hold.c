@@ -255,6 +255,7 @@ void altHoldUpdate(altHoldState_s* altHoldState)
     if (altHoldState->altHoldEnabled) {
         float throttleMin = 0.01f * altholdConfig()->minThrottle;
         float throttleMax = 0.01f * altholdConfig()->maxThrottle;
+        float hoverThrottle = 0.01f * altholdConfig()->hoverThrottle;
 
         float pidOutput = nicePidCalculate(
             &altHoldState->throttlePid,
@@ -263,7 +264,7 @@ void altHoldUpdate(altHoldState_s* altHoldState)
             altHoldState->smoothedAltitude
         );
 
-        float newThrottle = altholdConfig()->hoverThrottle + pidOutput;
+        float newThrottle = hoverThrottle + pidOutput;
 
         // clamp before filter
         newThrottle = constrainf(newThrottle, throttleMin, throttleMax);
@@ -275,7 +276,7 @@ void altHoldUpdate(altHoldState_s* altHoldState)
         DEBUG_SET(DEBUG_ALTHOLD, 4, (int16_t)(100.0f * newThrottle)); // 4 - throttle after filter
 
         float tiltAdjustment = 1.0f - getCosTiltAngle(); // 0 = flat, gets to 0.2 correcting on a windy day
-        tiltAdjustment *= altholdConfig()->hoverThrottle;
+        tiltAdjustment *= hoverThrottle;
         newThrottle += tiltAdjustment;
 
         DEBUG_SET(DEBUG_ALTHOLD, 5, (int16_t)(100.0f * tiltAdjustment)); // 5 - tilt throttle adjustment
