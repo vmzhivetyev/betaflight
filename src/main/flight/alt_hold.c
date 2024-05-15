@@ -220,24 +220,29 @@ void altHoldUpdate(altHoldState_s* altHoldState)
     altHoldState->measuredAltitude = measuredAltitude;
     altHoldState->measuredAccel = measuredAccel;
 
-    DEBUG_SET(DEBUG_ALTHOLD, 0, (int16_t)(100.0f * measuredAccel));
-
     altHoldState->velocityEstimate += measuredAccel * ALTHOLD_DELTATIME;
     altHoldState->velocityEstimate *= 0.999f;
-
-    DEBUG_SET(DEBUG_ALTHOLD, 1, (int16_t)(100.0f * altHoldState->velocityEstimate));
 
     altHoldState->smoothedAltitude = pt1FilterApply(&altHoldState->altitudeLpf, altHoldState->measuredAltitude);
     altHoldState->smoothedVelocity = pt1FilterApply(&altHoldState->velocityLpf, altHoldState->velocityEstimate);
 
+    DEBUG_SET(DEBUG_ALTHOLD, 0, (int16_t)(100.0f * measuredAccel));
+
+    DEBUG_SET(DEBUG_ALTHOLD, 1, (int16_t)(100.0f * altHoldState->velocityEstimate));
+    DEBUG_SET(DEBUG_ALTHOLD, 2, (int16_t)(100.0f * altHoldState->smoothedVelocity));
+
+    DEBUG_SET(DEBUG_ALTHOLD, 3, (int16_t)(100.0f * altHoldState->measuredAltitude));
+    DEBUG_SET(DEBUG_ALTHOLD, 4, (int16_t)(100.0f * altHoldState->smoothedAltitude));
+    DEBUG_SET(DEBUG_ALTHOLD, 5, (int16_t)(100.0f * altHoldState->targetAltitude));
+
     if (altHoldState->altHoldEnabled) {
         float velocityTarget = simplePidCalculate(&altHoldState->altPid, ALTHOLD_DELTATIME, altHoldState->targetAltitude, altHoldState->smoothedAltitude);
 
-        DEBUG_SET(DEBUG_ALTHOLD, 2, (int16_t)(100.0f * velocityTarget));
+        DEBUG_SET(DEBUG_ALTHOLD, 6, (int16_t)(100.0f * velocityTarget));
 
         float accelerationTarget = simplePidCalculate(&altHoldState->velPid, ALTHOLD_DELTATIME, velocityTarget, altHoldState->smoothedVelocity);
 
-        DEBUG_SET(DEBUG_ALTHOLD, 3, (int16_t)(100.0f * accelerationTarget));
+        DEBUG_SET(DEBUG_ALTHOLD, 7, (int16_t)(100.0f * accelerationTarget));
 
         // means it will go 100% throttle when max velPid PID output is produced.
         float newThrottle = accelerationTarget; 
