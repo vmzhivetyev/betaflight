@@ -208,9 +208,9 @@ void altHoldUpdate(altHoldState_s* altHoldState)
     altHoldState->measuredAltitude = measuredAltitude;
     altHoldState->smoothedAltitude = pt2FilterApply(&altHoldState->altitudeLpf, altHoldState->measuredAltitude);
 
-    // DEBUG_SET(DEBUG_ALTHOLD, 3, (int16_t)(100.0f * altHoldState->measuredAltitude));
-    // DEBUG_SET(DEBUG_ALTHOLD, 4, (int16_t)(100.0f * altHoldState->smoothedAltitude));
-    // DEBUG_SET(DEBUG_ALTHOLD, 5, (int16_t)(100.0f * altHoldState->targetAltitude));
+    DEBUG_SET(DEBUG_ALTHOLD, 0, (int16_t)(100.0f * altHoldState->targetAltitude)); // 0
+    DEBUG_SET(DEBUG_ALTHOLD, 1, (int16_t)(100.0f * altHoldState->measuredAltitude)); // 1
+    DEBUG_SET(DEBUG_ALTHOLD, 2, (int16_t)(100.0f * altHoldState->smoothedAltitude)); // 2
 
     if (altHoldState->altHoldEnabled) {
         float throttleMin = 0.01f * altholdConfig()->minThrottle;
@@ -231,16 +231,22 @@ void altHoldUpdate(altHoldState_s* altHoldState)
 
         newThrottle = pt2FilterApply(&altHoldState->throttleLpf, newThrottle);
 
+        DEBUG_SET(DEBUG_ALTHOLD, 3, (int16_t)(100.0f * pidOutput));  // 3 - throttle adjustment from pid loop
+        DEBUG_SET(DEBUG_ALTHOLD, 4, (int16_t)(100.0f * newThrottle)); // 4 - throttle after filter
+
         float tiltAdjustment = 1.0f - getCosTiltAngle(); // 0 = flat, gets to 0.2 correcting on a windy day
         tiltAdjustment *= altholdConfig()->hoverThrottle;
         newThrottle += tiltAdjustment;
 
+        DEBUG_SET(DEBUG_ALTHOLD, 5, (int16_t)(100.0f * tiltAdjustment)); // 5 - tilt throttle adjustment
 
         // clamp in the end once more
         newThrottle = constrainf(newThrottle, throttleMin, throttleMax);
         newThrottle = constrainf(newThrottle, 0, 1);
 
         altHoldState->throttle = newThrottle;
+
+        DEBUG_SET(DEBUG_ALTHOLD, 6, (int16_t)(100.0f * newThrottle)); // 6 - final throttle value
     }
 }
 
