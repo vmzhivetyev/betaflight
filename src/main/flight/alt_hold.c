@@ -200,9 +200,32 @@ void altHoldProcessTransitions(altHoldState_s* altHoldState) {
     // altHoldState->exitTime = 0;
 }
 
+void processThrottleInput(altHoldState_s* altHoldState)
+{
+    float throttleInput = scaleRangef(rcCommand[THROTTLE], 1000.f, 2000.f, -1.0f, 1.0f); // 0.0f to 1.0f
+
+    float deadZoneSize = 0.5f;
+    float negativeDeadZoneEdge = -1.0f * deadZoneSize / 2.0f;
+    float positiveDeadZoneEdge = deadZoneSize / 2.0f;
+    float maxAltitudeChangeSpeed = 3.0f; // m/s
+    float effect = 0; // from -1f to 1f
+
+    if (throttleInput < negativeDeadZoneEdge) {
+        effect = scaleRangef(throttleInput, -1.0f, negativeDeadZoneEdge, -1.0f, 0.0f);
+
+    } else if (throttleInput > positiveDeadZoneEdge) {
+        effect = scaleRangef(throttleInput, positiveDeadZoneEdge, 1.0f, 0.0f, 1.0f);
+    } else {
+        return;
+    }
+
+    altHoldState->targetAltitude += effect * maxAltitudeChangeSpeed * ALTHOLD_DELTATIME;
+}
+
 void altHoldUpdate(altHoldState_s* altHoldState)
 {
     altHoldProcessTransitions(altHoldState);
+    processThrottleInput(altHoldState);
 
     float measuredAltitude = getCurrentAltitude();
     altHoldState->measuredAltitude = measuredAltitude;
