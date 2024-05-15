@@ -75,8 +75,16 @@ typedef struct {
 
 
 void initAltHoldState(void);
+
 void updateAltHoldState(timeUs_t currentTimeUs);
+
 float getAltHoldThrottle(void);
+
 float getAltHoldThrottleFactor(float currentThrottle);
+
+ // In meters.
+float getAltHoldTargetAltitude(void);
+
+bool getAltHoldActive(void);
 
 #endif

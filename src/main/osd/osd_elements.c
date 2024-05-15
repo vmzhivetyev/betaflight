@@ -150,6 +150,7 @@
 #include "flight/imu.h"
 #include "flight/mixer.h"
 #include "flight/pid.h"
+#include "flight/alt_hold.h"
 
 #include "io/gps.h"
 #include "io/vtx.h"
@@ -330,7 +331,21 @@ static void osdFormatAltitudeString(char * buff, int32_t altitudeCm, osdElementT
         decimalPlaces = 1;
         break;
     }
-    osdPrintFloat(buff, SYM_ALTITUDE, osdGetMetersToSelectedUnit(altitudeCm) / 100.0f, "", decimalPlaces, true, unitSymbol);
+    
+    int pos = osdPrintFloat(buff, SYM_ALTITUDE, osdGetMetersToSelectedUnit(altitudeCm) / 100.0f, "", decimalPlaces, true, unitSymbol);
+
+#ifdef USE_ALTHOLD_MODE
+    if (getAltHoldActive()) { // append the target altitude
+        // replace trailing '\0' with arrow
+        // 0x77 can be a good alternative to SYM_ARROW_EAST. https://betaflight.com/docs/development/osd-glyps
+        buff[pos++] = SYM_ARROW_EAST;
+
+        // add target altitude float
+        osdPrintFloat(buff + pos, SYM_NONE, osdGetMetersToSelectedUnit(getAltHoldTargetAltitude()), "", 1, true, SYM_NONE);
+    }
+#else
+    UNUSED(pos);
+#endif
 }
 
 #ifdef USE_GPS

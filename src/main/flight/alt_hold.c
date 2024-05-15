@@ -204,6 +204,10 @@ void altHoldProcessTransitions(altHoldState_s* altHoldState) {
 
 void processThrottleInput(altHoldState_s* altHoldState)
 {
+    if (!altHoldState->altHoldEnabled) {
+        return;
+    }
+
     float throttleInput = scaleRangef(rcCommand[THROTTLE], 1000.f, 2000.f, -1.0f, 1.0f); // 0.0f to 1.0f
 
     float deadZoneSize = 0.5f;
@@ -310,6 +314,14 @@ float getAltHoldThrottleFactor(float currentThrottle) {
         altHoldState.exitTime = 0;
     }
     return altHoldState.throttleFactor;
+}
+
+float getAltHoldTargetAltitude(void) {
+    return altHoldState.targetAltitude;
+}
+
+bool getAltHoldActive(void) {
+    return altHoldState.altHoldEnabled;
 }
 
 #endif
