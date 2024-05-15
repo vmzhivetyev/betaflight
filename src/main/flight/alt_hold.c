@@ -59,7 +59,7 @@ PG_RESET_TEMPLATE(altholdConfig_t, altholdConfig,
 );
 
 
-void simplePidInit(simplePid_s* simplePid, float min, float max, float kp, float kd, float ki)
+void simplePidInit(simplePid_s* simplePid, float min, float max, float kp, float kd, float ki, float iMax)
 {
     simplePid->max = max;
     simplePid->min = min;
@@ -68,6 +68,7 @@ void simplePidInit(simplePid_s* simplePid, float min, float max, float kp, float
     simplePid->ki = ki;
     simplePid->lastErr = 0;
     simplePid->integral = 0;
+    simplePid->iMax = iMax;
 }
 
 float simplePidCalculate(simplePid_s* simplePid, float dt, float targetValue, float measuredValue)
@@ -120,12 +121,14 @@ void altHoldReset(altHoldState_s* altHoldState)
     simplePidInit(&altHoldState->altPid, -5.0f, 5.0f,
                   0.01f * altholdConfig()->altPidP,
                   0.01f * altholdConfig()->altPidD,
-                  0);
+                  0,
+                  5);
 
     simplePidInit(&altHoldState->velPid, -1.0f, 1.0f,
                   0.01f * altholdConfig()->velPidP,
                   0.01f * altholdConfig()->velPidD,
-                  0.01f * altholdConfig()->velPidI);
+                  0.01f * altholdConfig()->velPidI,
+                  0.01f * altholdConfig()->velPidIMax);
     
     altHoldState->throttle = mixerGetThrottle();
     pt2FilterSetState(&altHoldState->throttleLpf, altHoldState->throttle);
