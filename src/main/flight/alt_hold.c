@@ -93,7 +93,7 @@ float nicePidCalculate(nicePid_s* simplePid, float dt, float targetValue, float 
 
     // I term
     simplePid->integral += simplePid->ki * error * dt;
-    simplePid->integral += constrainf(simplePid->integral, -simplePid->iMax, simplePid->iMax);
+    simplePid->integral = constrainf(simplePid->integral, -simplePid->iMax, simplePid->iMax);
 
     // D term
     float derivative = (error - simplePid->lastErr) / dt;
