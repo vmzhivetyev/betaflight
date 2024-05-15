@@ -227,6 +227,10 @@ void altHoldUpdate(altHoldState_s* altHoldState)
 
         newThrottle = pt2FilterApply(&altHoldState->throttleLpf, newThrottle);
 
+        float tiltAdjustment = 1.0f - getCosTiltAngle(); // 0 = flat, gets to 0.2 correcting on a windy day
+        tiltAdjustment *= altholdConfig()->hoverThrottle;
+        newThrottle += tiltAdjustment;
+
         altHoldState->throttle = newThrottle;
     }
 }
