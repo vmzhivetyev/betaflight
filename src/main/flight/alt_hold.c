@@ -186,10 +186,13 @@ void altHoldProcessTransitions(altHoldState_s* altHoldState) {
         newAltHoldEnabled = false;
     }
 
+    // Toggled on
     if (newAltHoldEnabled && !altHoldState->altHoldEnabled)
     {
         altHoldReset(altHoldState);
     }
+
+    // Toggled off
     if (!newAltHoldEnabled && altHoldState->altHoldEnabled) {
         altHoldState->exitTime = millis();
     }
