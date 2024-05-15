@@ -55,6 +55,9 @@ typedef struct {
     float iMax;
 
     float lastErr;
+    // float lastP;
+    // float lastI;
+    // float lastD;
     float integral;
     pt2Filter_t dTermLpf;
 } nicePid_s;

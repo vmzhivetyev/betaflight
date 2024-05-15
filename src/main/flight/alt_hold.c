@@ -76,6 +76,11 @@ void nicePidInit(
 
     simplePid->lastErr = 0;
     simplePid->integral = 0;
+
+    // simplePid->lastP = 0;
+    // simplePid->lastI = 0;
+    // simplePid->lastD = 0;
+
     float gain = pt2FilterGain(dCutoff_f, intervalSeconds);
     pt2FilterInit(&simplePid->dTermLpf, gain);
 }
@@ -99,9 +104,27 @@ float nicePidCalculate(nicePid_s* simplePid, float dt, float targetValue, float 
     float dOut = simplePid->kd * pt2FilterApply(&simplePid->dTermLpf, derivative);
 
     float output = pOut + iOut + dOut;
-    output = constrainf(output, simplePid->min, simplePid->max);
 
     simplePid->lastErr = error;
+    
+    DEBUG_SET(DEBUG_ALTHOLD, 0, (int16_t)(100.0f * targetValue));
+    DEBUG_SET(DEBUG_ALTHOLD, 1, (int16_t)(100.0f * measuredValue));
+    DEBUG_SET(DEBUG_ALTHOLD, 2, (int16_t)(100.0f * dOut));
+    DEBUG_SET(DEBUG_ALTHOLD, 3, (int16_t)(100.0f * pOut));
+    DEBUG_SET(DEBUG_ALTHOLD, 4, (int16_t)(100.0f * iOut));
+    DEBUG_SET(DEBUG_ALTHOLD, 5, (int16_t)(100.0f * (pOut + iOut + dOut)));
+
+    output = constrainf(output, simplePid->min, simplePid->max);
+
+    // 0 - targetAlt
+    // 1 - smoothedAlt
+    // 2 - d smoothed
+    // 3 - p
+    // 4 - i
+    // 5 - pid sum (not clamped)
+    // 6 - hover throttle + pid out (after throttleFilter)
+    // 7 - final throttle value (after adding tilt and clamping)
+
     return output;
 }
 
@@ -248,9 +271,14 @@ void altHoldUpdate(altHoldState_s* altHoldState)
     altHoldState->measuredAltitude = measuredAltitude;
     altHoldState->smoothedAltitude = pt2FilterApply(&altHoldState->altitudeLpf, altHoldState->measuredAltitude);
 
-    DEBUG_SET(DEBUG_ALTHOLD, 0, (int16_t)(100.0f * altHoldState->targetAltitude)); // 0
-    DEBUG_SET(DEBUG_ALTHOLD, 1, (int16_t)(100.0f * altHoldState->measuredAltitude)); // 1
-    DEBUG_SET(DEBUG_ALTHOLD, 2, (int16_t)(100.0f * altHoldState->smoothedAltitude)); // 2
+    // 0 - targetAlt
+    // 1 - smoothedAlt
+    // 2 - d smoothed
+    // 3 - p
+    // 4 - i
+    // 5 - pid sum (not clamped)
+    // 6 - hover throttle + pid out (after throttleFilter)
+    // 7 - final throttle value (after adding tilt and clamping)
 
     if (altHoldState->altHoldEnabled) {
         float throttleMin = 0.01f * altholdConfig()->minThrottle;
@@ -270,16 +298,17 @@ void altHoldUpdate(altHoldState_s* altHoldState)
         newThrottle = constrainf(newThrottle, throttleMin, throttleMax);
         newThrottle = constrainf(newThrottle, 0, 1);
 
+        // filter throttle
         newThrottle = pt2FilterApply(&altHoldState->throttleLpf, newThrottle);
 
-        DEBUG_SET(DEBUG_ALTHOLD, 3, (int16_t)(100.0f * pidOutput));  // 3 - throttle adjustment from pid loop
-        DEBUG_SET(DEBUG_ALTHOLD, 4, (int16_t)(100.0f * newThrottle)); // 4 - throttle after filter
+        DEBUG_SET(DEBUG_ALTHOLD, 6, (int16_t)(100.0f * newThrottle)); // hoverThrottle + pidOutput (after filter)
 
+        // add tilt
         float tiltAdjustment = 1.0f - getCosTiltAngle(); // 0 = flat, gets to 0.2 correcting on a windy day
         tiltAdjustment *= hoverThrottle;
         newThrottle += tiltAdjustment;
 
-        DEBUG_SET(DEBUG_ALTHOLD, 5, (int16_t)(100.0f * tiltAdjustment)); // 5 - tilt throttle adjustment
+        // DEBUG_SET(DEBUG_ALTHOLD, 5, (int16_t)(100.0f * tiltAdjustment)); // 5 - tilt throttle adjustment
 
         // clamp in the end once more
         newThrottle = constrainf(newThrottle, throttleMin, throttleMax);
@@ -287,7 +316,7 @@ void altHoldUpdate(altHoldState_s* altHoldState)
 
         altHoldState->throttle = newThrottle;
 
-        DEBUG_SET(DEBUG_ALTHOLD, 6, (int16_t)(100.0f * newThrottle)); // 6 - final throttle value
+        DEBUG_SET(DEBUG_ALTHOLD, 7, (int16_t)(100.0f * newThrottle)); // final throttle value (with tilt and clamped)
     }
 }
 
