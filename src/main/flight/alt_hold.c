@@ -182,7 +182,7 @@ void altHoldProcessTransitions(altHoldState_s* altHoldState) {
     uint32_t enterFadeMs = decisecondsToMillis(altholdConfig()->enterFadeTimeDecisec);
     uint32_t exitFadeMs = decisecondsToMillis(altholdConfig()->exitFadeTimeDecisec);
 
-    if (FLIGHT_MODE(GPS_RESCUE_MODE) || failsafeIsActive()) {
+    if (FLIGHT_MODE(GPS_RESCUE_MODE) || failsafeIsActive() || !ARMING_FLAG(ARMED)) {
         newAltHoldEnabled = false;
     }
 
