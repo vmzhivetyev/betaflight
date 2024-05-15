@@ -42,13 +42,13 @@
 PG_REGISTER_WITH_RESET_TEMPLATE(altholdConfig_t, altholdConfig, PG_ALTHOLD_CONFIG, 3);
 
 PG_RESET_TEMPLATE(altholdConfig_t, altholdConfig,
-    .altPidP = 50,
-    .altPidD = 1,
+    .altPidP = 70,
+    .altPidD = 2,
     // .altPidI = 0,
 
-    .velPidP = 7,
-    .velPidD = 2,
-    .velPidI = 20,
+    .velPidP = 10,
+    .velPidD = 5,
+    .velPidI = 40,
     .velPidIMax = 40,
 
     .minThrottle = 0,
@@ -122,7 +122,7 @@ void altHoldReset(altHoldState_s* altHoldState)
                   0.01f * altholdConfig()->altPidD,
                   0);
 
-    simplePidInit(&altHoldState->velPid, 0.0f, 1.0f,
+    simplePidInit(&altHoldState->velPid, -1.0f, 1.0f,
                   0.01f * altholdConfig()->velPidP,
                   0.01f * altholdConfig()->velPidD,
                   0.01f * altholdConfig()->velPidI);
@@ -247,9 +247,10 @@ void altHoldUpdate(altHoldState_s* altHoldState)
         DEBUG_SET(DEBUG_ALTHOLD, 7, (int16_t)(100.0f * accelerationTarget));
 
         // means it will go 100% throttle when max velPid PID output is produced.
-        float newThrottle = accelerationTarget; 
+        float newThrottle = accelerationTarget + 0.2; // Roughly hover throttle is always around 20%. Let's be on the safe side.
 
-        newThrottle = scaleRangef(newThrottle, 0.0f, 1.0f, 0.01f * altholdConfig()->minThrottle, 0.01f * altholdConfig()->maxThrottle);
+        // newThrottle = scaleRangef(newThrottle, 0.0f, 1.0f, 0.01f * altholdConfig()->minThrottle, 0.01f * altholdConfig()->maxThrottle);
+        newThrottle = constrainf(newThrottle, 0.01f * altholdConfig()->minThrottle, 0.01f * altholdConfig()->maxThrottle);
 
         newThrottle = pt2FilterApply(&altHoldState->throttleLpf, newThrottle);
 
