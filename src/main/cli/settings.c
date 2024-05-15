@@ -1093,7 +1093,7 @@ const clivalue_t valueTable[] = {
     { "althold_pid_d_cutoff",       VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 5, 250 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, throttlePidDFiltCutoffFreq) },
 
     { "althold_throttle_min",       VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 50 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, minThrottle) },
-    { "althold_throttle_max",       VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 20, 100 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, maxThrottle) },
+    { "althold_throttle_max",       VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, maxThrottle) },
     { "althold_throttle_hover",     VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, hoverThrottle) },
 
     { "althold_max_altitude",      VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 4000 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, maxAltitude) },
