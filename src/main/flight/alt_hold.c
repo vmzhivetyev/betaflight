@@ -236,10 +236,10 @@ void processThrottleInput(altHoldState_s* altHoldState)
 
     float throttleInput = scaleRangef(rcCommand[THROTTLE], 1000.f, 2000.f, -1.0f, 1.0f); // 0.0f to 1.0f
 
-    float deadZoneSize = 0.5f;
+    float deadZoneSize = 0.8f;
     float negativeDeadZoneEdge = -1.0f * deadZoneSize / 2.0f;
     float positiveDeadZoneEdge = deadZoneSize / 2.0f;
-    float maxAltitudeChangeSpeed = 3.0f; // m/s
+    float maxAltitudeChangeSpeed = 1.0f; // m/s
     float effect = 0; // from -1f to 1f
 
     if (throttleInput < negativeDeadZoneEdge) {
