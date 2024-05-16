@@ -88,6 +88,9 @@ float getAltHoldThrottleFactor(float currentThrottle);
  // In meters.
 float getAltHoldTargetAltitude(void);
 
+// In meters.
+float getAltHoldCurrentAltitude(void);
+
 bool getAltHoldActive(void);
 
 #endif

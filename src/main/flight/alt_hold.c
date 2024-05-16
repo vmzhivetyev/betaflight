@@ -118,9 +118,9 @@ float nicePidCalculate(nicePid_s* simplePid, float dt, float targetValue, float 
 
     // 0 - targetAlt
     // 1 - smoothedAlt
-    // 2 - d smoothed
-    // 3 - p
-    // 4 - i
+    // 2 - D term smoothed
+    // 3 - P term
+    // 4 - I term
     // 5 - pid sum (not clamped)
     // 6 - hover throttle + pid out (after throttleFilter)
     // 7 - final throttle value (after adding tilt and clamping)
@@ -351,6 +351,10 @@ float getAltHoldThrottleFactor(float currentThrottle) {
 
 float getAltHoldTargetAltitude(void) {
     return altHoldState.targetAltitude;
+}
+
+float getAltHoldCurrentAltitude(void) {
+    return altHoldState.smoothedAltitude;
 }
 
 bool getAltHoldActive(void) {

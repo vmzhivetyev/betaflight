@@ -332,6 +332,12 @@ static void osdFormatAltitudeString(char * buff, int32_t altitudeCm, osdElementT
         break;
     }
     
+#ifdef USE_ALTHOLD_MODE
+    if (getAltHoldActive()) {
+        altitudeCm = getAltHoldCurrentAltitude() * 100.0f;
+    }
+#endif
+    
     int pos = osdPrintFloat(buff, SYM_ALTITUDE, osdGetMetersToSelectedUnit(altitudeCm) / 100.0f, "", decimalPlaces, true, unitSymbol);
 
 #ifdef USE_ALTHOLD_MODE
