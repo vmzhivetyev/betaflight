@@ -109,11 +109,11 @@ const OSD_Entry cmsx_menuAltitudeHoldEntries[] =
     { "MAX THRTL",         OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_maxThrottle, 20, 100, 1 } },
     { "HOVER THRTL",       OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_hoverThrottle, 0, 100, 1 } },
 
-    { "PID P",        OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_throttlePidP, 0, 200, 1 } },
-    { "PID D",        OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_throttlePidD, 0, 200, 1 } },
-    { "PID I",        OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_throttlePidI, 0, 200, 1 } },
+    { "PID P",        OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_throttlePidP, 0, 255, 1 } },
+    { "PID D",        OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_throttlePidD, 0, 255, 1 } },
+    { "PID I",        OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_throttlePidI, 0, 255, 1 } },
     { "PID I MAX",    OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_throttlePidIMax, 0, 50, 1 } },
-    { "PID D CUTOFF", OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_throttlePidDFiltCutoffFreq, 5, 250, 1 } },
+    { "PID D CUTOFF", OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_throttlePidDFiltCutoffFreq, 5, 255, 1 } },
 
     { "ENTER FADE T",      OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_enterFadeTimeDecisec, 0, 10, 1 } },
     { "EXIT  FADE T",      OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_exitFadeTimeDecisec, 0, 30, 1 } },

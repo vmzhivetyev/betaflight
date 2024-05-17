@@ -1086,11 +1086,11 @@ const clivalue_t valueTable[] = {
     { "yaw_control_reversed",       VAR_INT8   | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_RC_CONTROLS_CONFIG, offsetof(rcControlsConfig_t, yaw_control_reversed) },
 
 #ifdef USE_ALTHOLD_MODE
-    { "althold_pid_p",              VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, throttlePidP) },
-    { "althold_pid_d",              VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, throttlePidD) },
-    { "althold_pid_i",              VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, throttlePidI) },
+    { "althold_pid_p",              VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 255 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, throttlePidP) },
+    { "althold_pid_d",              VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 255 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, throttlePidD) },
+    { "althold_pid_i",              VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 255 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, throttlePidI) },
     { "althold_pid_imax",           VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 50 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, throttlePidIMax) },
-    { "althold_pid_d_cutoff",       VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 5, 250 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, throttlePidDFiltCutoffFreq) },
+    { "althold_pid_d_cutoff",       VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 5, 255 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, throttlePidDFiltCutoffFreq) },
 
     { "althold_throttle_min",       VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 50 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, minThrottle) },
     { "althold_throttle_max",       VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, maxThrottle) },

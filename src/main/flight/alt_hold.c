@@ -145,7 +145,7 @@ void altHoldReset(altHoldState_s* altHoldState)
         &altHoldState->throttlePid,
         -1.0f, 1.0f,
         0.01f * altholdConfig()->throttlePidP,
-        0.01f * altholdConfig()->throttlePidD,
+        0.001f * altholdConfig()->throttlePidD,
         0.01f * altholdConfig()->throttlePidI,
         0.01f * altholdConfig()->throttlePidIMax,
         0.1f * altholdConfig()->throttlePidDFiltCutoffFreq,
