@@ -28,10 +28,10 @@
 #define ALTHOLD_TASK_PERIOD 100         // hz
 
 typedef struct {
-    uint8_t throttlePidP; // %
-    uint8_t throttlePidD; // %
-    uint8_t throttlePidI; // %
-    uint8_t throttlePidIMax; // %
+    uint8_t throttlePidP; // 1 == 0.1 %
+    uint8_t throttlePidD; // 1 == 0.1 %
+    uint8_t throttlePidI; // 1 == 0.1 %
+    uint8_t throttlePidIMax; // 1 == 1 %
 
     uint8_t throttlePidDFiltCutoffFreq; // 1 == 1 Hz
     uint8_t throttleFiltCutoffFreq; // 1 == 1 Hz

@@ -42,9 +42,9 @@
 PG_REGISTER_WITH_RESET_TEMPLATE(altholdConfig_t, altholdConfig, PG_ALTHOLD_CONFIG, 3);
 
 PG_RESET_TEMPLATE(altholdConfig_t, altholdConfig,
-    .throttlePidP = 10, // %
-    .throttlePidD = 10, // %
-    .throttlePidI = 5, // %
+    .throttlePidP = 50, // 50 == 5 %
+    .throttlePidD = 50, // 50 == 5 %
+    .throttlePidI = 50, // 50 == 5 %
     .throttlePidIMax = 40, // %
 
     .throttlePidDFiltCutoffFreq = 20, // 20 == 2 Hz
@@ -145,9 +145,9 @@ void altHoldReset(altHoldState_s* altHoldState)
     nicePidInit(
         &altHoldState->throttlePid,
         -1.0f, 1.0f,
-        0.01f * altholdConfig()->throttlePidP,
+        0.001f * altholdConfig()->throttlePidP,
         0.001f * altholdConfig()->throttlePidD,
-        0.01f * altholdConfig()->throttlePidI,
+        0.001f * altholdConfig()->throttlePidI,
         0.01f * altholdConfig()->throttlePidIMax,
         0.1f * altholdConfig()->throttlePidDFiltCutoffFreq,
         ALTHOLD_DELTATIME    
