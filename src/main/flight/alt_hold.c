@@ -167,8 +167,9 @@ void altHoldReset(altHoldState_s* altHoldState)
         pt2FilterGain(0.1f * altholdConfig()->altitudeFiltCutoffFreq, ALTHOLD_DELTATIME)
     );
 
-    // Make next filter output to be equal to current throttle.
-    pt2FilterSetState(&altHoldState->throttleLpf, altHoldState->throttle);
+    // Make next filter outputs to be equal to current values.
+    pt2FilterSetState(&altHoldState->altitudeLpf, altHoldState->smoothedAltitude);
+    pt2FilterSetState(&altHoldState->throttleLpf, mixerGetThrottle());
 }
 
 void altHoldInit(altHoldState_s* altHoldState)
