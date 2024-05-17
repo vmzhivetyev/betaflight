@@ -1090,7 +1090,10 @@ const clivalue_t valueTable[] = {
     { "althold_pid_d",              VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 255 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, throttlePidD) },
     { "althold_pid_i",              VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 255 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, throttlePidI) },
     { "althold_pid_imax",           VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 50 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, throttlePidIMax) },
+    
     { "althold_pid_d_cutoff",       VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 5, 255 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, throttlePidDFiltCutoffFreq) },
+    { "althold_throttle_cutoff",    VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 5, 255 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, throttleFiltCutoffFreq) },
+    { "althold_altitude_cutoff",    VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 5, 255 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, altitudeFiltCutoffFreq) },
 
     { "althold_throttle_min",       VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 50 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, minThrottle) },
     { "althold_throttle_max",       VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, maxThrottle) },

@@ -43,7 +43,10 @@ static uint8_t altholdConfig_throttlePidP;
 static uint8_t altholdConfig_throttlePidD;
 static uint8_t altholdConfig_throttlePidI;
 static uint8_t altholdConfig_throttlePidIMax;
+
 static uint8_t altholdConfig_throttlePidDFiltCutoffFreq;
+static uint8_t altholdConfig_throttleFiltCutoffFreq;
+static uint8_t altholdConfig_altitudeFiltCutoffFreq;
 
 static uint8_t altholdConfig_minThrottle;
 static uint8_t altholdConfig_maxThrottle;
@@ -62,7 +65,10 @@ static const void *cmsx_menuAltitudeHoldOnEnter(displayPort_t *pDisp)
     altholdConfig_throttlePidD = altholdConfig()->throttlePidD;
     altholdConfig_throttlePidI = altholdConfig()->throttlePidI;
     altholdConfig_throttlePidIMax = altholdConfig()->throttlePidIMax;
+
     altholdConfig_throttlePidDFiltCutoffFreq = altholdConfig()->throttlePidDFiltCutoffFreq;
+    altholdConfig_throttleFiltCutoffFreq = altholdConfig()->throttleFiltCutoffFreq;
+    altholdConfig_altitudeFiltCutoffFreq = altholdConfig()->altitudeFiltCutoffFreq;
 
     altholdConfig_minThrottle = altholdConfig()->minThrottle;
     altholdConfig_maxThrottle = altholdConfig()->maxThrottle;
@@ -85,7 +91,10 @@ static const void *cmsx_menuAltitudeHoldOnExit(displayPort_t *pDisp, const OSD_E
     altholdConfigMutable()->throttlePidD =                  altholdConfig_throttlePidD;
     altholdConfigMutable()->throttlePidI =                  altholdConfig_throttlePidI;
     altholdConfigMutable()->throttlePidIMax =               altholdConfig_throttlePidIMax;
+    
     altholdConfigMutable()->throttlePidDFiltCutoffFreq =    altholdConfig_throttlePidDFiltCutoffFreq;
+    altholdConfigMutable()->throttleFiltCutoffFreq =        altholdConfig_throttleFiltCutoffFreq;
+    altholdConfigMutable()->altitudeFiltCutoffFreq =        altholdConfig_altitudeFiltCutoffFreq;
 
     altholdConfigMutable()->minThrottle =                   altholdConfig_minThrottle;
     altholdConfigMutable()->maxThrottle =                   altholdConfig_maxThrottle;
@@ -109,11 +118,14 @@ const OSD_Entry cmsx_menuAltitudeHoldEntries[] =
     { "MAX THRTL",         OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_maxThrottle, 20, 100, 1 } },
     { "HOVER THRTL",       OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_hoverThrottle, 0, 100, 1 } },
 
-    { "PID P",        OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_throttlePidP, 0, 255, 1 } },
-    { "PID D",        OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_throttlePidD, 0, 255, 1 } },
-    { "PID I",        OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_throttlePidI, 0, 255, 1 } },
-    { "PID I MAX",    OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_throttlePidIMax, 0, 50, 1 } },
-    { "PID D CUTOFF", OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_throttlePidDFiltCutoffFreq, 5, 255, 1 } },
+    { "PID P",             OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_throttlePidP, 0, 255, 1 } },
+    { "PID D",             OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_throttlePidD, 0, 255, 1 } },
+    { "PID I",             OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_throttlePidI, 0, 255, 1 } },
+    { "PID I MAX",         OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_throttlePidIMax, 0, 50, 1 } },
+    
+    { "PID D CUTOFF",      OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_throttlePidDFiltCutoffFreq, 5, 255, 1 } },
+    { "THROTTLE CUTOFF",   OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_throttleFiltCutoffFreq, 5, 255, 1 } },
+    { "ALTITUDE CUTOFF",   OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_altitudeFiltCutoffFreq, 5, 255, 1 } },
 
     { "ENTER FADE T",      OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_enterFadeTimeDecisec, 0, 10, 1 } },
     { "EXIT  FADE T",      OME_UINT8, NULL, &(OSD_UINT8_t){ &altholdConfig_exitFadeTimeDecisec, 0, 30, 1 } },

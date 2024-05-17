@@ -32,11 +32,14 @@ typedef struct {
     uint8_t throttlePidD; // %
     uint8_t throttlePidI; // %
     uint8_t throttlePidIMax; // %
-    uint8_t throttlePidDFiltCutoffFreq; // 1 == 0.1 Hz
 
-    uint8_t minThrottle; // %
-    uint8_t maxThrottle; // %
-    uint8_t hoverThrottle; // %
+    uint8_t throttlePidDFiltCutoffFreq; // 1 == 1 Hz
+    uint8_t throttleFiltCutoffFreq; // 1 == 1 Hz
+    uint8_t altitudeFiltCutoffFreq; // 1 == 1 Hz
+
+    uint8_t minThrottle; // 1 == 1 %
+    uint8_t maxThrottle; // 1 == 1 %
+    uint8_t hoverThrottle; // 1 == 1 %
 
     uint16_t maxAltitude; // meters
 

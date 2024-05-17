@@ -38,8 +38,6 @@
 #include "build/debug.h"
 
 #define ALTHOLD_DELTATIME 1.0f/(float)ALTHOLD_TASK_PERIOD
-#define ALTHOLD_ALTITUDE_FILTER_CUTOFF_HZ 5
-#define ALTHOLD_THROTTLE_FILTER_CUTOFF_HZ 5
 
 PG_REGISTER_WITH_RESET_TEMPLATE(altholdConfig_t, altholdConfig, PG_ALTHOLD_CONFIG, 3);
 
@@ -48,7 +46,10 @@ PG_RESET_TEMPLATE(altholdConfig_t, altholdConfig,
     .throttlePidD = 10, // %
     .throttlePidI = 5, // %
     .throttlePidIMax = 40, // %
-    .throttlePidDFiltCutoffFreq = 60, // 1 == 0.1 Hz
+
+    .throttlePidDFiltCutoffFreq = 20, // 20 == 2 Hz
+    .throttleFiltCutoffFreq = 50, // 50 == 5 Hz
+    .altitudeFiltCutoffFreq = 50, // 50 == 5 Hz
 
     .minThrottle = 0, // %
     .maxThrottle = 30, // %
@@ -159,11 +160,11 @@ void altHoldReset(altHoldState_s* altHoldState)
     altHoldState->targetAltitude = altHoldState->smoothedAltitude;
 
     pt2FilterInit(&altHoldState->throttleLpf, 
-        pt2FilterGain(ALTHOLD_THROTTLE_FILTER_CUTOFF_HZ, ALTHOLD_DELTATIME)
+        pt2FilterGain(0.1f * altholdConfig()->throttleFiltCutoffFreq, ALTHOLD_DELTATIME)
     );
 
     pt2FilterInit(&altHoldState->altitudeLpf, 
-        pt2FilterGain(ALTHOLD_ALTITUDE_FILTER_CUTOFF_HZ, ALTHOLD_DELTATIME)
+        pt2FilterGain(0.1f * altholdConfig()->altitudeFiltCutoffFreq, ALTHOLD_DELTATIME)
     );
 
     // Make next filter output to be equal to current throttle.
