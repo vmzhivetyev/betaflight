@@ -86,11 +86,9 @@ void nicePidInit(
     pt2FilterInit(&simplePid->dTermLpf, gain);
 }
 
-float nicePidCalculate(nicePid_s* simplePid, float dt, float targetValue, float measuredValue)
+float nicePidCalculate(nicePid_s* simplePid, float dt, float targetValue, float currentValue)
 {
-    // todo: update PT2 filter gain if dt changes.
-
-    float error = targetValue - measuredValue;
+    float error = targetValue - currentValue;
 
     // I term
     simplePid->integral += simplePid->ki * error * dt;
@@ -108,12 +106,12 @@ float nicePidCalculate(nicePid_s* simplePid, float dt, float targetValue, float 
 
     simplePid->lastErr = error;
     
-    DEBUG_SET(DEBUG_ALTHOLD, 0, (int16_t)(100.0f * targetValue));
-    DEBUG_SET(DEBUG_ALTHOLD, 1, (int16_t)(100.0f * measuredValue));
-    DEBUG_SET(DEBUG_ALTHOLD, 2, (int16_t)(100.0f * dOut));
-    DEBUG_SET(DEBUG_ALTHOLD, 3, (int16_t)(100.0f * pOut));
-    DEBUG_SET(DEBUG_ALTHOLD, 4, (int16_t)(100.0f * iOut));
-    DEBUG_SET(DEBUG_ALTHOLD, 5, (int16_t)(100.0f * (pOut + iOut + dOut)));
+    DEBUG_SET(DEBUG_ALTHOLD, 0, (int16_t)(1000.0f * targetValue));
+    DEBUG_SET(DEBUG_ALTHOLD, 1, (int16_t)(1000.0f * currentValue));
+    DEBUG_SET(DEBUG_ALTHOLD, 2, (int16_t)(1000.0f * dOut));
+    DEBUG_SET(DEBUG_ALTHOLD, 3, (int16_t)(1000.0f * pOut));
+    DEBUG_SET(DEBUG_ALTHOLD, 4, (int16_t)(1000.0f * iOut));
+    DEBUG_SET(DEBUG_ALTHOLD, 5, (int16_t)(1000.0f * derivative));
 
     output = constrainf(output, simplePid->min, simplePid->max);
 
@@ -170,6 +168,15 @@ void altHoldReset(altHoldState_s* altHoldState)
     // Make next filter outputs to be equal to current values.
     pt2FilterSetState(&altHoldState->altitudeLpf, altHoldState->smoothedAltitude);
     pt2FilterSetState(&altHoldState->throttleLpf, mixerGetThrottle());
+
+    DEBUG_SET(DEBUG_ALTHOLD, 0, (int16_t)(11111));
+    DEBUG_SET(DEBUG_ALTHOLD, 1, (int16_t)(777));
+    DEBUG_SET(DEBUG_ALTHOLD, 2, (int16_t)(altholdConfig()->throttlePidD));
+    DEBUG_SET(DEBUG_ALTHOLD, 3, (int16_t)(altholdConfig()->throttlePidP));
+    DEBUG_SET(DEBUG_ALTHOLD, 4, (int16_t)(altholdConfig()->throttlePidI));
+    DEBUG_SET(DEBUG_ALTHOLD, 5, (int16_t)(altholdConfig()->altitudeFiltCutoffFreq));
+    DEBUG_SET(DEBUG_ALTHOLD, 6, (int16_t)(altholdConfig()->throttlePidDFiltCutoffFreq));
+    DEBUG_SET(DEBUG_ALTHOLD, 7, (int16_t)(altholdConfig()->throttleFiltCutoffFreq));
 }
 
 void altHoldInit(altHoldState_s* altHoldState)
@@ -269,9 +276,6 @@ void processThrottleInput(altHoldState_s* altHoldState)
 
 void altHoldUpdate(altHoldState_s* altHoldState)
 {
-    altHoldProcessTransitions(altHoldState);
-    processThrottleInput(altHoldState);
-
     float measuredAltitude = getCurrentAltitude();
     altHoldState->measuredAltitude = measuredAltitude;
     altHoldState->smoothedAltitude = pt2FilterApply(&altHoldState->altitudeLpf, altHoldState->measuredAltitude);
@@ -306,14 +310,12 @@ void altHoldUpdate(altHoldState_s* altHoldState)
         // filter throttle
         newThrottle = pt2FilterApply(&altHoldState->throttleLpf, newThrottle);
 
-        DEBUG_SET(DEBUG_ALTHOLD, 6, (int16_t)(100.0f * newThrottle)); // hoverThrottle + pidOutput (after filter)
+        DEBUG_SET(DEBUG_ALTHOLD, 6, (int16_t)(1000.0f * newThrottle)); // hoverThrottle + pidOutput (after filter)
 
         // add tilt
         float tiltAdjustment = 1.0f - getCosTiltAngle(); // 0 = flat, gets to 0.2 correcting on a windy day
         tiltAdjustment *= hoverThrottle;
         newThrottle += tiltAdjustment;
-
-        // DEBUG_SET(DEBUG_ALTHOLD, 5, (int16_t)(100.0f * tiltAdjustment)); // 5 - tilt throttle adjustment
 
         // clamp in the end once more
         newThrottle = constrainf(newThrottle, throttleMin, throttleMax);
@@ -321,8 +323,14 @@ void altHoldUpdate(altHoldState_s* altHoldState)
 
         altHoldState->throttle = newThrottle;
 
-        DEBUG_SET(DEBUG_ALTHOLD, 7, (int16_t)(100.0f * newThrottle)); // final throttle value (with tilt and clamped)
+        DEBUG_SET(DEBUG_ALTHOLD, 7, (int16_t)(1000.0f * newThrottle)); // final throttle value (with tilt and clamped)
     }
+
+    processThrottleInput(altHoldState);
+
+    // Give blackbox a chance to write things set by altHoldReset.
+    // Make sure we are writing data to the blackbox as the last entity in the task.
+    altHoldProcessTransitions(altHoldState);
 }
 
 altHoldState_s altHoldState;
