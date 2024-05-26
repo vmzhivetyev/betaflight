@@ -308,7 +308,9 @@ void altHoldUpdate(altHoldState_s* altHoldState)
         newThrottle = constrainf(newThrottle, 0, 1);
 
         // filter throttle
-        newThrottle = pt2FilterApply(&altHoldState->throttleLpf, newThrottle);
+        if (altholdConfig()->throttleFiltCutoffFreq != 255) {
+            newThrottle = pt2FilterApply(&altHoldState->throttleLpf, newThrottle);
+        }
 
         DEBUG_SET(DEBUG_ALTHOLD, 6, (int16_t)(1000.0f * newThrottle)); // hoverThrottle + pidOutput (after filter)
 
