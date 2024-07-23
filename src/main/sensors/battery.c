@@ -114,6 +114,7 @@ PG_RESET_TEMPLATE(batteryConfig_t, batteryConfig,
 
     // current
     .batteryCapacity = 0,
+    .currentMeterADCHz = SLOW_VOLTAGE_TASK_FREQ_HZ,
     .currentMeterSource = DEFAULT_CURRENT_METER_SOURCE,
 
     // cells
