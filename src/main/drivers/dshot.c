@@ -249,13 +249,15 @@ static void dshot_decode_telemetry_value(uint8_t motorIndex, uint32_t *pDecoded,
             *pDecoded = value & 0x00ff;
 
             // Update debug buffer, write this into LOW byte of debug field.
-            int8_t debugIndex = motorIndex;
-            if (debugIndex < motorCount && debugIndex < DEBUG16_VALUE_COUNT) {
-                int16_t receivedValue = (*pDecoded);
-                int16_t storedValue = debug[debugIndex] & 0xff00;
-                int16_t newValue = storedValue | receivedValue;
-                DEBUG_SET(DEBUG_DSHOT_EXTENDED_TELEMETRY, debugIndex, newValue);
-            }
+            do {
+                unsigned int debugIndex = motorIndex;
+                if (debugIndex < motorCount && debugIndex < DEBUG16_VALUE_COUNT) {
+                    int16_t receivedValue = (*pDecoded);
+                    int16_t storedValue = debug[debugIndex] & 0xff00;
+                    int16_t newValue = storedValue | receivedValue;
+                    DEBUG_SET(DEBUG_DSHOT_EXTENDED_TELEMETRY, debugIndex, newValue);
+                }
+            } while(0);
 
             // Set telemetry type
             *pType = DSHOT_TELEMETRY_TYPE_DEBUG3;
@@ -266,13 +268,15 @@ static void dshot_decode_telemetry_value(uint8_t motorIndex, uint32_t *pDecoded,
             *pDecoded = value & 0x00ff;
 
             // Update debug buffer, write this into HIGH byte of debug field.
-            int8_t debugIndex = motorIndex;
-            if (debugIndex < motorCount && debugIndex < DEBUG16_VALUE_COUNT) {
-                int16_t receivedValue = (*pDecoded);
-                int16_t storedValue = debug[debugIndex] & 0x00ff;
-                int16_t newValue = storedValue | (receivedValue << 8);
-                DEBUG_SET(DEBUG_DSHOT_EXTENDED_TELEMETRY, debugIndex, newValue);
-            }
+            do {
+                unsigned int debugIndex = motorIndex;
+                if (debugIndex < motorCount && debugIndex < DEBUG16_VALUE_COUNT) {
+                    int16_t receivedValue = (*pDecoded);
+                    int16_t storedValue = debug[debugIndex] & 0x00ff;
+                    int16_t newValue = storedValue | (receivedValue << 8);
+                    DEBUG_SET(DEBUG_DSHOT_EXTENDED_TELEMETRY, debugIndex, newValue);
+                }
+            } while(0);
 
             // Set telemetry type
             *pType = DSHOT_TELEMETRY_TYPE_STATE_EVENTS;
