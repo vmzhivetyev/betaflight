@@ -60,6 +60,30 @@ extern dshotTelemetryQuality_t dshotTelemetryQuality[MAX_SUPPORTED_MOTORS];
 #define DSHOT_NORMAL_TELEMETRY_MASK     (1 << DSHOT_TELEMETRY_TYPE_eRPM)
 #define DSHOT_EXTENDED_TELEMETRY_MASK   (~DSHOT_NORMAL_TELEMETRY_MASK)
 
+/**
+ * BlueJay Glossary.
+ * 
+ * ESC alert event -
+ *      In Bluejay, for example this is the demag event.
+ * 
+ * ESC warning event - 
+ *      Notifies suspecting or unusual behaviour. In Bluejay, for example this is the desync event.
+ * 
+ * ESC error event - 
+ *      Notifies a serious problem. In Bluejay, for example this is the stall event.
+ * 
+ * 0x0C frame: 
+ *  mov  Ext_Telemetry_L, Demag_Detected_Metric ; Set telemetry low value to demag metric data
+ * 
+ * 0x0E frame (1 flag is 1 bit):
+ *  ; Load flags
+    mov  C, Flag_Demag_Notify
+    mov  ACC.7, C
+    mov  C, Flag_Desync_Notify
+    mov  ACC.6, C
+    mov  C, Flag_Stall_Notify
+    mov  ACC.5, C
+ */
 typedef enum dshotTelemetryType_e {
     DSHOT_TELEMETRY_TYPE_eRPM           = 0,
     DSHOT_TELEMETRY_TYPE_TEMPERATURE    = 1,
@@ -67,8 +91,8 @@ typedef enum dshotTelemetryType_e {
     DSHOT_TELEMETRY_TYPE_CURRENT        = 3,
     DSHOT_TELEMETRY_TYPE_DEBUG1         = 4,
     DSHOT_TELEMETRY_TYPE_DEBUG2         = 5,
-    DSHOT_TELEMETRY_TYPE_DEBUG3         = 6,
-    DSHOT_TELEMETRY_TYPE_STATE_EVENTS   = 7,
+    DSHOT_TELEMETRY_TYPE_DEBUG3         = 6, // BlueJay: Stress level frame [0, 1, ..., 255]. aka Demag_Detected_Metric
+    DSHOT_TELEMETRY_TYPE_STATE_EVENTS   = 7, // BlueJay: Status frame: Bit[7] = demag event, Bit[6] = desync event, Bit[5] = stall event, Bit[3-0] - max stress level [0-15].
     DSHOT_TELEMETRY_TYPE_COUNT
 } dshotTelemetryType_t;
 
