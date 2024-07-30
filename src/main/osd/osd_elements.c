@@ -150,6 +150,7 @@
 #include "flight/imu.h"
 #include "flight/mixer.h"
 #include "flight/pid.h"
+#include "flight/alt_hold.h"
 
 #include "io/gps.h"
 #include "io/vtx.h"
@@ -334,10 +335,41 @@ static void osdFormatAltitudeString(char * buff, int32_t altitudeCm, osdElementT
         alt = getAltitudeAsl();
     }
 #endif
+    
+#ifdef USE_ALTHOLD_MODE
+    if (getAltHoldActive()) {
+        altitudeCm = getAltHoldCurrentAltitude() * 100.0f;
+    }
+#endif
+    
     unsigned decimalPlaces = variantMap[variantType].decimals;
     const char unitSymbol = osdGetMetersToSelectedUnitSymbol();
 
-    osdPrintFloat(buff, SYM_ALTITUDE, osdGetMetersToSelectedUnit(alt) / 100.0f, "", decimalPlaces, true, unitSymbol);
+    switch (variantType) {
+    case OSD_ELEMENT_TYPE_2:  // whole number altitude (no decimal places)
+        decimalPlaces = 0;
+        break;
+    case OSD_ELEMENT_TYPE_1:  // one decimal place (default)
+    default:
+        decimalPlaces = 1;
+        break;
+    }
+    int pos = osdPrintFloat(buff, SYM_ALTITUDE, osdGetMetersToSelectedUnit(alt) / 100.0f, "", decimalPlaces, true, unitSymbol);
+
+#ifdef USE_ALTHOLD_MODE
+    if (getAltHoldActive()) { // append the target altitude
+        // replace trailing '\0' with arrow
+        // 0x77 can be a good alternative to SYM_ARROW_EAST. https://betaflight.com/docs/development/osd-glyps
+        buff[pos++] = SYM_ARROW_EAST;
+
+        // add target altitude float
+        // convert to cm because osdGetMetersToSelectedUnit() gets input as int.
+        float targetAltCm = getAltHoldTargetAltitude() * 100.0f;
+        osdPrintFloat(buff + pos, SYM_NONE, osdGetMetersToSelectedUnit(targetAltCm) / 100.0f, "", 1, true, SYM_NONE);
+    }
+#else
+    UNUSED(pos);
+#endif
 }
 
 #ifdef USE_GPS
@@ -1038,7 +1070,7 @@ static void osdElementFlymode(osdElementParms_t *element)
     // Note that flight mode display has precedence in what to display.
     //  1. FS
     //  2. GPS RESCUE
-    //  3. ANGLE, HORIZON, ACRO TRAINER
+    //  3. ANGLE, HORIZON, ACRO TRAINER, ALTHOLD
     //  4. AIR
     //  5. ACRO
 
@@ -1050,6 +1082,8 @@ static void osdElementFlymode(osdElementParms_t *element)
         strcpy(element->buff, "HEAD");
     } else if (FLIGHT_MODE(ANGLE_MODE)) {
         strcpy(element->buff, "ANGL");
+    } else if (FLIGHT_MODE(ALTHOLD_MODE)) {
+        strcpy(element->buff, "ALTH");
     } else if (FLIGHT_MODE(HORIZON_MODE)) {
         strcpy(element->buff, "HOR ");
     } else if (IS_RC_MODE_ACTIVE(BOXACROTRAINER)) {
