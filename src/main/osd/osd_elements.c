@@ -333,10 +333,9 @@ static void osdFormatAltitudeString(char * buff, int32_t altitudeCm, osdElementT
         [OSD_ELEMENT_TYPE_4] = { 0, true },
     };
 
-    int32_t alt = altitudeCm;
 #ifdef USE_GPS
     if (variantMap[variantType].asl) {
-        alt = getAltitudeAsl();
+        altitudeCm = getAltitudeAsl();
     }
 #endif
     
