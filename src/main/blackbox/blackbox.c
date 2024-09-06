@@ -1701,13 +1701,13 @@ static bool blackboxWriteSysinfo(void)
 #endif // USE_GPS_RESCUE
 #endif // USE_GPS
 
-#ifdef USE_ALT_HOLD_MODE
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALT_HOLD_P, "%d",                  altholdConfig()->alt_hold_pid_p);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALT_HOLD_I, "%d",                  altholdConfig()->alt_hold_pid_i);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALT_HOLD_D, "%d",                  altholdConfig()->alt_hold_pid_d);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALT_HOLD_THROTTLE_MIN, "%d",       altholdConfig()->alt_hold_throttle_min);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALT_HOLD_THROTTLE_MAX, "%d",       altholdConfig()->alt_hold_throttle_max);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALT_HOLD_TARGET_ADJUST_RATE, "%d", altholdConfig()->alt_hold_target_adjust_rate);
+#ifdef USE_ALTHOLD_MODE
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_P, "%d",                  altholdConfig()->alt_hold_pid_p);
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_I, "%d",                  altholdConfig()->alt_hold_pid_i);
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_D, "%d",                  altholdConfig()->alt_hold_pid_d);
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_THROTTLE_MIN, "%d",       altholdConfig()->alt_hold_throttle_min);
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_THROTTLE_MAX, "%d",       altholdConfig()->alt_hold_throttle_max);
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_TARGET_ADJUST_RATE, "%d", altholdConfig()->alt_hold_target_adjust_rate);
 #endif
 
 #ifdef USE_WING

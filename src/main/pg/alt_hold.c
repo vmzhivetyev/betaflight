@@ -20,7 +20,7 @@
 
 #include "platform.h"
 
-#ifdef USE_ALT_HOLD_MODE
+#ifdef USE_ALTHOLD_MODE
 
 #include "flight/alt_hold.h"
 

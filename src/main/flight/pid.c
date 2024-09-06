@@ -813,16 +813,16 @@ static FAST_CODE_NOINLINE void disarmOnImpact(void)
         && ((getMaxRcDeflectionAbs() < 0.05f && mixerGetRcThrottle() < 0.05f)
             // we could test here for stage 2 failsafe (including both landing or GPS Rescue)
             // this may permit removing the GPS Rescue disarm method altogether
-#ifdef USE_ALT_HOLD_MODE
+#ifdef USE_ALTHOLD_MODE
             // or in altitude hold mode, including failsafe landing mode, indirectly
-            || FLIGHT_MODE(ALT_HOLD_MODE)
+            || FLIGHT_MODE(ALTHOLD_MODE)
 #endif
         )) {
         // increase sensitivity by 50% when low and in altitude hold or failsafe landing
         // for more reliable disarm with gentle controlled landings
         float lowAltitudeSensitivity = 1.0f;
-#ifdef USE_ALT_HOLD_MODE
-        lowAltitudeSensitivity = (FLIGHT_MODE(ALT_HOLD_MODE) && isAltitudeLow()) ? 1.5f : 1.0f;
+#ifdef USE_ALTHOLD_MODE
+        lowAltitudeSensitivity = (FLIGHT_MODE(ALTHOLD_MODE) && isAltitudeLow()) ? 1.5f : 1.0f;
 #endif
         // and disarm if accelerometer jerk exceeds threshold...
         if ((fabsf(acc.accDelta) * lowAltitudeSensitivity) > pidRuntime.landingDisarmThreshold) {
@@ -970,8 +970,8 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
     float horizonLevelStrength = 0.0f;
 
     const bool isExternalAngleModeRequest = FLIGHT_MODE(GPS_RESCUE_MODE)
-#ifdef USE_ALT_HOLD_MODE
-                || FLIGHT_MODE(ALT_HOLD_MODE) 
+#ifdef USE_ALTHOLD_MODE
+                || FLIGHT_MODE(ALTHOLD_MODE) 
 #endif
                 ;
     levelMode_e levelMode;

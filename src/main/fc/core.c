@@ -972,8 +972,8 @@ void processRxModes(timeUs_t currentTimeUs)
     bool canUseHorizonMode = true;
     if ((IS_RC_MODE_ACTIVE(BOXANGLE)
         || failsafeIsActive() 
-#ifdef USE_ALT_HOLD_MODE
-        || FLIGHT_MODE(ALT_HOLD_MODE)
+#ifdef USE_ALTHOLD_MODE
+        || FLIGHT_MODE(ALTHOLD_MODE)
 #endif
         ) && (sensors(SENSOR_ACC))) {
         // bumpless transfer to Level mode
@@ -986,7 +986,7 @@ void processRxModes(timeUs_t currentTimeUs)
         DISABLE_FLIGHT_MODE(ANGLE_MODE); // failsafe support
     }
 
-#ifdef USE_ALT_HOLD_MODE
+#ifdef USE_ALTHOLD_MODE
     // only if armed
     if (ARMING_FLAG(ARMED) 
         // and either the alt_hold switch is activated, or are in failsafe
@@ -999,11 +999,11 @@ void processRxModes(timeUs_t currentTimeUs)
         && isAltitudeAvailable()
         // and we have already taken off (to prevent activation on the ground), then enable althold
         && isAirmodeActivated()) {
-        if (!FLIGHT_MODE(ALT_HOLD_MODE)) {
-            ENABLE_FLIGHT_MODE(ALT_HOLD_MODE);
+        if (!FLIGHT_MODE(ALTHOLD_MODE)) {
+            ENABLE_FLIGHT_MODE(ALTHOLD_MODE);
         }
     } else {
-        DISABLE_FLIGHT_MODE(ALT_HOLD_MODE);
+        DISABLE_FLIGHT_MODE(ALTHOLD_MODE);
     }
 #endif
 
