@@ -40,6 +40,7 @@
 #include "config/feature.h"
 
 #include "drivers/display.h"
+#include "drivers/dshot.h"
 
 #include "io/displayport_max7456.h"
 
