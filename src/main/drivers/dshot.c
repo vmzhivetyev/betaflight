@@ -33,6 +33,7 @@
 
 #include "build/debug.h"
 #include "build/atomic.h"
+#include "build/debug.h"
 
 #include "common/filter.h"
 #include "common/maths.h"
@@ -53,7 +54,7 @@
 
 #include "dshot.h"
 
-#define ERPM_PER_LSB            100.0f
+#define ERPM_PER_LSB                        100.0f
 
 void dshotInitEndpoints(const motorConfig_t *motorConfig, float outputLimit, float *outputLow, float *outputHigh, float *disarm, float *deadbandMotor3dHigh, float *deadbandMotor3dLow)
 {
@@ -147,7 +148,6 @@ FAST_DATA_ZERO_INIT static float motorFrequencyHz[MAX_SUPPORTED_MOTORS];
 FAST_DATA_ZERO_INIT static float minMotorFrequencyHz;
 FAST_DATA_ZERO_INIT static float erpmToHz;
 FAST_DATA_ZERO_INIT static float dshotRpmAverage;
-FAST_DATA_ZERO_INIT static float dshotRpm[MAX_SUPPORTED_MOTORS];
 
 void initDshotTelemetry(const timeUs_t looptimeUs)
 {
@@ -167,7 +167,7 @@ void initDshotTelemetry(const timeUs_t looptimeUs)
     }
 }
 
-static uint32_t dshot_decode_eRPM_telemetry_value(uint16_t value)
+static uint32_t dshotDecodeErpmTelemetryValue(uint16_t value)
 {
     // eRPM range
     if (value == 0x0fff) {
@@ -175,7 +175,7 @@ static uint32_t dshot_decode_eRPM_telemetry_value(uint16_t value)
     }
 
     // Convert value to 16 bit from the GCR telemetry format (eeem mmmm mmmm)
-    value = (value & 0x01ff) << ((value & 0xfe00) >> 9);
+    value = (value & 0x01ff) << ((value & 0x0e00) >> 9);
     if (!value) {
         return DSHOT_TELEMETRY_INVALID;
     }
@@ -184,109 +184,96 @@ static uint32_t dshot_decode_eRPM_telemetry_value(uint16_t value)
     return (1000000 * 60 / 100 + value / 2) / value;
 }
 
-static void dshot_decode_telemetry_value(uint8_t motorIndex, uint32_t *pDecoded, dshotTelemetryType_t *pType)
+static void dshotStoreDebug(unsigned motorIndex, uint32_t decodedValue, debugType_e debugType)
 {
-    uint16_t value = dshotTelemetryState.motorState[motorIndex].rawValue;
-    const unsigned motorCount = motorDeviceCount();
-
-    if (dshotTelemetryState.motorState[motorIndex].telemetryTypes == DSHOT_NORMAL_TELEMETRY_MASK) {   /* Check DSHOT_TELEMETRY_TYPE_eRPM mask */
-        // Decode eRPM telemetry
-        *pDecoded = dshot_decode_eRPM_telemetry_value(value);
-
-        // Update debug buffer
-        if (motorIndex < motorCount && motorIndex < DEBUG16_VALUE_COUNT) {
-            DEBUG_SET(DEBUG_DSHOT_RPM_TELEMETRY, motorIndex, *pDecoded);
-        }
-
-        // Set telemetry type
-        *pType = DSHOT_TELEMETRY_TYPE_eRPM;
-    } else {
-        // Decode Extended DSHOT telemetry
-        switch (value & 0x0f00) {
-
-        case 0x0200:
-            // Temperature range (in degree Celsius, just like Blheli_32 and KISS)
-            *pDecoded = value & 0x00ff;
-
-            // Set telemetry type
-            *pType = DSHOT_TELEMETRY_TYPE_TEMPERATURE;
-            break;
-
-        case 0x0400:
-            // Voltage range (0-63,75V step 0,25V)
-            *pDecoded = value & 0x00ff;
-
-            // Set telemetry type
-            *pType = DSHOT_TELEMETRY_TYPE_VOLTAGE;
-            break;
-
-        case 0x0600:
-            // Current range (0-255A step 1A)
-            *pDecoded = value & 0x00ff;
-
-            // Set telemetry type
-            *pType = DSHOT_TELEMETRY_TYPE_CURRENT;
-            break;
-
-        case 0x0800:
-            // Debug 1 value
-            *pDecoded = value & 0x00ff;
-
-            // Set telemetry type
-            *pType = DSHOT_TELEMETRY_TYPE_DEBUG1;
-            break;
-
-        case 0x0A00:
-            // Debug 2 value
-            *pDecoded = value & 0x00ff;
-
-            // Set telemetry type
-            *pType = DSHOT_TELEMETRY_TYPE_DEBUG2;
-            break;
-
-        case 0x0C00:
-            // Debug 3 value
-            *pDecoded = value & 0x00ff;
-
-            // Set telemetry type
-            *pType = DSHOT_TELEMETRY_TYPE_DEBUG3;
-            break;
-
-        case 0x0E00:
-            // State / events
-            *pDecoded = value & 0x00ff;
-
-            // Set telemetry type
-            *pType = DSHOT_TELEMETRY_TYPE_STATE_EVENTS;
-            break;
-
-        default:
-            // Decode as eRPM
-            *pDecoded = dshot_decode_eRPM_telemetry_value(value);
-
-            // Update debug buffer
-            if (motorIndex < motorCount && motorIndex < DEBUG16_VALUE_COUNT) {
-                DEBUG_SET(DEBUG_DSHOT_RPM_TELEMETRY, motorIndex, *pDecoded);
-            }
-
-            // Set telemetry type
-            *pType = DSHOT_TELEMETRY_TYPE_eRPM;
-            break;
-
-        }
+    if (motorIndex >= DEBUG16_VALUE_COUNT) {
+        // motor won't fit into debug array
+        return;
     }
+
+    uint16_t highByte = 0;
+    switch (debugType) {
+    case DEBUG_DSHOT_RPM_TELEMETRY:  // eprm value is 16bit, all of debug is used (TODO: store upper 4 status bits, 12bits is enough for erpm)
+    case DEBUG_DSHOT_STATUS:         // store status as value, no need to duplicate it in upper byte 
+        break;
+    default:
+        // piggyback status byte on 8-bit telemetry values
+        highByte = dshotTelemetryState.motorState[motorIndex].telemetryData[DSHOT_TELEMETRY_TYPE_STATUS] << (sizeof(uint8_t) * 8);
+    }
+    DEBUG_SET(debugType, motorIndex, highByte | decodedValue);
 }
 
-static void dshotUpdateTelemetryData(uint8_t motorIndex, dshotTelemetryType_t type, uint32_t value)
+// for reference, see https://github.com/bird-sanctuary/extended-dshot-telemetry/blob/main/README.md
+// decode value and type, retrun true if successful
+static bool dshotDecodeTelemetryValue(unsigned motorIndex, uint32_t *pDecoded, dshotTelemetryType_e *pType)
 {
-    // Update telemetry data
+    const uint16_t rawValue = dshotTelemetryState.motorState[motorIndex].rawValue;
+    uint32_t decoded;
+    dshotTelemetryType_e type;
+    debugType_e debugType;
+
+    *pDecoded = DSHOT_TELEMETRY_INVALID;
+    if (!dshotTelemetryState.motorState[motorIndex].extendedTelemetryEnabled // no extended telemetry
+        || (rawValue & 0x100)               // normalized mantissa (topmost mantissa bit is set)
+        || (rawValue & 0xe00) == 0          // zero exponent
+        ) {
+        // basic or extended telemetry eRPM packet
+        decoded = dshotDecodeErpmTelemetryValue(rawValue);
+        type = DSHOT_TELEMETRY_TYPE_eRPM;
+        dshotStoreDebug(motorIndex, decoded, DEBUG_DSHOT_RPM_TELEMETRY);
+        if (dshotTelemetryState.motorState[motorIndex].extendedTelemetryEnabled) {
+            // allow tracing (reduced precission) RPM + status
+            dshotStoreDebug(motorIndex, (decoded / 18) & 0xff, DEBUG_DSHOT_STATUS_ERPM18);
+        }
+    } else {
+        // Extended DSHOT telemetry packet
+        // map range to corresponding types
+        // TODO: this mapping is 1:1, we can easily use index directly
+#define R(range, telemetry, debug) [(range) >> DSHOT_TELEMETRY_RANGE_SHIFT] = {(telemetry), (debug)}
+        static const struct {
+            // 8bit is enough, avoid storing whole 32bit enum
+            uint8_t /* dshotTelemetryType_e */ telemetryType;
+            uint8_t /* debugType_e */ debugType;
+        } rangeMap[] = {
+            // [index 0 is empty]
+            // Temperature frame (in degree Celsius, just like Blheli_32 and KISS)
+            R(DSHOT_TELEMETRY_RANGE_TEMPERATURE, DSHOT_TELEMETRY_TYPE_TEMPERATURE, DEBUG_DSHOT_STATUS_TEMP),
+            // Voltage frame (0-63,75V step 0,25V)
+            R(DSHOT_TELEMETRY_RANGE_VOLTAGE, DSHOT_TELEMETRY_TYPE_VOLTAGE, DEBUG_DSHOT_STATUS_VOLT),
+            // Current frame (0-255A step 1A)
+            R(DSHOT_TELEMETRY_RANGE_CURRENT, DSHOT_TELEMETRY_TYPE_CURRENT, DEBUG_DSHOT_STATUS_AMP),
+            // Debug 1 frame
+            R(DSHOT_TELEMETRY_RANGE_DEBUG1, DSHOT_TELEMETRY_TYPE_DEBUG1, DEBUG_DSHOT_STATUS_DEBUG1),
+            // Debug 2 frame
+            R(DSHOT_TELEMETRY_RANGE_DEBUG2, DSHOT_TELEMETRY_TYPE_DEBUG2, DEBUG_DSHOT_STATUS_DEBUG2),
+            // Stress level frame
+            R(DSHOT_TELEMETRY_RANGE_STRESS_LEVEL, DSHOT_TELEMETRY_TYPE_STRESS_LEVEL, DEBUG_DSHOT_STATUS_STRESS),
+            // status frame. Status bits are also packed into other telemetry values, but allow tracing it as soon as received
+            R(DSHOT_TELEMETRY_RANGE_STATUS, DSHOT_TELEMETRY_TYPE_STATUS, DEBUG_DSHOT_STATUS),
+        };
+#undef R
+        decoded = rawValue & DSHOT_TELEMETRY_VALUE_MASK;
+        unsigned range = (rawValue & DSHOT_TELEMETRY_RANGE_MASK) >> DSHOT_TELEMETRY_RANGE_SHIFT;
+        if (!range || range >= ARRAYLEN(rangeMap)) {
+            // all possible range values are mapped, but better be safe
+            return false;
+        }
+        type = rangeMap[range].telemetryType;
+        debugType = rangeMap[range].debugType;
+        if (debugType != DEBUG_NONE) {
+            dshotStoreDebug(motorIndex, decoded, debugType);
+        }
+    }
+    *pDecoded = decoded;
+    *pType = type;
+    return true;
+}
+
+// Update telemetry data, set flag that entry is valid
+static void dshotUpdateTelemetryData(uint8_t motorIndex, dshotTelemetryType_e type, uint32_t value)
+{
     dshotTelemetryState.motorState[motorIndex].telemetryData[type] = value;
     dshotTelemetryState.motorState[motorIndex].telemetryTypes |= (1 << type);
-
-    // Update max temp
-    if ((type == DSHOT_TELEMETRY_TYPE_TEMPERATURE) && (value > dshotTelemetryState.motorState[motorIndex].maxTemp)) {
-        dshotTelemetryState.motorState[motorIndex].maxTemp = value;
-    }
 }
 
 FAST_CODE_NOINLINE void updateDshotTelemetry(void)
@@ -301,39 +288,37 @@ FAST_CODE_NOINLINE void updateDshotTelemetry(void)
     }
 
     const unsigned motorCount = motorDeviceCount();
-    uint32_t erpmTotal = 0;
-    uint32_t rpmSamples = 0;
 
     // Decode all telemetry data now to discharge interrupt from this task
-    for (uint8_t k = 0; k < motorCount; k++) {
-        dshotTelemetryType_t type;
+    for (unsigned k = 0; k < motorCount; k++) {
+        dshotTelemetryType_e type;
         uint32_t value;
-
-        dshot_decode_telemetry_value(k, &value, &type);
-
-        if (value != DSHOT_TELEMETRY_INVALID) {
+        if (dshotDecodeTelemetryValue(k, &value, &type)) {
             dshotUpdateTelemetryData(k, type, value);
-
-            if (type == DSHOT_TELEMETRY_TYPE_eRPM) {
-                dshotRpm[k] = erpmToRpm(value);
-                erpmTotal += value;
-                rpmSamples++;
+            // Update max temp
+            if ((type == DSHOT_TELEMETRY_TYPE_TEMPERATURE) && (value > dshotTelemetryState.motorState[k].maxTemp)) {
+                dshotTelemetryState.motorState[k].maxTemp = value;
             }
         }
     }
 
-    // Update average
-    if (rpmSamples > 0) {
-        dshotRpmAverage = erpmToRpm(erpmTotal) / (float)rpmSamples;
-    }
-
     // update filtered rotation speed of motors for features (e.g. "RPM filter")
+    // calculate average RPM
     minMotorFrequencyHz = FLT_MAX;
+    float motorHzSum = 0;
+    int  motorHzCount = 0;
     for (int motor = 0; motor < getMotorCount(); motor++) {
-        motorFrequencyHz[motor] = pt1FilterApply(&motorFreqLpf[motor], erpmToHz * getDshotErpm(motor));
+        const float motorHz = erpmToHz * getDshotErpm(motor);
+        motorFrequencyHz[motor] = pt1FilterApply(&motorFreqLpf[motor], motorHz);
         minMotorFrequencyHz = MIN(minMotorFrequencyHz, motorFrequencyHz[motor]);
+        if (motorHz > 0) {  // sum and count all nonzero rps values for average
+            motorHzSum += motorHz;
+            motorHzCount++;
+        }
     }
-
+    if (motorHzCount) {
+        dshotRpmAverage = motorHzSum * 60.0f / motorHzCount;
+    }
     // Set state to processed
     dshotTelemetryState.rawValueState = DSHOT_RAW_VALUE_STATE_PROCESSED;
 }
@@ -345,7 +330,7 @@ uint16_t getDshotErpm(uint8_t motorIndex)
 
 float getDshotRpm(uint8_t motorIndex)
 {
-    return dshotRpm[motorIndex];
+    return erpmToRpm(getDshotErpm(motorIndex));
 }
 
 float getDshotRpmAverage(void)
