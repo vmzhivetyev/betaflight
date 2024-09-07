@@ -378,7 +378,9 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
                     warningText[dshotEscErrorLength++] = 'W';
 
                 // Notify max stress lvl too high (bad commutation issue in normal flights or during aggressive with high rates flights)
-                if ((telemetryStatus & DSHOT_TELEMETRY_STATUS_MAX_STRESS_LVL_MASK) > DSHOT_MAX_STRESS_LVL_WARNING_THRESHOLD)
+
+                uint32_t stressLevel = telemetryStatus & DSHOT_TELEMETRY_STATUS_MAX_STRESS_LVL_MASK;
+                if (osdConfig()->esc_stress_alarm > 0 && stressLevel > osdConfig()->esc_stress_alarm)
                     warningText[dshotEscErrorLength++] = 'X';
 #endif
 

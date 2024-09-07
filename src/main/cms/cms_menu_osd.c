@@ -190,6 +190,7 @@ static CMS_Menu menuOsdActiveElems = {
     .entries = menuOsdActiveElemsEntries
 };
 
+static uint8_t osdConfig_esc_stress_alarm;
 static uint8_t osdConfig_rssi_alarm;
 static uint16_t osdConfig_link_quality_alarm;
 static int16_t osdConfig_rssi_dbm_alarm;
@@ -204,6 +205,7 @@ static const void *menuAlarmsOnEnter(displayPort_t *pDisp)
 {
     UNUSED(pDisp);
 
+    osdConfig_esc_stress_alarm = osdConfig()->esc_stress_alarm;
     osdConfig_rssi_alarm = osdConfig()->rssi_alarm;
     osdConfig_link_quality_alarm = osdConfig()->link_quality_alarm;
     osdConfig_rssi_dbm_alarm = osdConfig()->rssi_dbm_alarm;
@@ -222,6 +224,7 @@ static const void *menuAlarmsOnExit(displayPort_t *pDisp, const OSD_Entry *self)
     UNUSED(pDisp);
     UNUSED(self);
 
+    osdConfigMutable()->esc_stress_alarm = osdConfig_esc_stress_alarm;
     osdConfigMutable()->rssi_alarm = osdConfig_rssi_alarm;
     osdConfigMutable()->link_quality_alarm = osdConfig_link_quality_alarm;
     osdConfigMutable()->rssi_dbm_alarm = osdConfig_rssi_dbm_alarm;
@@ -238,6 +241,7 @@ static const void *menuAlarmsOnExit(displayPort_t *pDisp, const OSD_Entry *self)
 const OSD_Entry menuAlarmsEntries[] =
 {
     {"--- ALARMS ---", OME_Label, NULL, NULL},
+    {"ESC STRESS",     OME_UINT8,  NULL, &(OSD_UINT8_t){&osdConfig_esc_stress_alarm, 0, DSHOT_TELEMETRY_STATUS_MAX_STRESS_LVL_VALUE, 1}},
     {"RSSI",     OME_UINT8,  NULL, &(OSD_UINT8_t){&osdConfig_rssi_alarm, 5, 90, 5}},
     {"LINK QUALITY", OME_UINT16,  NULL, &(OSD_UINT16_t){&osdConfig_link_quality_alarm, 5, 300, 5}},
     {"RSSI DBM", OME_INT16,  NULL, &(OSD_INT16_t){&osdConfig_rssi_dbm_alarm, CRSF_RSSI_MIN, CRSF_SNR_MAX, 5}},

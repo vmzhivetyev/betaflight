@@ -323,6 +323,7 @@ typedef struct osdConfig_s {
     uint8_t esc_temp_alarm;
     int16_t esc_rpm_alarm;
     int16_t esc_current_alarm;
+    uint8_t esc_stress_alarm;
     uint8_t core_temp_alarm;
     uint8_t ahInvert;                         // invert the artificial horizon
     uint8_t osdProfileIndex;
