@@ -111,6 +111,12 @@ void pt2FilterUpdateCutoff(pt2Filter_t *filter, float k)
     filter->k = k;
 }
 
+void pt2FilterSetState(pt2Filter_t *filter, float state)
+{
+    filter->state = state;
+    filter->state1 = state;
+}
+
 FAST_CODE float pt2FilterApply(pt2Filter_t *filter, float input)
 {
     filter->state1 = filter->state1 + filter->k * (input - filter->state1);

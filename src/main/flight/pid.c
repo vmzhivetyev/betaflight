@@ -463,7 +463,7 @@ STATIC_UNIT_TESTED FAST_CODE_NOINLINE float pidLevel(int axis, const pidProfile_
     // earthRef code here takes about 76 cycles, if conditional on angleEarthRef it takes about 100.  sin_approx costs most of those cycles.
     float sinAngle = sin_approx(DEGREES_TO_RADIANS(pidRuntime.angleTarget[axis == FD_ROLL ? FD_PITCH : FD_ROLL]));
     sinAngle *= (axis == FD_ROLL) ? -1.0f : 1.0f; // must be negative for Roll
-    const float earthRefGain = FLIGHT_MODE(GPS_RESCUE_MODE | ALT_HOLD_MODE) ? 1.0f : pidRuntime.angleEarthRef;
+    const float earthRefGain = FLIGHT_MODE(GPS_RESCUE_MODE | ALTHOLD_MODE) ? 1.0f : pidRuntime.angleEarthRef;
     angleRate += pidRuntime.angleYawSetpoint * sinAngle * earthRefGain;
     pidRuntime.angleTarget[axis] = angleTarget;  // set target for alternate axis to current axis, for use in preceding calculation
 
@@ -471,7 +471,7 @@ STATIC_UNIT_TESTED FAST_CODE_NOINLINE float pidLevel(int axis, const pidProfile_
     // this filter runs at ATTITUDE_CUTOFF_HZ, currently 50hz, so GPS roll may be a bit steppy
     angleRate = pt3FilterApply(&pidRuntime.attitudeFilter[axis], angleRate);
 
-    if (FLIGHT_MODE(ANGLE_MODE| GPS_RESCUE_MODE)) {
+    if (FLIGHT_MODE(ANGLE_MODE| GPS_RESCUE_MODE | ALTHOLD_MODE)) {
         currentPidSetpoint = angleRate;
     } else {
         // can only be HORIZON mode - crossfade Angle rate and Acro rate
@@ -592,7 +592,7 @@ static FAST_CODE_NOINLINE float applyAcroTrainer(int axis, const rollAndPitchTri
 {
     float ret = setPoint;
 
-    if (!FLIGHT_MODE(ANGLE_MODE  | HORIZON_MODE | GPS_RESCUE_MODE | ALT_HOLD_MODE)) {
+    if (!FLIGHT_MODE(ANGLE_MODE  | HORIZON_MODE | GPS_RESCUE_MODE | ALTHOLD_MODE)) {
         bool resetIterm = false;
         float projectedAngle = 0;
         const int setpointSign = acroTrainerSign(setPoint);
@@ -813,16 +813,16 @@ static FAST_CODE_NOINLINE void disarmOnImpact(void)
         && ((getMaxRcDeflectionAbs() < 0.05f && mixerGetRcThrottle() < 0.05f)
             // we could test here for stage 2 failsafe (including both landing or GPS Rescue)
             // this may permit removing the GPS Rescue disarm method altogether
-#ifdef USE_ALT_HOLD_MODE
+#ifdef USE_ALTHOLD_MODE
             // or in altitude hold mode, including failsafe landing mode, indirectly
-            || FLIGHT_MODE(ALT_HOLD_MODE)
+            || FLIGHT_MODE(ALTHOLD_MODE)
 #endif
         )) {
         // increase sensitivity by 50% when low and in altitude hold or failsafe landing
         // for more reliable disarm with gentle controlled landings
         float lowAltitudeSensitivity = 1.0f;
-#ifdef USE_ALT_HOLD_MODE
-        lowAltitudeSensitivity = (FLIGHT_MODE(ALT_HOLD_MODE) && isAltitudeLow()) ? 1.5f : 1.0f;
+#ifdef USE_ALTHOLD_MODE
+        lowAltitudeSensitivity = (FLIGHT_MODE(ALTHOLD_MODE) && isAltitudeLow()) ? 1.5f : 1.0f;
 #endif
         // and disarm if accelerometer jerk exceeds threshold...
         if ((fabsf(acc.accDelta) * lowAltitudeSensitivity) > pidRuntime.landingDisarmThreshold) {
@@ -970,12 +970,12 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
     float horizonLevelStrength = 0.0f;
 
     const bool isExternalAngleModeRequest = FLIGHT_MODE(GPS_RESCUE_MODE)
-#ifdef USE_ALT_HOLD_MODE
-                || FLIGHT_MODE(ALT_HOLD_MODE) 
+#ifdef USE_ALTHOLD_MODE
+                || FLIGHT_MODE(ALTHOLD_MODE) 
 #endif
                 ;
     levelMode_e levelMode;
-    if (FLIGHT_MODE(ANGLE_MODE | HORIZON_MODE | GPS_RESCUE_MODE)) {
+    if (FLIGHT_MODE(ANGLE_MODE | HORIZON_MODE | ALTHOLD_MODE | GPS_RESCUE_MODE)) {
         if (pidRuntime.levelRaceMode && !isExternalAngleModeRequest) {
             levelMode = LEVEL_MODE_R;
         } else {
@@ -1250,8 +1250,8 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         pidSetpointDelta += setpointCorrection - pidRuntime.oldSetpointCorrection[axis];
         pidRuntime.oldSetpointCorrection[axis] = setpointCorrection;
 #endif
-        // no feedforward in launch control
-        const float feedforwardGain = launchControlActive ? 0.0f : pidRuntime.pidCoefficient[axis].Kf;
+        // no feedforward in launch control or alt-hold mode
+        const float feedforwardGain = launchControlActive || FLIGHT_MODE(ALTHOLD_MODE) ? 0.0f : pidRuntime.pidCoefficient[axis].Kf;
         pidData[axis].F = feedforwardGain * pidSetpointDelta;
 
 #ifdef USE_YAW_SPIN_RECOVERY

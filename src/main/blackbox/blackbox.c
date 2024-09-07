@@ -1701,13 +1701,23 @@ static bool blackboxWriteSysinfo(void)
 #endif // USE_GPS_RESCUE
 #endif // USE_GPS
 
-#ifdef USE_ALT_HOLD_MODE
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALT_HOLD_P, "%d",                  altholdConfig()->alt_hold_pid_p);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALT_HOLD_I, "%d",                  altholdConfig()->alt_hold_pid_i);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALT_HOLD_D, "%d",                  altholdConfig()->alt_hold_pid_d);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALT_HOLD_THROTTLE_MIN, "%d",       altholdConfig()->alt_hold_throttle_min);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALT_HOLD_THROTTLE_MAX, "%d",       altholdConfig()->alt_hold_throttle_max);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALT_HOLD_TARGET_ADJUST_RATE, "%d", altholdConfig()->alt_hold_target_adjust_rate);
+#ifdef USE_ALTHOLD_MODE
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_P, "%d",                  altholdConfig()->throttlePidP);
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_I, "%d",                  altholdConfig()->throttlePidI);
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_D, "%d",                  altholdConfig()->throttlePidD);
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_I_MAX, "%d",              altholdConfig()->throttlePidIMax);
+
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_D_CUTOFF, "%d",           altholdConfig()->throttlePidDFiltCutoffFreq);
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_THROTTLE_CUTOFF, "%d",    altholdConfig()->throttleFiltCutoffFreq);
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_ALTITUDE_CUTOFF, "%d",    altholdConfig()->altitudeFiltCutoffFreq);
+
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_THROTTLE_MIN, "%d",       altholdConfig()->minThrottle);
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_THROTTLE_MAX, "%d",       altholdConfig()->maxThrottle);
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_THROTTLE_HOVER, "%d",     altholdConfig()->hoverThrottle);
+        
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_MAX_ALT, "%d",            altholdConfig()->maxAltitude);
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_ENTER_FADE_DS, "%d",      altholdConfig()->enterFadeTimeDecisec);
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_EXIT_FADE_DS, "%d",       altholdConfig()->exitFadeTimeDecisec);
 #endif
 
 #ifdef USE_WING

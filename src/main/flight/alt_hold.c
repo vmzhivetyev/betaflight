@@ -16,272 +16,361 @@
  */
 
 #include "platform.h"
+#include "alt_hold.h"
 
-#ifdef USE_ALT_HOLD_MODE
+#ifdef USE_ALTHOLD_MODE
 
-#include "math.h"
-#include "build/debug.h"
-
-#include "config/config.h"
-#include "fc/runtime_config.h"
-#include "fc/rc.h"
+#include "drivers/time.h"
 #include "flight/failsafe.h"
 #include "flight/imu.h"
 #include "flight/position.h"
+#include "flight/mixer.h"
 #include "sensors/acceleration.h"
-#include "rx/rx.h"
+#include "sensors/barometer.h"
+#include "config/config.h"
+#include "fc/runtime_config.h"
+#include "fc/rc.h"
+#include "osd/osd.h"
+#include "common/printf.h"
+#include "common/maths.h"
+#include "common/filter.h"
+#include "math.h"
+#include "build/debug.h"
 
-#include "alt_hold.h"
+#define ALTHOLD_DELTATIME 1.0f/(float)ALTHOLD_TASK_PERIOD
 
-typedef struct {
-    float kp;
-    float ki;
-    float kd;
-    float kf;
-    float previousAltitude;
-    float integral;
-} simplePid_t;
+PG_REGISTER_WITH_RESET_TEMPLATE(altholdConfig_t, altholdConfig, PG_ALTHOLD_CONFIG, 3);
 
-simplePid_t simplePid;
+PG_RESET_TEMPLATE(altholdConfig_t, altholdConfig,
+    .throttlePidP = 50, // 50 == 5 %
+    .throttlePidD = 50, // 50 == 5 %
+    .throttlePidI = 50, // 50 == 5 %
+    .throttlePidIMax = 40, // %
 
-altHoldState_t altHoldState;
+    .throttlePidDFiltCutoffFreq = 20, // 20 == 2 Hz
+    .throttleFiltCutoffFreq = 50, // 50 == 5 Hz
+    .altitudeFiltCutoffFreq = 50, // 50 == 5 Hz
 
-#define ALT_HOLD_PID_P_SCALE  0.01f
-#define ALT_HOLD_PID_I_SCALE  0.003f
-#define ALT_HOLD_PID_D_SCALE  0.01f
+    .minThrottle = 0, // %
+    .maxThrottle = 30, // %
+    .hoverThrottle = 20, // %
 
-static pt2Filter_t altHoldDeltaLpf;
-static const float taskIntervalSeconds = 1.0f / ALTHOLD_TASK_RATE_HZ; // i.e. 0.01 s
+    .maxAltitude = 100, // meters
 
-float altitudePidCalculate(void)
+    .enterFadeTimeDecisec = 1, // 1 == 0.1s
+    .exitFadeTimeDecisec = 1, // 1 == 0.1s
+);
+
+
+void nicePidInit(
+    nicePid_s* simplePid, 
+    float min, float max, 
+    float kp, float kd, float ki, float iMax, 
+    float dCutoff_f, float intervalSeconds
+) {
+    simplePid->max = max;
+    simplePid->min = min;
+    simplePid->kp = kp;
+    simplePid->kd = kd;
+    simplePid->ki = ki;
+    simplePid->iMax = iMax;
+
+    simplePid->lastErr = 0;
+    simplePid->integral = 0;
+
+    // simplePid->lastP = 0;
+    // simplePid->lastI = 0;
+    // simplePid->lastD = 0;
+
+    float gain = pt2FilterGain(dCutoff_f, intervalSeconds);
+    pt2FilterInit(&simplePid->dTermLpf, gain);
+}
+
+float nicePidCalculate(nicePid_s* simplePid, float dt, float targetValue, float currentValue)
 {
-    // * introductory notes *
-    // this is a simple PID controller with heuristic D boost and iTerm relax
-    // the basic parameters provide good control when initiated in stable situations
+    float error = targetValue - currentValue;
+
+    // I term
+    simplePid->integral += simplePid->ki * error * dt;
+    simplePid->integral = constrainf(simplePid->integral, -simplePid->iMax, simplePid->iMax);
+
+    // D term
+    float derivative = (error - simplePid->lastErr) / dt;
+
+    // output
+    float pOut = simplePid->kp * error;
+    float iOut = simplePid->integral;
+    float dOut = simplePid->kd * pt2FilterApply(&simplePid->dTermLpf, derivative);
+
+    float output = pOut + iOut + dOut;
+
+    simplePid->lastErr = error;
     
-    // tuning:
-    // -reduce P I and D by 1/3 or until it doesn't oscillate but has sloppy / slow control
-    // increase P until there is definite oscillation, then back off until barely noticeable
-    // increase D until there is definite oscillation (will be faster than P), then back off until barely noticeable
-    // try to add a little more P, then try to add a little more D, but not to oscillation
-    // iTerm isn't very important if hover throttle is set carefully and sag compensation is used
+    DEBUG_SET(DEBUG_ALTHOLD, 0, (int16_t)(1000.0f * targetValue));
+    DEBUG_SET(DEBUG_ALTHOLD, 1, (int16_t)(1000.0f * currentValue));
+    DEBUG_SET(DEBUG_ALTHOLD, 2, (int16_t)(1000.0f * dOut));
+    DEBUG_SET(DEBUG_ALTHOLD, 3, (int16_t)(1000.0f * pOut));
+    DEBUG_SET(DEBUG_ALTHOLD, 4, (int16_t)(1000.0f * iOut));
+    DEBUG_SET(DEBUG_ALTHOLD, 5, (int16_t)(1000.0f * derivative));
 
-    // The altitude D lowpass filter is very important.
-    // The only way to get enough D is to filter the oscillations out.
-    // More D filtering is needed with Baro than with GPS, since GPS is smoother and slower.
+    output = constrainf(output, simplePid->min, simplePid->max);
 
-    // A major problem is the lag time for motors to arrest pre-existing drops or climbs,
-    // compounded by the lag time from filtering.
-    // If the quad is dropping fast, the motors have to be high for a long time to arrest the drop
-    // this is very difficult for a 'simple' PID controller;
-    // if the PIDs are high enough to arrest a fast drop, they will oscillate under normal conditions
-    // Hence we:
-    // - Enhance D when the absolute velocity is high, ie when we need to strongly oppose a fast drop,
-    //   even though it may cause throttle oscillations while dropping quickly - the average D is what we need
-    // - Prevent excessive iTerm growth when error is impossibly large for iTerm to resolve
+    // 0 - targetAlt
+    // 1 - smoothedAlt
+    // 2 - D term smoothed
+    // 3 - P term
+    // 4 - I term
+    // 5 - pid sum (not clamped)
+    // 6 - hover throttle + pid out (after throttleFilter)
+    // 7 - final throttle value (after adding tilt and clamping)
 
-    const float altErrorCm = altHoldState.targetAltitudeCm - altHoldState.measuredAltitudeCm;
+    return output;
+}
 
-    // P
-    const float pOut = simplePid.kp * altErrorCm;
+// in meters
+float getCurrentAltitude(void)
+{
+#ifdef USE_BARO
+    if (sensors(SENSOR_BARO) && baroIsCalibrated()) {
+        return 0.01f * baro.altitude;
+    }
+#endif
+    return 0.01f * getEstimatedAltitudeCm(); // it is smoothed internally by PT2
+}
 
-    // I
-    // input limit iTerm so that it doesn't grow fast with large errors
-    // very important at the start if there are massive initial errors to prevent iTerm windup
+void altHoldReset(altHoldState_s* altHoldState)
+{
+    nicePidInit(
+        &altHoldState->throttlePid,
+        -1.0f, 1.0f,
+        0.001f * altholdConfig()->throttlePidP,
+        0.001f * altholdConfig()->throttlePidD,
+        0.001f * altholdConfig()->throttlePidI,
+        0.01f * altholdConfig()->throttlePidIMax,
+        0.1f * altholdConfig()->throttlePidDFiltCutoffFreq,
+        ALTHOLD_DELTATIME    
+    );
 
-    // no iTerm change for error greater than 2m, otherwise it winds up badly
-    const float itermNormalRange = 200.0f; // 2m
-    const float itermRelax = (fabsf(altErrorCm) < itermNormalRange) ? 1.0f : 0.0f;
-    simplePid.integral += altErrorCm * taskIntervalSeconds * simplePid.ki * itermRelax;
-    // arbitrary limit on iTerm, same as for gps_rescue, +/-20% of full throttle range
-    // ** might not be needed with input limiting **
-    simplePid.integral = constrainf(simplePid.integral, -200.0f, 200.0f); 
-    const float iOut = simplePid.integral;
+    altHoldState->throttle = mixerGetThrottle();
 
-    // D
-    // boost D by 'increasing apparent velocity' when vertical velocity exceeds 5 m/s ( D of 75 on defaults)
-    // the velocity trigger is arbitrary at this point
-    // usually we don't see fast ascend/descend rates if the altitude hold starts under stable conditions
-    // this is important primarily to arrest pre-existing fast drops or climbs at the start;
+    altHoldState->enterTime = millis();
+    altHoldState->exitTime = 0;
+    altHoldState->targetAltitude = altHoldState->smoothedAltitude;
 
-    float vel = altHoldState.smoothedVerticalVelocity;
-    const float kinkPoint = 500.0f; // velocity at which D should start to increase
-    const float kinkPointAdjustment = kinkPoint * 2.0f; // Precompute constant
-    const float sign = (vel > 0) ? 1.0f : -1.0f;
-    if (fabsf(vel) > kinkPoint) {
-        vel = vel * 3.0f - sign * kinkPointAdjustment;
+    pt2FilterInit(&altHoldState->throttleLpf, 
+        pt2FilterGain(0.1f * altholdConfig()->throttleFiltCutoffFreq, ALTHOLD_DELTATIME)
+    );
+
+    pt2FilterInit(&altHoldState->altitudeLpf, 
+        pt2FilterGain(0.1f * altholdConfig()->altitudeFiltCutoffFreq, ALTHOLD_DELTATIME)
+    );
+
+    // Make next filter outputs to be equal to current values.
+    pt2FilterSetState(&altHoldState->altitudeLpf, altHoldState->smoothedAltitude);
+    pt2FilterSetState(&altHoldState->throttleLpf, mixerGetThrottle());
+
+    DEBUG_SET(DEBUG_ALTHOLD, 0, (int16_t)(11111));
+    DEBUG_SET(DEBUG_ALTHOLD, 1, (int16_t)(777));
+    DEBUG_SET(DEBUG_ALTHOLD, 2, (int16_t)(altholdConfig()->throttlePidD));
+    DEBUG_SET(DEBUG_ALTHOLD, 3, (int16_t)(altholdConfig()->throttlePidP));
+    DEBUG_SET(DEBUG_ALTHOLD, 4, (int16_t)(altholdConfig()->throttlePidI));
+    DEBUG_SET(DEBUG_ALTHOLD, 5, (int16_t)(altholdConfig()->altitudeFiltCutoffFreq));
+    DEBUG_SET(DEBUG_ALTHOLD, 6, (int16_t)(altholdConfig()->throttlePidDFiltCutoffFreq));
+    DEBUG_SET(DEBUG_ALTHOLD, 7, (int16_t)(altholdConfig()->throttleFiltCutoffFreq));
+}
+
+void altHoldInit(altHoldState_s* altHoldState)
+{
+    altHoldState->altHoldEnabled = false;
+    altHoldState->throttleFactor = 0.0f;
+    altHoldReset(altHoldState);
+}
+
+void altHoldProcessTransitions(altHoldState_s* altHoldState) {
+    bool newAltHoldEnabled = FLIGHT_MODE(ALTHOLD_MODE);
+    uint32_t enterFadeMs = decisecondsToMillis(altholdConfig()->enterFadeTimeDecisec);
+    uint32_t exitFadeMs = decisecondsToMillis(altholdConfig()->exitFadeTimeDecisec);
+
+    if (FLIGHT_MODE(GPS_RESCUE_MODE) || failsafeIsActive() || !ARMING_FLAG(ARMED)) {
+        newAltHoldEnabled = false;
     }
 
-    const float dOut = simplePid.kd * vel;
+    // Toggled on
+    if (newAltHoldEnabled && !altHoldState->altHoldEnabled)
+    {
+        altHoldReset(altHoldState);
+    }
 
-    // F
-    // if error is used, we get a 'free kick' in derivative from changes in the target value
-    // but this is delayed by the smoothing, leading to lag and overshoot.
-    // calculating feedforward separately avoids the filter lag.
-    // Use user's D gain for the feedforward gain factor, works OK with a scaling factor of 0.01
-    // A commanded drop at 100cm/s will return feedforward of the user's D value. or 15 on defaults
-    const float fOut = simplePid.kf * altHoldState.targetAltitudeAdjustRate;
+    // Toggled off
+    if (!newAltHoldEnabled && altHoldState->altHoldEnabled) {
+        altHoldState->exitTime = millis();
+    }
+    altHoldState->altHoldEnabled = newAltHoldEnabled;
 
-    const float output = pOut + iOut + dOut + fOut;
-    DEBUG_SET(DEBUG_ALTHOLD, 4, lrintf(pOut));
-    DEBUG_SET(DEBUG_ALTHOLD, 5, lrintf(iOut));
-    DEBUG_SET(DEBUG_ALTHOLD, 6, lrintf(dOut));
-    DEBUG_SET(DEBUG_ALTHOLD, 7, lrintf(fOut));
+    uint32_t currTime = millis();
 
-    return output; // motor units, eg 100 means 10% of available throttle 
-}
-
-void simplePidInit(float kp, float ki, float kd, float kf)
-{
-    simplePid.kp = kp;
-    simplePid.ki = ki;
-    simplePid.kd = kd;
-    simplePid.kf = kf;
-    simplePid.previousAltitude = 0.0f;
-    simplePid.integral = 0.0f;
-}
-
-void altHoldReset(void)
-{
-    altHoldState.targetAltitudeCm = altHoldState.measuredAltitudeCm;
-    simplePid.integral = 0.0f;
-    altHoldState.targetAltitudeAdjustRate = 0.0f;
-}
-
-void altHoldInit(void)
-{
-    simplePidInit(
-        ALT_HOLD_PID_P_SCALE * altholdConfig()->alt_hold_pid_p,
-        ALT_HOLD_PID_I_SCALE * altholdConfig()->alt_hold_pid_i,
-        ALT_HOLD_PID_D_SCALE * altholdConfig()->alt_hold_pid_d,
-        0.01f * altholdConfig()->alt_hold_pid_d); // use D gain for feedforward with simple scaling
-        // the multipliers are base scale factors
-        // iTerm is relatively weak, intended to be slow moving to adjust baseline errors
-        // the Hover value is important otherwise takes time for iTerm to correct
-        // High P will wobble readily
-        // with these scalers, the same numbers as for GPS Rescue work OK for altHold
-        // the goal is to share these gain factors, if practical for all altitude controllers
-
-    //setup altitude D filter
-    const float cutoffHz = 0.01f * positionConfig()->altitude_d_lpf; // default 1Hz, time constant about 160ms
-    const float gain = pt2FilterGain(cutoffHz, taskIntervalSeconds);
-    pt2FilterInit(&altHoldDeltaLpf, gain);
-
-    altHoldState.hover = positionConfig()->hover_throttle - PWM_RANGE_MIN;
-    altHoldState.isAltHoldActive = false;
-    altHoldReset();
-}
-
-void altHoldProcessTransitions(void) {
-
-    if (FLIGHT_MODE(ALT_HOLD_MODE)) {
-        if (!altHoldState.isAltHoldActive) {
-            altHoldReset();
-            altHoldState.isAltHoldActive = true;
+    if (newAltHoldEnabled) {
+        uint32_t timeSinceEnter = currTime - altHoldState->enterTime;
+        if (timeSinceEnter < enterFadeMs) {
+            float delta = (float)timeSinceEnter / (float)enterFadeMs;
+            altHoldState->throttleFactor = MAX(delta, altHoldState->throttleFactor);
+        } else {
+            altHoldState->throttleFactor = 1.0f;
         }
+        return;
+    }
+
+    if (altHoldState->exitTime == 0) {
+        altHoldState->throttleFactor = 0.0f;
+        return;
+    }
+
+    uint32_t timeSinceExit = currTime - altHoldState->exitTime;
+    if (timeSinceExit < exitFadeMs) {
+        float delta = (float)timeSinceExit / (float)exitFadeMs;
+        altHoldState->throttleFactor = MIN(altHoldState->throttleFactor, 1.0f - delta);
+        return;
+    }
+
+    altHoldState->throttleFactor = 0.0f;
+    // Probably a good idea to add this. Tho currTime is millis and it overflows in 49 days.
+    // altHoldState->exitTime = 0;
+}
+
+void processThrottleInput(altHoldState_s* altHoldState)
+{
+    if (!altHoldState->altHoldEnabled) {
+        return;
+    }
+
+    float throttleInput = scaleRangef(rcCommand[THROTTLE], 1000.f, 2000.f, -1.0f, 1.0f); // 0.0f to 1.0f
+
+    float deadZoneSize = 0.8f;
+    float negativeDeadZoneEdge = -1.0f * deadZoneSize / 2.0f;
+    float positiveDeadZoneEdge = deadZoneSize / 2.0f;
+    float maxAltitudeChangeSpeed = 1.0f; // m/s
+    float effect = 0; // from -1f to 1f
+
+    if (throttleInput < negativeDeadZoneEdge) {
+        effect = scaleRangef(throttleInput, -1.0f, negativeDeadZoneEdge, -1.0f, 0.0f);
+
+    } else if (throttleInput > positiveDeadZoneEdge) {
+        effect = scaleRangef(throttleInput, positiveDeadZoneEdge, 1.0f, 0.0f, 1.0f);
     } else {
-        altHoldState.isAltHoldActive = false;
+        return;
     }
 
-    // ** the transition out of alt hold (exiting altHold) may be rough.  Some notes... **
-    // The original PR had a gradual transition from hold throttle to pilot control throttle
-    // using !(altHoldRequested && altHoldState.isAltHoldActive) to run an exit function
-    // a cross-fade factor was sent to mixer.c based on time since the flight mode request was terminated
-    // it was removed primarily to simplify this PR
+    float prevTargetAltitude = altHoldState->targetAltitude;
+    altHoldState->targetAltitude += effect * maxAltitudeChangeSpeed * ALTHOLD_DELTATIME;
 
-    // hence in this PR's the user's throttle needs to be close to the hover throttle value on exiting altHold
-    // its not so bad because the 'target adjustment' by throttle requires that
-    // user throttle must be not more than half way out from hover for a stable hold
+    if (altholdConfig()->maxAltitude != 0) {
+        float altitudeLimit = (float)altholdConfig()->maxAltitude;
+
+        // if new > limit and old <= limit then clamp.
+        //      So we don't clamp in case when we enabled the ALTHOLD above limit.
+        if (altHoldState->targetAltitude > altitudeLimit && prevTargetAltitude <= altitudeLimit) {
+            altHoldState->targetAltitude = altitudeLimit;
+        }
+    }
 }
 
-void altHoldUpdateTargetAltitude(void)
+void altHoldUpdate(altHoldState_s* altHoldState)
 {
-    // The user can raise or lower the target altitude with throttle up;  there is a big deadband.
-    // Max rate for climb/descend is 1m/s by default (up to 2.5 is allowed but overshoots a fair bit)
-    // If set to zero, the throttle has no effect.
+    float measuredAltitude = getCurrentAltitude();
+    altHoldState->measuredAltitude = measuredAltitude;
+    altHoldState->smoothedAltitude = pt2FilterApply(&altHoldState->altitudeLpf, altHoldState->measuredAltitude);
 
-    // Some people may not like throttle being able to change the target altitude, because:
-    // - with throttle adjustment, hitting the switch won't always hold altitude if throttle is bumped
-    // - eg if the throttle is bumped low accidentally, quad will start descending.
-    // On the plus side:
-    // - the pilot has control nice control over altitude, and the deadband is wide
-    // - Slow controlled descents are possible, eg for landing
-    // - fine-tuning height is possible, eg if there is slow sensor drift
-    // - to keep the craft stable, throttle must be in the deadband, making exits smoother
+    // 0 - targetAlt
+    // 1 - smoothedAlt
+    // 2 - d smoothed
+    // 3 - p
+    // 4 - i
+    // 5 - pid sum (not clamped)
+    // 6 - hover throttle + pid out (after throttleFilter)
+    // 7 - final throttle value (after adding tilt and clamping)
 
-    const float rcThrottle = rcCommand[THROTTLE];
+    if (altHoldState->altHoldEnabled) {
+        float throttleMin = 0.01f * altholdConfig()->minThrottle;
+        float throttleMax = 0.01f * altholdConfig()->maxThrottle;
+        float hoverThrottle = 0.01f * altholdConfig()->hoverThrottle;
 
-    const float lowThreshold = 0.5f * (positionConfig()->hover_throttle + PWM_RANGE_MIN); // halfway between hover and MIN, e.g. 1150 if hover is 1300
-    const float highThreshold = 0.5f * (positionConfig()->hover_throttle + PWM_RANGE_MAX); // halfway between hover and MAX, e.g. 1650 if hover is 1300
-    
-    float throttleAdjustmentFactor = 0.0f;
-    if (rcThrottle < lowThreshold) {
-        throttleAdjustmentFactor = scaleRangef(rcThrottle, PWM_RANGE_MIN, lowThreshold, -1.0f, 0.0f);
-    } else if (rcThrottle > highThreshold) {
-        throttleAdjustmentFactor = scaleRangef(rcThrottle, highThreshold, PWM_RANGE_MAX, 0.0f, 1.0f);
+        float pidOutput = nicePidCalculate(
+            &altHoldState->throttlePid,
+            ALTHOLD_DELTATIME, 
+            altHoldState->targetAltitude,
+            altHoldState->smoothedAltitude
+        );
+
+        float newThrottle = hoverThrottle + pidOutput;
+
+        // clamp before filter
+        newThrottle = constrainf(newThrottle, throttleMin, throttleMax);
+        newThrottle = constrainf(newThrottle, 0, 1);
+
+        // filter throttle
+        if (altholdConfig()->throttleFiltCutoffFreq != 255) {
+            newThrottle = pt2FilterApply(&altHoldState->throttleLpf, newThrottle);
+        }
+
+        DEBUG_SET(DEBUG_ALTHOLD, 6, (int16_t)(1000.0f * newThrottle)); // hoverThrottle + pidOutput (after filter)
+
+        // add tilt
+        float tiltAdjustment = 1.0f - getCosTiltAngle(); // 0 = flat, gets to 0.2 correcting on a windy day
+        tiltAdjustment *= hoverThrottle;
+        newThrottle += tiltAdjustment;
+
+        // clamp in the end once more
+        newThrottle = constrainf(newThrottle, throttleMin, throttleMax);
+        newThrottle = constrainf(newThrottle, 0, 1);
+
+        altHoldState->throttle = newThrottle;
+
+        DEBUG_SET(DEBUG_ALTHOLD, 7, (int16_t)(1000.0f * newThrottle)); // final throttle value (with tilt and clamped)
     }
 
-    // if failsafe is active, and we get here, we are in failsafe landing mode
-    if (failsafeIsActive()) {
-        // descend at up to 10 times faster when high
-        // default landing time is now 60s; need to get the quad down in this time from reasonable height
-        // need a rapid descent if high to avoid that timeout, and must slow down closer to ground
-        // this code doubles descent rate at 20m, to max 10x (10m/s on defaults) at 200m
-        // user should be able to descend within 60s from around 150m high without disarming, on defaults
-        // the deceleration may be a bit rocky if it starts very high up
-        // constant (set) deceleration target in the last 2m
-        throttleAdjustmentFactor = -(0.9f + constrainf(altHoldState.measuredAltitudeCm * (1.0f / 2000.f), 0.1f, 9.0f));
-    }
+    processThrottleInput(altHoldState);
 
-    altHoldState.targetAltitudeAdjustRate = throttleAdjustmentFactor * altholdConfig()->alt_hold_target_adjust_rate;
-    // if taskRate is 100Hz, default adjustRate of 100 adds/subtracts 1m every second, or 1cm per task run, at full stick position
-    altHoldState.targetAltitudeCm += altHoldState.targetAltitudeAdjustRate  * taskIntervalSeconds;
+    // Give blackbox a chance to write things set by altHoldReset.
+    // Make sure we are writing data to the blackbox as the last entity in the task.
+    altHoldProcessTransitions(altHoldState);
 }
 
-void altHoldUpdate(void)
-{
-    // check if the user has changed the target altitude using sticks
-    if (altholdConfig()->alt_hold_target_adjust_rate) {
-        altHoldUpdateTargetAltitude();
-    }
+altHoldState_s altHoldState;
 
-    // use PIDs to return the throttle adjustment value, add it to the hover value, and constrain
-    const float throttleAdjustment = altitudePidCalculate();
-
-    const float tiltMultiplier = 2.0f - fmaxf(getCosTiltAngle(), 0.5f);
-    // 1 = flat, 1.24 at 40 degrees, max 1.5 around 60 degrees, the default limit of Angle Mode
-    // 2 - cos(x) is between 1/cos(x) and 1/sqrt(cos(x)) in this range
-    const float newThrottle = PWM_RANGE_MIN + (altHoldState.hover + throttleAdjustment) * tiltMultiplier;
-    altHoldState.throttleOut = constrainf(newThrottle, altholdConfig()->alt_hold_throttle_min, altholdConfig()->alt_hold_throttle_max);
-
-    DEBUG_SET(DEBUG_ALTHOLD, 0, lrintf(altHoldState.targetAltitudeCm));
-    DEBUG_SET(DEBUG_ALTHOLD, 2, lrintf(throttleAdjustment));
+void initAltHoldState(void) {
+    altHoldInit(&altHoldState);
 }
 
 void updateAltHoldState(timeUs_t currentTimeUs) {
+    altHoldUpdate(&altHoldState);
+
     UNUSED(currentTimeUs);
-
-    // things that always happen
-    // calculate smoothed altitude Delta always, for effective value on 1st pass
-    altHoldState.measuredAltitudeCm = getAltitude();
-    float derivative = (simplePid.previousAltitude - altHoldState.measuredAltitudeCm) / taskIntervalSeconds; // cm/s
-    simplePid.previousAltitude = altHoldState.measuredAltitudeCm;
-
-    // smooth the derivative here to always have a current value, without delay due to filter lag
-    // this way we immediately have useful D on initialising the hold
-    altHoldState.smoothedVerticalVelocity = pt2FilterApply(&altHoldDeltaLpf, derivative);
-
-    DEBUG_SET(DEBUG_ALTHOLD, 1, lrintf(altHoldState.measuredAltitudeCm));
-
-    altHoldProcessTransitions();
-
-    if (altHoldState.isAltHoldActive) {
-        altHoldUpdate();
-    }
 }
 
-float altHoldGetThrottle(void) {
-    return scaleRangef(altHoldState.throttleOut, MAX(rxConfig()->mincheck, PWM_RANGE_MIN), PWM_RANGE_MAX, 0.0f, 1.0f);
+float getAltHoldThrottle(void) {
+    return altHoldState.throttle;
+}
+
+float getAltHoldThrottleFactor(float currentThrottle) {
+    if (!altHoldState.altHoldEnabled
+        && altHoldState.exitTime != 0
+        && (ABS(currentThrottle - altHoldState.throttle) < 0.15f)) {
+
+        altHoldState.exitTime = 0;
+    }
+    return altHoldState.throttleFactor;
+}
+
+float getAltHoldTargetAltitude(void) {
+    return altHoldState.targetAltitude;
+}
+
+float getAltHoldCurrentAltitude(void) {
+    return altHoldState.smoothedAltitude;
+}
+
+bool getAltHoldActive(void) {
+    return altHoldState.altHoldEnabled;
 }
 
 #endif
