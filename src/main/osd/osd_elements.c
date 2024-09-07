@@ -322,6 +322,15 @@ static void renderOsdEscStress(osdElementParms_t *element)
         && ARMING_FLAG(ARMED)) {
         uint32_t telemetryStatus = dshotTelemetryState.motorState[motor].telemetryData[DSHOT_TELEMETRY_TYPE_STATUS];
         uint32_t stressLevel = telemetryStatus & DSHOT_TELEMETRY_STATUS_MAX_STRESS_LVL_MASK;
+        // bool isAlertEvent = telemetryStatus & DSHOT_TELEMETRY_STATUS_ALERT_EVENT_MASK;
+        bool isWarningEvent = telemetryStatus & DSHOT_TELEMETRY_STATUS_WARNING_EVENT_MASK;
+        bool isErrorEvent = telemetryStatus & DSHOT_TELEMETRY_STATUS_ERROR_EVENT_MASK;
+
+        if (isErrorEvent) {
+            element->attr = DISPLAYPORT_SEVERITY_CRITICAL;
+        } else if (isWarningEvent) {
+            element->attr = DISPLAYPORT_SEVERITY_WARNING;
+        }
         
         tfp_sprintf(element->buff, "%d", stressLevel);
     } else {

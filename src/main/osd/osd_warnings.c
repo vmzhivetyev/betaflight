@@ -363,23 +363,28 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
                 && (dshotTelemetryState.motorState[k].telemetryData[DSHOT_TELEMETRY_TYPE_CURRENT] >= osdConfig()->esc_current_alarm))
                 warningText[dshotEscErrorLength++] = 'C';
 
+            bool shouldShowESCwarning = osdConfig()->esc_stress_alarm > 0;
+            // bool shouldShowESCwarning_warningEvent = osdConfig()->esc_stress_alarm >= 2;
+            // bool shouldShowESCwarning_alertEvent = osdConfig()->esc_stress_alarm >= 3;
+            // bool shouldShowESCwarning_stressAlarm = osdConfig()->esc_stress_alarm >= 4;
+
             // Status frame events
             if ((dshotTelemetryState.motorState[k].telemetryTypes & (1 << DSHOT_TELEMETRY_TYPE_STATUS)) != 0
-                && ARMING_FLAG(ARMED)) {
+                && ARMING_FLAG(ARMED) && shouldShowESCwarning) {
                 uint32_t telemetryStatus = dshotTelemetryState.motorState[k].telemetryData[DSHOT_TELEMETRY_TYPE_STATUS];
 
                 // Notify alert event
-                if (telemetryStatus & DSHOT_TELEMETRY_STATUS_ALERT_EVENT_MASK)
-                    warningText[dshotEscErrorLength++] = 'A';
+                // if (telemetryStatus & DSHOT_TELEMETRY_STATUS_ALERT_EVENT_MASK)
+                //     warningText[dshotEscErrorLength++] = 'A';
 
                 // Notify warning event
-                if (telemetryStatus & DSHOT_TELEMETRY_STATUS_WARNING_EVENT_MASK)
-                    warningText[dshotEscErrorLength++] = 'W';
+                // if (telemetryStatus & DSHOT_TELEMETRY_STATUS_WARNING_EVENT_MASK)
+                //     warningText[dshotEscErrorLength++] = 'W';
 
                 // Notify max stress lvl too high (bad commutation issue in normal flights or during aggressive with high rates flights)
 
                 uint32_t stressLevel = telemetryStatus & DSHOT_TELEMETRY_STATUS_MAX_STRESS_LVL_MASK;
-                if (osdConfig()->esc_stress_alarm > 0 && stressLevel > osdConfig()->esc_stress_alarm)
+                if (stressLevel > osdConfig()->esc_stress_alarm)
                     warningText[dshotEscErrorLength++] = 'X';
 
                 // Notify error event

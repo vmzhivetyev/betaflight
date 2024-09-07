@@ -1131,6 +1131,7 @@ const clivalue_t valueTable[] = {
 #ifdef USE_PROFILE_NAMES
     { "profile_name",               VAR_UINT8  | PROFILE_VALUE | MODE_STRING, .config.string = { 1, MAX_PROFILE_NAME_LENGTH, STRING_FLAGS_NONE }, PG_PID_PROFILE, offsetof(pidProfile_t, profileName) },
 #endif
+
 #ifdef USE_DYN_LPF
     { "dterm_lpf1_dyn_min_hz",      VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, DYN_LPF_MAX_HZ }, PG_PID_PROFILE, offsetof(pidProfile_t, dterm_lpf1_dyn_min_hz) },
     { "dterm_lpf1_dyn_max_hz",      VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, DYN_LPF_MAX_HZ }, PG_PID_PROFILE, offsetof(pidProfile_t, dterm_lpf1_dyn_max_hz) },
