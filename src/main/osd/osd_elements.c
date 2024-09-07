@@ -347,17 +347,7 @@ static void osdFormatAltitudeString(char * buff, int32_t altitudeCm, osdElementT
     
     unsigned decimalPlaces = variantMap[variantType].decimals;
     const char unitSymbol = osdGetMetersToSelectedUnitSymbol();
-    unsigned decimalPlaces;
 
-    switch (variantType) {
-    case OSD_ELEMENT_TYPE_2:  // whole number altitude (no decimal places)
-        decimalPlaces = 0;
-        break;
-    case OSD_ELEMENT_TYPE_1:  // one decimal place (default)
-    default:
-        decimalPlaces = 1;
-        break;
-    }
     int pos = osdPrintFloat(buff, SYM_ALTITUDE, osdGetMetersToSelectedUnit(altitudeCm) / 100.0f, "", decimalPlaces, true, unitSymbol);
 
 #ifdef USE_ALTHOLD_MODE
