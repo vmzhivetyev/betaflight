@@ -368,7 +368,6 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
                 && ARMING_FLAG(ARMED)) {
                 uint32_t telemetryStatus = dshotTelemetryState.motorState[k].telemetryData[DSHOT_TELEMETRY_TYPE_STATUS];
 
-#if defined(DEBUG_DSHOT_STRESS_LVL)
                 // Notify alert event
                 if (telemetryStatus & DSHOT_TELEMETRY_STATUS_ALERT_EVENT_MASK)
                     warningText[dshotEscErrorLength++] = 'A';
@@ -382,7 +381,6 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
                 uint32_t stressLevel = telemetryStatus & DSHOT_TELEMETRY_STATUS_MAX_STRESS_LVL_MASK;
                 if (osdConfig()->esc_stress_alarm > 0 && stressLevel > osdConfig()->esc_stress_alarm)
                     warningText[dshotEscErrorLength++] = 'X';
-#endif
 
                 // Notify error event
                 if (telemetryStatus & DSHOT_TELEMETRY_STATUS_ERROR_EVENT_MASK)
