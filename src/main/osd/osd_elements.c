@@ -304,6 +304,38 @@ static void renderOsdEscRpmOrFreq(getEscRpmOrFreqFnPtr escFnPtr, osdElementParms
     if (++motor == getMotorCount()) {
         motor = 0;
     } else {
+        // rendering is not yet complete
+        element->rendered = false;
+    }
+}
+#endif
+
+#if defined(USE_DSHOT_TELEMETRY)
+static void renderOsdEscStress(osdElementParms_t *element)
+{
+    static uint8_t motor = 0;
+
+    ///
+
+    // Status frame events
+    if ((dshotTelemetryState.motorState[motor].telemetryTypes & (1 << DSHOT_TELEMETRY_TYPE_STATUS)) != 0
+        && ARMING_FLAG(ARMED)) {
+        uint32_t telemetryStatus = dshotTelemetryState.motorState[motor].telemetryData[DSHOT_TELEMETRY_TYPE_STATUS];
+        uint32_t stressLevel = telemetryStatus & DSHOT_TELEMETRY_STATUS_MAX_STRESS_LVL_MASK;
+        
+        tfp_sprintf(element->buff, "%d", stressLevel);
+    } else {
+        element->buff = "-\0";
+    }
+
+    ///
+
+    element->elemOffsetY = motor;
+
+    if (++motor == getMotorCount()) {
+        motor = 0;
+    } else {
+        // rendering is not yet complete
         element->rendered = false;
     }
 }
@@ -1063,6 +1095,13 @@ static void osdElementEscRpmFreq(osdElementParms_t *element)
     renderOsdEscRpmOrFreq(&getEscRpmFreq,element);
 }
 
+#endif
+
+#if defined(USE_DSHOT_TELEMETRY)
+static void osdElementEscStress(osdElementParms_t *element)
+{
+    renderOsdEscStress(element);
+}
 #endif
 
 static void osdElementFlymode(osdElementParms_t *element)
@@ -1964,6 +2003,9 @@ const osdElementDrawFn osdElementDrawFunction[OSD_ITEM_COUNT] = {
     [OSD_ESC_TMP]                 = osdElementEscTemperature,
     [OSD_ESC_RPM]                 = osdElementEscRpm,
 #endif
+#if defined(USE_DSHOT_TELEMETRY)
+    [OSD_ESC_STRESS]              = osdElementEscStress,
+#endif
     [OSD_REMAINING_TIME_ESTIMATE] = osdElementRemainingTimeEstimate,
 #ifdef USE_RTC_TIME
     [OSD_RTC_DATETIME]            = osdElementRtcTime,
@@ -2101,6 +2143,12 @@ void osdAddActiveElements(void)
         osdAddActiveElement(OSD_ESC_TMP);
         osdAddActiveElement(OSD_ESC_RPM);
         osdAddActiveElement(OSD_ESC_RPM_FREQ);
+    }
+#endif
+
+#if defined(USE_DSHOT_TELEMETRY)
+    if (useDshotTelemetry) {
+        osdAddActiveElement(OSD_ESC_STRESS);
     }
 #endif
 

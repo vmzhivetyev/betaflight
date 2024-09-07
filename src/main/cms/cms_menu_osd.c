@@ -126,9 +126,12 @@ const OSD_Entry menuOsdActiveElemsEntries[] =
     {"FLIGHT DIST",        OME_VISIBLE | DYNAMIC, NULL, &osdConfig_item_pos[OSD_FLIGHT_DIST]},
 #endif // GPS
     {"COMPASS BAR",        OME_VISIBLE | DYNAMIC, NULL, &osdConfig_item_pos[OSD_COMPASS_BAR]},
-#ifdef USE_ESC_SENSOR
+#if defined(USE_DSHOT_TELEMETRY) || defined(USE_ESC_SENSOR)
     {"ESC TEMPERATURE",    OME_VISIBLE | DYNAMIC, NULL, &osdConfig_item_pos[OSD_ESC_TMP]},
     {"ESC RPM",            OME_VISIBLE | DYNAMIC, NULL, &osdConfig_item_pos[OSD_ESC_RPM]},
+#endif
+#if defined(USE_DSHOT_TELEMETRY)
+    {"ESC STRESS",         OME_VISIBLE | DYNAMIC, NULL, &osdConfig_item_pos[OSD_ESC_STRESS]},
 #endif
     {"ALTITUDE",           OME_VISIBLE | DYNAMIC, NULL, &osdConfig_item_pos[OSD_ALTITUDE]},
     {"POWER",              OME_VISIBLE | DYNAMIC, NULL, &osdConfig_item_pos[OSD_POWER]},

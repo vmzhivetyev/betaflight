@@ -190,6 +190,7 @@ typedef enum {
     OSD_GPS_LAP_TIME_PREVIOUS,
     OSD_GPS_LAP_TIME_BEST3,
     OSD_DEBUG2,
+    OSD_ESC_STRESS,
     OSD_ITEM_COUNT // MUST BE LAST
 } osd_items_e;
 
