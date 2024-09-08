@@ -319,6 +319,8 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
     }
 #endif // USE_ESC_SENSOR
 
+    bool shouldShowBatteryWarning = osdWarnGetState(OSD_WARNING_BATTERY_WARNING) && batteryState == BATTERY_WARNING;
+
 #if defined(USE_DSHOT) && defined(USE_DSHOT_TELEMETRY)
     // Show esc error
     if (osdWarnGetState(OSD_WARNING_ESC_FAIL)) {
@@ -363,7 +365,9 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
                 && (dshotTelemetryState.motorState[k].telemetryData[DSHOT_TELEMETRY_TYPE_CURRENT] >= osdConfig()->esc_current_alarm))
                 warningText[dshotEscErrorLength++] = 'C';
 
-            bool shouldShowESCwarning = osdConfig()->esc_stress_alarm > 0;
+            // Prevent overriding "Low Battery" warning.
+            bool shouldShowESCwarning = !shouldShowBatteryWarning && osdConfig()->esc_stress_alarm > 0;
+            
             // bool shouldShowESCwarning_warningEvent = osdConfig()->esc_stress_alarm >= 2;
             // bool shouldShowESCwarning_alertEvent = osdConfig()->esc_stress_alarm >= 3;
             // bool shouldShowESCwarning_stressAlarm = osdConfig()->esc_stress_alarm >= 4;
@@ -409,7 +413,7 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
     }
 #endif
 
-    if (osdWarnGetState(OSD_WARNING_BATTERY_WARNING) && batteryState == BATTERY_WARNING) {
+    if (shouldShowBatteryWarning) {
         tfp_sprintf(warningText, "LOW BATTERY");
         *displayAttr = DISPLAYPORT_SEVERITY_WARNING;
         *blinking = true;
