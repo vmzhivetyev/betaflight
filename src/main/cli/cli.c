@@ -2483,10 +2483,8 @@ static void cliFlashInfo(const char *cmdName, char *cmdline)
         cliPrintLinef("  %d: %s %u %u", index, flashPartitionGetTypeName(partition->type), partition->startSector, partition->endSector);
     }
 #ifdef USE_FLASHFS
-    const flashPartition_t *flashPartition = flashPartitionFindByType(FLASH_PARTITION_TYPE_FLASHFS);
-
     cliPrintLinef("FlashFS size=%u, usedSize=%u",
-            FLASH_PARTITION_SECTOR_COUNT(flashPartition) * layout->sectorSize,
+            flashfsGetSize(),
             flashfsGetOffset()
     );
 #endif

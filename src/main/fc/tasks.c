@@ -491,8 +491,8 @@ void tasksInit(void)
 
 #if defined(USE_BATTERY_VOLTAGE_SAG_COMPENSATION)
         // If vbat motor output compensation is used, use fast vbat samplingTime
-        if (isSagCompensationConfigured()) {
-            voltageSamplingHZ = max(voltageSamplingHZ, FAST_VOLTAGE_TASK_FREQ_HZ);
+        if (isSagCompensationConfigured() && FAST_VOLTAGE_TASK_FREQ_HZ > voltageSamplingHZ) {
+            voltageSamplingHZ = FAST_VOLTAGE_TASK_FREQ_HZ;
         }
 #endif
         rescheduleTask(TASK_BATTERY_VOLTAGE, TASK_PERIOD_HZ(voltageSamplingHZ));

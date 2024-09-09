@@ -1537,6 +1537,7 @@ const clivalue_t valueTable[] = {
 #endif
 #ifdef USE_BLACKBOX
     { "osd_log_status_pos",         VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, OSD_POSCFG_MAX }, PG_OSD_ELEMENT_CONFIG, offsetof(osdElementConfig_t, item_pos[OSD_LOG_STATUS]) },
+    { "osd_show_blackbox_percent",  VAR_UINT8   | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_OSD_CONFIG, offsetof(osdConfig_t, osd_show_blackbox_percent) },
 #endif
 
 #ifdef USE_OSD_STICK_OVERLAY

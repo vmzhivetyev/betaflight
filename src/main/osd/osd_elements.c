@@ -1377,16 +1377,44 @@ static void osdElementTxUplinkPower(osdElementParms_t *element)
 static void osdElementLogStatus(osdElementParms_t *element)
 {
     if (IS_RC_MODE_ACTIVE(BOXBLACKBOX)) {
-        if (!isBlackboxDeviceWorking()) {
+        const bool isBusy = !isBlackboxDeviceWorking();
+
+        if (isBusy && !osdConfig()->osd_show_blackbox_percent) {
+            // isBlackboxDeviceWorking() actually switches briefly when flash is a bit busy
             tfp_sprintf(element->buff, "%c!", SYM_BBLOG);
+            element->attr = DISPLAYPORT_SEVERITY_INFO;
+
         } else if (isBlackboxDeviceFull()) {
-            tfp_sprintf(element->buff, "%c>", SYM_BBLOG);
+            tfp_sprintf(element->buff, "%cFULL", SYM_BBLOG);
+            element->attr = DISPLAYPORT_SEVERITY_CRITICAL;
+
         } else {
             int32_t logNumber = blackboxGetLogNumber();
             if (logNumber >= 0) {
                 tfp_sprintf(element->buff, "%c%d", SYM_BBLOG, logNumber);
             } else {
-                tfp_sprintf(element->buff, "%c", SYM_BBLOG);
+                if (osdConfig()->osd_show_blackbox_percent) {
+                    const int16_t usedPercentTenths = blackboxGetStorageUsedPercentTenths();
+
+                    if (usedPercentTenths >= 0) {
+                        const int16_t usedPercentInt = usedPercentTenths / 10;
+                        
+                        // icon disappears briefly when flash is busy
+                        tfp_sprintf(element->buff, "%c%d.%d%%", isBusy ? ' ' : SYM_BBLOG, usedPercentInt, usedPercentTenths % 10);
+                        
+                        if (usedPercentInt > 80) {
+                            element->attr = DISPLAYPORT_SEVERITY_WARNING; // yellow font
+                        } else if (usedPercentInt > 90) {
+                            element->attr = DISPLAYPORT_SEVERITY_CRITICAL; // red font
+                        }
+                    } else {
+                        // unhandled device type, or the device failed to initialize.
+                        tfp_sprintf(element->buff, "%cE:%i", SYM_BBLOG, usedPercentTenths);
+                        element->attr = DISPLAYPORT_SEVERITY_CRITICAL;
+                    }
+                } else {
+                    tfp_sprintf(element->buff, "%c", SYM_BBLOG);
+                }
             }
         }
     }

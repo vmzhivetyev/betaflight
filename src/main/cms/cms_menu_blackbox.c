@@ -139,11 +139,8 @@ static void cmsx_Blackbox_GetDeviceStatus(void)
         if (storageDeviceIsWorking) {
             tfp_sprintf(cmsx_BlackboxStatus, "READY");
 
-            const flashPartition_t *flashPartition = flashPartitionFindByType(FLASH_PARTITION_TYPE_FLASHFS);
-            const flashGeometry_t *flashGeometry = flashGetGeometry();
-
             storageUsed = flashfsGetOffset() / 1024;
-            storageFree = ((FLASH_PARTITION_SECTOR_COUNT(flashPartition) * flashGeometry->sectorSize) / 1024) - storageUsed;
+            storageFree = (flashfsGetSize() / 1024) - storageUsed;
         } else {
             tfp_sprintf(cmsx_BlackboxStatus, "FAULT");
         }

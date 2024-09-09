@@ -431,6 +431,8 @@ void pgResetFn_osdConfig(osdConfig_t *osdConfig)
 #ifdef USE_RACE_PRO
     osdConfig->osd_show_spec_prearm = true;
 #endif // USE_RACE_PRO
+
+    osdConfig->osd_show_blackbox_percent = false;
 }
 
 void pgResetFn_osdElementConfig(osdElementConfig_t *osdElementConfig)
@@ -726,42 +728,12 @@ static void osdUpdateStats(void)
 
 static void osdGetBlackboxStatusString(char * buff)
 {
-    bool storageDeviceIsWorking = isBlackboxDeviceWorking();
-    uint32_t storageUsed = 0;
-    uint32_t storageTotal = 0;
+    const int16_t usedPercentTenths = blackboxGetStorageUsedPercentTenths();
 
-    switch (blackboxConfig()->device) {
-#ifdef USE_SDCARD
-    case BLACKBOX_DEVICE_SDCARD:
-        if (storageDeviceIsWorking) {
-            storageTotal = sdcard_getMetadata()->numBlocks / 2000;
-            storageUsed = storageTotal - (afatfs_getContiguousFreeSpace() / 1024000);
-        }
-        break;
-#endif
-
-#ifdef USE_FLASHFS
-    case BLACKBOX_DEVICE_FLASH:
-        if (storageDeviceIsWorking) {
-
-            const flashPartition_t *flashPartition = flashPartitionFindByType(FLASH_PARTITION_TYPE_FLASHFS);
-            const flashGeometry_t *flashGeometry = flashGetGeometry();
-
-            storageTotal = ((FLASH_PARTITION_SECTOR_COUNT(flashPartition) * flashGeometry->sectorSize) / 1024);
-            storageUsed = flashfsGetOffset() / 1024;
-        }
-        break;
-#endif
-
-    default:
-        break;
-    }
-
-    if (storageDeviceIsWorking) {
-        const uint16_t storageUsedPercent = (storageUsed * 100) / storageTotal;
-        tfp_sprintf(buff, "%d%%", storageUsedPercent);
+    if (usedPercentTenths >= 0) {
+        tfp_sprintf(buff, "%d.%d%%", usedPercentTenths / 10, usedPercentTenths % 10);
     } else {
-        tfp_sprintf(buff, "FAULT");
+        tfp_sprintf(buff, "FAULT %i", usedPercentTenths);
     }
 }
 #endif
