@@ -1718,7 +1718,9 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_MAX_ALT, "%d",            altholdConfig()->maxAltitude);
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_ENTER_FADE_DS, "%d",      altholdConfig()->enterFadeTimeDecisec);
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_EXIT_FADE_DS, "%d",       altholdConfig()->exitFadeTimeDecisec);
-#endif
+#endif // USE_ALTHOLD_MODE
+
+        BLACKBOX_PRINT_HEADER_LINE("DEBUG_MODE", "%s", systemConfig()->debug_mode < DEBUG_COUNT ? debugModeNames[systemConfig()->debug_mode] : "INVALID");
 
 #ifdef USE_WING
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_TPA_DELAY_MS,       "%d", currentPidProfile->tpa_delay_ms);
