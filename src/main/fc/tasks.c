@@ -486,12 +486,17 @@ void tasksInit(void)
     const bool useBatteryVoltage = batteryConfig()->voltageMeterSource != VOLTAGE_METER_NONE;
     setTaskEnabled(TASK_BATTERY_VOLTAGE, useBatteryVoltage);
 
+    do {
+        uint16_t voltageSamplingHZ = batteryConfig()->currentMeterADCHz;
+
 #if defined(USE_BATTERY_VOLTAGE_SAG_COMPENSATION)
-    // If vbat motor output compensation is used, use fast vbat samplingTime
-    if (isSagCompensationConfigured()) {
-        rescheduleTask(TASK_BATTERY_VOLTAGE, TASK_PERIOD_HZ(FAST_VOLTAGE_TASK_FREQ_HZ));
-    }
+        // If vbat motor output compensation is used, use fast vbat samplingTime
+        if (isSagCompensationConfigured()) {
+            voltageSamplingHZ = max(voltageSamplingHZ, FAST_VOLTAGE_TASK_FREQ_HZ);
+        }
 #endif
+        rescheduleTask(TASK_BATTERY_VOLTAGE, TASK_PERIOD_HZ(voltageSamplingHZ));
+    } while(0);
 
     const bool useBatteryCurrent = batteryConfig()->currentMeterSource != CURRENT_METER_NONE;
     setTaskEnabled(TASK_BATTERY_CURRENT, useBatteryCurrent);

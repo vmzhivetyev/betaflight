@@ -55,7 +55,7 @@ typedef struct batteryConfig_s {
 
     // current
     currentMeterSource_e currentMeterSource; // source of battery current meter used, either ADC, Virtual or ESC
-    uint16_t currentMeterADCHz;                // Frequency of reading current data from ADC
+    uint16_t currentMeterADCHz;             // Frequency of reading current data from ADC
     uint16_t batteryCapacity;               // mAh
 
     // warnings / alerts
