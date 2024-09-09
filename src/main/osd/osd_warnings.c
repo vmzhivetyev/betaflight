@@ -367,7 +367,7 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
 
             // Prevent overriding "Low Battery" warning.
             bool shouldShowESCwarning = !shouldShowBatteryWarning && osdConfig()->esc_stress_alarm > 0;
-            
+
             // bool shouldShowESCwarning_warningEvent = osdConfig()->esc_stress_alarm >= 2;
             // bool shouldShowESCwarning_alertEvent = osdConfig()->esc_stress_alarm >= 3;
             // bool shouldShowESCwarning_stressAlarm = osdConfig()->esc_stress_alarm >= 4;
@@ -388,7 +388,7 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
                 // Notify max stress lvl too high (bad commutation issue in normal flights or during aggressive with high rates flights)
 
                 uint32_t stressLevel = telemetryStatus & DSHOT_TELEMETRY_STATUS_MAX_STRESS_LVL_MASK;
-                if (stressLevel > osdConfig()->esc_stress_alarm)
+                if (stressLevel >= osdConfig()->esc_stress_alarm)
                     warningText[dshotEscErrorLength++] = 'X';
 
                 // Notify error event
