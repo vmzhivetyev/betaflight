@@ -35,6 +35,10 @@ Extended DSHOT telemtry is properly parsed (based on https://github.com/betaflig
 
 We are especially interested in the "Max Stress Level" reported by the ESC which represent how well the commutation of the motor is going on. Higher values = worse commutation (more heat, less torque, higher risk of desyncs). This value is reported by the ESC once a second.
 
+Includes mutiple new debug modes. Proper interpretation of such debug data is not supported by the Blackbox Explorer.
+
+New OSD element is added to show current values of "Max Stress Level" for each motor (4 numbers in 4 lines one under another just like rpm data). It's also colored (yellow when ESC reports demag timeouts and red when ESC reports desync). To enable it check the "Unknown 1" OSD Element in the list of elements in OSD tab of Betaflight Configurator.
+
 > [!NOTE]  
 > In Bluejay 0.21.0 the reported "Max Stress Level" is the maximum value since the quad was armed (not the max during the last second). This can be fixed with [custom Bluejay build](https://github.com/bird-sanctuary/bluejay/commit/1b61ea2345dc435f9e0b7a994e29d7e772325f71).
 
@@ -63,7 +67,7 @@ Alarm can include different flags for different motors at the same time.
 > * Current implementation ONLY uses BARO. 
 > * Current implementation MAY lack safety checks.
 > * Current implementation is DIFFERENT and REPLACES the [implementation in Betaflight's master](https://github.com/betaflight/betaflight/pull/13816).
-> * BEFORE disabling the ALTHOLD mode make sure you LOWER your throttle and CENTER roll-pitch stick!
+> * BEFORE disabling the ALTHOLD mode make sure you LOWER the throttle and CENTER the roll-pitch stick!
 
 * Works reliably based on BARO only.
 * Doesn't burn your motors even you have non-protected baro.
@@ -97,7 +101,8 @@ set althold_throttle_max = 50
 # set this to % of throttle your quad hovers at
 set althold_throttle_hover = 28
 
-# limit max target altitude achievable when ALTHOLD was enabled below this altitude
+# limit max target altitude
+# has no effect if set to 0 or current target altitude is greater than the limit (you engaged ALTHOLD mode while higher than the limit)
 set althold_max_altitude = 100
 
 # 1 = 0.1s, how much time it takes to fade controls from your stick inputs to ALTHOLD algorithm
