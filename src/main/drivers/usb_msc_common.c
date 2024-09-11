@@ -103,6 +103,11 @@ void mscActivityLed(void)
         LED0_TOGGLE;
         nextToggleMs = nowMs + ACTIVITY_LED_PERIOD_MS;
     }
+
+    // reboot back to normal mode if more than 10 seconds elapsed since last read.
+    if (lastActiveTimeMs > 0 && nowMs - lastActiveTimeMs > 1000 * 10) {
+        systemResetFromMsc();
+    }
 }
 
 bool mscCheckButton(void)
