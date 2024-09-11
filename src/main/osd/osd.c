@@ -432,7 +432,7 @@ void pgResetFn_osdConfig(osdConfig_t *osdConfig)
     osdConfig->osd_show_spec_prearm = true;
 #endif // USE_RACE_PRO
 
-    osdConfig->osd_show_blackbox_percent = false;
+    osdConfig->osd_show_blackbox_percent = true;
 }
 
 void pgResetFn_osdElementConfig(osdElementConfig_t *osdElementConfig)
