@@ -86,7 +86,7 @@ static int8_t STORAGE_IsReady(uint8_t lun)
 static int8_t STORAGE_IsWriteProtected(uint8_t lun)
 {
     UNUSED(lun);
-    return 1;
+    return 0;
 }
 
 static int8_t STORAGE_Read(
@@ -110,6 +110,11 @@ static int8_t STORAGE_Write(uint8_t lun,
     UNUSED(buf);
     UNUSED(blk_addr);
     UNUSED(blk_len);
+
+    // uint32_t bufSize = blockLen * blockSize;
+
+    // for (uint32_t i = 0; i < )
+    systemResetFromMsc();
 
     return 1;
 }
