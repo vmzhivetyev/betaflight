@@ -18,7 +18,7 @@ I wanted to implement some features I need myself but I don't have enough time t
 
 ## Auto-exit mass storage mode
 
-- Auto-exit Mass Storage Mode if nothing was read from the storage during the last 10 seconds
+- Auto-exit Mass Storage Mode if nothing was read from the storage during the last 10 seconds.
 - This feature can not be disabled.
 
 ## Configurable sampling rate for vbat and current
