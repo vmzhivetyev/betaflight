@@ -33,7 +33,7 @@ I wanted to implement some features I need myself but I don't have enough time t
 
 Extended DSHOT telemtry is properly parsed (based on https://github.com/betaflight/betaflight/pull/13855).
 
-We are especially interested in the "Max Stress Level" reported by the ESC which represent how well the commutation of the motor is going on. Higher values = worse commutation (more heat, less torque, higher risk of desyncs). This value is reported by the ESC once a second.
+We are especially interested in the "Max Stress Level" reported by the ESC which represents how bad the commutation of the motor is going on. Higher values = worse commutation (more heat, less torque, higher risk of desyncs). This value is reported by the ESC once a second.
 
 Includes mutiple new debug modes. Proper interpretation of such debug data is not supported by the Blackbox Explorer.
 
