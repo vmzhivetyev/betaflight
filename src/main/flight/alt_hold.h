@@ -33,9 +33,9 @@ typedef struct {
     uint8_t throttlePidI; // 1 == 0.1 %
     uint8_t throttlePidIMax; // 1 == 1 %
 
-    uint8_t throttlePidDFiltCutoffFreq; // 1 == 1 Hz
-    uint8_t throttleFiltCutoffFreq; // 1 == 1 Hz
-    uint8_t altitudeFiltCutoffFreq; // 1 == 1 Hz
+    uint8_t throttlePidDFiltCutoffFreq; // 1 == 0.1 Hz
+    uint8_t throttleFiltCutoffFreq; // 1 == 0.1 Hz
+    uint8_t altitudeFiltCutoffFreq; // 1 == 0.1 Hz
 
     uint8_t minThrottle; // 1 == 1 %
     uint8_t maxThrottle; // 1 == 1 %

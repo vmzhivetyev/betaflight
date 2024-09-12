@@ -267,7 +267,7 @@ void processThrottleInput(altHoldState_s* altHoldState)
         float altitudeLimit = (float)altholdConfig()->maxAltitude;
 
         // if new > limit and old <= limit then clamp.
-        //      So we don't clamp in case when we enabled the ALTHOLD above limit.
+        //      So we don't clamp in case when we enabled the ALTHOLD while being higher than the limit.
         if (altHoldState->targetAltitude > altitudeLimit && prevTargetAltitude <= altitudeLimit) {
             altHoldState->targetAltitude = altitudeLimit;
         }
