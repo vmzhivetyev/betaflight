@@ -537,7 +537,7 @@ static void validateAndFixConfig(void)
     }
 
     const uint16_t minNotDetectedThreshold = 30; // 1 == 0.01V
-    const uint16_t minCriticalCellVoltage = min(batteryConfig()->vbatmincellvoltage, batteryConfig()->vbatmincellvoltageLiion);
+    const uint16_t minCriticalCellVoltage = MIN(batteryConfig()->vbatmincellvoltage, batteryConfig()->vbatmincellvoltageLiion);
     if (batteryConfig()->vbatnotpresentcellvoltage + minNotDetectedThreshold > minCriticalCellVoltage) {
         batteryConfigMutable()->vbatnotpresentcellvoltage = minCriticalCellVoltage - minNotDetectedThreshold;
     }
