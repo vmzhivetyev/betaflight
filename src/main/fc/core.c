@@ -468,6 +468,12 @@ void updateArmingStatus(void)
     }
 }
 
+static flightLogDisarmReason_e lastDisarmReason = DISARM_REASON_STICKS;
+
+flightLogDisarmReason_e getLastDisarmReason(void) {
+    return lastDisarmReason;
+}
+
 void disarm(flightLogDisarmReason_e reason)
 {
     if (ARMING_FLAG(ARMED)) {
@@ -476,6 +482,7 @@ void disarm(flightLogDisarmReason_e reason)
         }
         DISABLE_ARMING_FLAG(ARMED);
         lastDisarmTimeUs = micros();
+        lastDisarmReason = reason;
 
 #ifdef USE_OSD
         if (IS_RC_MODE_ACTIVE(BOXCRASHFLIP) || isLaunchControlActive()) {
@@ -497,8 +504,7 @@ void disarm(flightLogDisarmReason_e reason)
         }
 #else
         UNUSED(reason);
-#endif
-
+#endif // USE_BLACKBOX
         BEEP_OFF;
 
 #ifdef USE_PERSISTENT_STATS
@@ -861,7 +867,8 @@ bool processRx(timeUs_t currentTimeUs)
         pidSetItermReset(disableIterm);
         pidStabilisationState(PID_STABILISATION_ON);
     } else {
-        pidSetItermReset(true);
+        const bool isWingGpsRescueDone = isFixedWing() && getLastDisarmReason() == DISARM_REASON_GPS_RESCUE;
+        pidSetItermReset(!isWingGpsRescueDone);
         pidStabilisationState(currentPidProfile->pidAtMinThrottle ? PID_STABILISATION_ON : PID_STABILISATION_OFF);
     }
 
@@ -1113,12 +1120,17 @@ void processRxModes(timeUs_t currentTimeUs)
     }
 
 #ifdef USE_GPS_RESCUE
-    if (ARMING_FLAG(ARMED) && (IS_RC_MODE_ACTIVE(BOXGPSRESCUE) || (failsafeIsActive() && failsafeConfig()->failsafe_procedure == FAILSAFE_PROCEDURE_GPS_RESCUE))) {
+    const bool gpsRescueActive = IS_RC_MODE_ACTIVE(BOXGPSRESCUE) || (failsafeIsActive() && failsafeConfig()->failsafe_procedure == FAILSAFE_PROCEDURE_GPS_RESCUE);
+    if (ARMING_FLAG(ARMED) && gpsRescueActive) {
         if (!FLIGHT_MODE(GPS_RESCUE_MODE)) {
             ENABLE_FLIGHT_MODE(GPS_RESCUE_MODE);
         }
     } else {
-        DISABLE_FLIGHT_MODE(GPS_RESCUE_MODE);
+        // if wing + gpsRescueActive then do nothing, otherwize disable GPS_RESCUE_MODE
+        // wing + gpsRescueActive should stay in GPS_RESCUE_MODE when disarmed to maintain 0/0 roll/pitch angles to slowly glide forward + down
+        if (!isFixedWing() || !gpsRescueActive) {
+            DISABLE_FLIGHT_MODE(GPS_RESCUE_MODE);
+        }
     }
 #endif
 

@@ -136,6 +136,7 @@ typedef enum {
     DEBUG_DSHOT_STATUS_STRESS,
     DEBUG_DSHOT_STATUS,
     DEBUG_VARIO,
+    DEBUG_WING_RTH,
     DEBUG_COUNT
 } debugType_e;
 

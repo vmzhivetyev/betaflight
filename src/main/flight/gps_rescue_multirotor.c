@@ -15,6 +15,8 @@
  * along with Betaflight. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef USE_WING
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <math.h>
