@@ -70,6 +70,7 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
 {
     const batteryState_e batteryState = getBatteryState();
     const timeUs_t currentTimeUs = micros();
+    statistic_t *stats = osdGetStats();
 
     static timeUs_t armingDisabledUpdateTimeUs;
     static unsigned armingDisabledDisplayIndex;
@@ -237,7 +238,6 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
        gpsRescueIsConfigured() &&
        gpsRescueIsDisabled()) {
 
-        statistic_t *stats = osdGetStats();
         if (cmpTimeUs(stats->armed_time, OSD_GPS_RESCUE_DISABLED_WARNING_DURATION_US) < 0) {
             tfp_sprintf(warningText, "RESCUE OFF");
             *displayAttr = DISPLAYPORT_SEVERITY_WARNING;
@@ -453,6 +453,23 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
         tfp_sprintf(warningText, "BATT < FULL");
         *displayAttr = DISPLAYPORT_SEVERITY_INFO;
         return;
+    }
+
+    if (batteryConfig()->isLiionModeActive) {
+        if (cmpTimeUs(stats->armed_time, OSD_GPS_RESCUE_DISABLED_WARNING_DURATION_US) < 0) {
+            tfp_sprintf(warningText, "LIION MOTOR LIM %d%%", currentPidProfile->motor_output_limit);
+            if (currentPidProfile->motor_output_limit > 80) {
+                *displayAttr = DISPLAYPORT_SEVERITY_CRITICAL;
+                *blinking = true;
+            } else if (currentPidProfile->motor_output_limit > 60) {
+                *displayAttr = DISPLAYPORT_SEVERITY_WARNING;
+                *blinking = true;
+            } else {
+                *displayAttr = DISPLAYPORT_SEVERITY_INFO;
+                *blinking = ARMING_FLAG(ARMED);
+            }
+            return;
+        }
     }
 
     // Visual beeper

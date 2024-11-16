@@ -531,6 +531,17 @@ static void validateAndFixConfig(void)
         batteryConfigMutable()->vbatmaxcellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_MAX;
     }
 
+    if (batteryConfig()->vbatmincellvoltageLiion >= batteryConfig()->vbatmaxcellvoltage) {
+        batteryConfigMutable()->vbatmincellvoltageLiion = 280;
+        batteryConfigMutable()->vbatmaxcellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_MAX;
+    }
+
+    const uint16_t minNotDetectedThreshold = 30; // 1 == 0.01V
+    const uint16_t minCriticalCellVoltage = MIN(batteryConfig()->vbatmincellvoltage, batteryConfig()->vbatmincellvoltageLiion);
+    if (batteryConfig()->vbatnotpresentcellvoltage + minNotDetectedThreshold > minCriticalCellVoltage) {
+        batteryConfigMutable()->vbatnotpresentcellvoltage = minCriticalCellVoltage - minNotDetectedThreshold;
+    }
+
 #ifdef USE_MSP_DISPLAYPORT
     // Find the first serial port on which MSP Displayport is enabled
     displayPortMspSetSerial(SERIAL_PORT_NONE);
