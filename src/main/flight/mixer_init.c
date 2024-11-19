@@ -352,6 +352,7 @@ void mixerInitProfile(void)
     if (!mixerRuntime.feature3dEnabled && mixerRuntime.dynIdleMinRps) {
         mixerRuntime.motorOutputLow = DSHOT_MIN_THROTTLE; // Override value set by initEscEndpoints to allow zero motor drive
     }
+    mixerRuntime.dynIdlePerMotor = currentPidProfile->dyn_idle_per_motor;
 #endif
 
 #if defined(USE_BATTERY_VOLTAGE_SAG_COMPENSATION)
@@ -486,8 +487,11 @@ void mixerInit(mixerMode_e mixerMode)
 #endif
 
 #ifdef USE_DYN_IDLE
-    mixerRuntime.dynIdleI = 0.0f;
-    mixerRuntime.prevMinRps = 0.0f;
+    for (uint8_t i = 0; i < MAX_SUPPORTED_MOTORS; i++) {
+        mixerRuntime.dynIdlePidState[i].dynIdleI = 0;
+        mixerRuntime.dynIdlePidState[i].prevRps = 0;
+        mixerRuntime.dynIdlePidState[i].motorIncrease = 0;
+    }
 #endif
 
     mixerConfigureOutput();

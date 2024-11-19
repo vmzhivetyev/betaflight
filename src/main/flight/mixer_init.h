@@ -24,6 +24,12 @@
 
 #include "flight/mixer.h"
 
+typedef struct {
+    float prevRps;
+    float dynIdleI;
+    float motorIncrease;
+} dynIdlePidState_s;
+
 typedef struct mixerRuntime_s {
     uint8_t motorCount;
     motorMixer_t currentMixer[MAX_SUPPORTED_MOTORS];
@@ -37,14 +43,14 @@ typedef struct mixerRuntime_s {
     float deadbandMotor3dHigh;
     float deadbandMotor3dLow;
 #ifdef USE_DYN_IDLE
+    dynIdlePidState_s dynIdlePidState[MAX_SUPPORTED_MOTORS];
+    bool dynIdlePerMotor;
     float dynIdleMaxIncrease;
     float dynIdleStartIncrease;
     float dynIdleMinRps;
     float dynIdlePGain;
-    float prevMinRps;
     float dynIdleIGain;
     float dynIdleDGain;
-    float dynIdleI;
     float minRpsDelayK;
 #endif
 #if defined(USE_BATTERY_VOLTAGE_SAG_COMPENSATION)

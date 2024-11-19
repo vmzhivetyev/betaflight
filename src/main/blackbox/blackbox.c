@@ -1684,6 +1684,7 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_DYN_IDLE_I_GAIN, "%d",         currentPidProfile->dyn_idle_i_gain);
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_DYN_IDLE_D_GAIN, "%d",         currentPidProfile->dyn_idle_d_gain);
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_DYN_IDLE_MAX_INCREASE, "%d",   currentPidProfile->dyn_idle_max_increase);
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_DYN_IDLE_PER_MOTOR, "%d",   currentPidProfile->dyn_idle_per_motor);
 #endif
 
 #ifdef USE_SIMPLIFIED_TUNING

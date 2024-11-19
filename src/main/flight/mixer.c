@@ -115,6 +115,31 @@ static FAST_DATA_ZERO_INIT float motorOutputRange;
 static FAST_DATA_ZERO_INIT int8_t motorOutputMixSign;
 static FAST_DATA_ZERO_INIT bool crashflipSuccess = false;
 
+static void calculateDynamicIdleMotorThrottleIncrease(uint8_t motorIndex) {
+    dynIdlePidState_s* pidState = &mixerRuntime.dynIdlePidState[motorIndex];
+
+    const float maxIncrease = wasThrottleRaised()
+        ? mixerRuntime.dynIdleMaxIncrease : mixerRuntime.dynIdleStartIncrease;
+    float rps = getMotorFrequencyHz(motorIndex);
+    float rpsError = mixerRuntime.dynIdleMinRps - rps;
+    // PT1 type lowpass delay and smoothing for D
+    rps = pidState->prevRps + mixerRuntime.minRpsDelayK * (rps - pidState->prevRps);
+    float dynIdleD = (pidState->prevRps - rps) * mixerRuntime.dynIdleDGain;
+    pidState->prevRps = rps;
+    float dynIdleP = rpsError * mixerRuntime.dynIdlePGain;
+    rpsError = MAX(-0.1f, rpsError); //I rises fast, falls slowly
+    pidState->dynIdleI += rpsError * mixerRuntime.dynIdleIGain;
+    pidState->dynIdleI = constrainf(pidState->dynIdleI, 0.0f, maxIncrease);
+    pidState->motorIncrease = constrainf((dynIdleP + pidState->dynIdleI + dynIdleD), 0.0f, maxIncrease);
+    if (motorIndex <= 1) {
+        // debug two first motors
+        DEBUG_SET(DEBUG_DYN_IDLE, motorIndex + 0, MAX(-1000, lrintf(dynIdleP * 10000)));
+        DEBUG_SET(DEBUG_DYN_IDLE, motorIndex + 1, lrintf(pidState->dynIdleI * 10000));
+        DEBUG_SET(DEBUG_DYN_IDLE, motorIndex + 2, lrintf(dynIdleD * 10000));
+        DEBUG_SET(DEBUG_DYN_IDLE, motorIndex + 3, lrintf(rps * 10.0f));
+    }
+}
+
 static void calculateThrottleAndCurrentMotorEndpoints(timeUs_t currentTimeUs)
 {
     static uint16_t rcThrottlePrevious = 0;   // Store the last throttle direction for deadband transitions
@@ -228,25 +253,9 @@ static void calculateThrottleAndCurrentMotorEndpoints(timeUs_t currentTimeUs)
         currentThrottleInputRange = PWM_RANGE;
 #ifdef USE_DYN_IDLE
         if (mixerRuntime.dynIdleMinRps > 0.0f) {
-            const float maxIncrease = wasThrottleRaised()
-                ? mixerRuntime.dynIdleMaxIncrease : mixerRuntime.dynIdleStartIncrease;
-            float minRps = getMinMotorFrequencyHz();
-            DEBUG_SET(DEBUG_DYN_IDLE, 3, lrintf(minRps * 10.0f));
-            float rpsError = mixerRuntime.dynIdleMinRps - minRps;
-            // PT1 type lowpass delay and smoothing for D
-            minRps = mixerRuntime.prevMinRps + mixerRuntime.minRpsDelayK * (minRps - mixerRuntime.prevMinRps);
-            float dynIdleD = (mixerRuntime.prevMinRps - minRps) * mixerRuntime.dynIdleDGain;
-            mixerRuntime.prevMinRps = minRps;
-            float dynIdleP = rpsError * mixerRuntime.dynIdlePGain;
-            rpsError = MAX(-0.1f, rpsError); //I rises fast, falls slowly
-            mixerRuntime.dynIdleI += rpsError * mixerRuntime.dynIdleIGain;
-            mixerRuntime.dynIdleI = constrainf(mixerRuntime.dynIdleI, 0.0f, maxIncrease);
-            motorRangeMinIncrease = constrainf((dynIdleP + mixerRuntime.dynIdleI + dynIdleD), 0.0f, maxIncrease);
-            DEBUG_SET(DEBUG_DYN_IDLE, 0, MAX(-1000, lrintf(dynIdleP * 10000)));
-            DEBUG_SET(DEBUG_DYN_IDLE, 1, lrintf(mixerRuntime.dynIdleI * 10000));
-            DEBUG_SET(DEBUG_DYN_IDLE, 2, lrintf(dynIdleD * 10000));
-        } else {
-            motorRangeMinIncrease = 0;
+            for (uint8_t i = 0; i < mixerRuntime.motorCount; i++) {
+                calculateDynamicIdleMotorThrottleIncrease(i);
+            }
         }
 #endif
 
@@ -457,7 +466,10 @@ static void applyMixToMotors(const float motorMix[MAX_SUPPORTED_MOTORS], motorMi
 #ifdef USE_THRUST_LINEARIZATION
         motorOutput = pidApplyThrustLinearization(motorOutput);
 #endif
-        motorOutput = motorOutputMin + motorOutputRange * motorOutput;
+#ifdef USE_DYN_IDLE
+        motorOutput += mixerRuntime.dynIdlePidState[i].motorIncrease;
+#endif
+        motorOutput = motorOutputMin + motorOutputRange * motorOutput; // 1000 + 1000 * 0...1
 
 #ifdef USE_SERVOS
         if (mixerIsTricopter()) {

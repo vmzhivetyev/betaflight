@@ -204,6 +204,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .dyn_idle_i_gain = 50,
         .dyn_idle_d_gain = 50,
         .dyn_idle_max_increase = 150,
+        .dyn_idle_per_motor = false,
         .feedforward_averaging = FEEDFORWARD_AVERAGING_OFF,
         .feedforward_max_rate_limit = 90,
         .feedforward_smooth_factor = 25,
