@@ -1,3 +1,123 @@
+
+# What is this
+
+This fork is maintained to include all actual features from [Betaflight master branch](https://github.com/betaflight/betaflight).
+
+I wanted to implement some features I need myself but I don't have enough time to make PRs to the Betaflight repo. Btw I'm pretty sure some of the modifications are too niche to be merged anyways.
+
+# Features and changes in this fork 
+
+## Show used Blackbox percent in OSD while armed
+
+- Shows used percent (up to tenths) of blackbox memory **in realtime**. 
+- Enable `Blackbox Log Status` OSD element to see the percent.
+- This feature can be disabled with `set osd_show_blackbox_percent=OFF`.
+
+> [!WARNING] 
+> This is tested only with Flash blackbox memory, current implementation is most probably very slow and bad if you have an SD card blackbox storage. Disable this feature in such case.
+
+## Auto-exit mass storage mode
+
+- Auto-exit Mass Storage Mode if nothing was read from the storage during the last 10 seconds.
+- This feature can not be disabled.
+
+## Configurable sampling rate for vbat and current
+
+- You can configure the sampling rate of ADC for both battery voltage and current readings.
+- `set current_meter_adc_hz=1000` for example.
+- Default value is 50Hz which is the same as it was without this feature.
+
+## Proper processing of EDT + Alarms
+
+[What is **extended DSHOT telemetry**?](https://github.com/bird-sanctuary/extended-dshot-telemetry)
+
+Extended DSHOT telemtry is properly parsed (based on https://github.com/betaflight/betaflight/pull/13855).
+
+We are especially interested in the "Max Stress Level" reported by the ESC which represents how bad the commutation of the motor is going on. Higher values = worse commutation (more heat, less torque, higher risk of desyncs). This value is reported by the ESC once a second.
+
+Includes mutiple new debug modes. Proper interpretation of such debug data is not supported by the Blackbox Explorer.
+
+New OSD element is added to show current values of "Max Stress Level" for each motor (4 numbers in 4 lines one under another just like rpm data). It's also colored (yellow when ESC reports demag timeouts and red when ESC reports desync). To enable it check the "Unknown 1" OSD Element in the list of elements in OSD tab of Betaflight Configurator.
+
+> [!NOTE]  
+> In Bluejay 0.21.0 the reported "Max Stress Level" is the maximum value since the quad was armed (not the max during the last second). This can be fixed with [custom Bluejay build](https://github.com/bird-sanctuary/bluejay/commit/1b61ea2345dc435f9e0b7a994e29d7e772325f71).
+
+> [!IMPORTANT]
+> Enable extended DSHOT telemtry with `set dshot_edt = ON`.
+
+**Alarms**
+
+Added configurable alarm for the "Max Stress Level" which can be from 0 to 15 (`set osd_esc_stress_alarm=9`, set to `0` to disable the alarm, it's also configurable from OSD menu). 
+
+If your alarm kicks in it will never go away until you disarm (See the note above about Bluejay 0.21.0). 
+
+The alarm text is `ESC <MOTOR_ID><ALARM_TYPE>`:
+
+- `MOTOR_ID` is the number of the motor (1-4). 
+- `ALARM_TYPE` can be 
+	- `X` - stress level threshold is reached
+	- `E` - the ESC is reporting that the motor is stalled. 
+
+Alarm can include different flags for different motors at the same time. 
+
+## Altitude hold
+
+> [!WARNING]  
+> * This is NOT a position hold.
+> * Current implementation ONLY uses BARO. 
+> * Current implementation MAY lack safety checks.
+> * Current implementation is DIFFERENT and REPLACES the [implementation in Betaflight's master](https://github.com/betaflight/betaflight/pull/13816).
+> * BEFORE disabling the ALTHOLD mode make sure you LOWER the throttle and CENTER the roll-pitch stick!
+
+* Works reliably based on BARO only.
+* Doesn't burn your motors even you have non-protected baro.
+* Allows for extensive configuration and tuning.
+* When ALTHOLD is active throttle position controls target altitude, throttle at zero lowers the target, throttle at max increases the target. Keep the throttle around 50% to not change the target altitude.
+* Target altitude is displayed in the OSD element which shows current altitude (appended on the right).
+* Tuning can be hard, recommended parameters based on my tests:
+```python
+set althold_pid_p = 60
+set althold_pid_d = 40
+set althold_pid_i = 5
+
+# limits how much I can be accumulated (10 = 10% of throttle)
+set althold_pid_imax = 10
+
+# low pass filter for d-term, 10 == 1 Hz
+set althold_pid_d_cutoff = 15
+
+# low pass filter for motors control, 10 == 1 Hz
+set althold_throttle_cutoff = 255
+
+# low pass filter for baro data, 10 == 1 Hz
+set althold_altitude_cutoff = 20
+
+# min throttle % that the ALTHOLD can send to motors
+set althold_throttle_min = 15
+
+# max throttle % that the ALTHOLD can send to motors
+set althold_throttle_max = 50
+
+# set this to % of throttle your quad hovers at
+set althold_throttle_hover = 28
+
+# limit max target altitude
+# has no effect if set to 0 or current target altitude is greater than the limit (you engaged ALTHOLD mode while higher than the limit)
+set althold_max_altitude = 100
+
+# 1 = 0.1s, how much time it takes to fade controls from your stick inputs to ALTHOLD algorithm
+set althold_enter_fade_deciseconds = 1
+
+# 1 = 0.1s, how much time it takes to fade controls from ALTHOLD algorithm to your stick inputs
+set althold_exit_fade_deciseconds = 1  
+```
+ 
+
+
+___
+
+# Original README
+
 ![Betaflight](images/bf_logo.png)
 
 [![Latest version](https://img.shields.io/github/v/release/betaflight/betaflight)](https://github.com/betaflight/betaflight/releases) [![Build](https://img.shields.io/github/actions/workflow/status/betaflight/betaflight/nightly.yml?branch=master)](https://github.com/betaflight/betaflight/actions/workflows/nightly.yml) [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0) [![Join us on Discord!](https://img.shields.io/discord/868013470023548938)](https://discord.gg/n4E6ak4u3c)

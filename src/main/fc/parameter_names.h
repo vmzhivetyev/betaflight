@@ -241,9 +241,24 @@
 
 #endif // USE_GPS
 
-#ifdef USE_ALT_HOLD_MODE
-#define PARAM_NAME_ALT_HOLD_TARGET_ADJUST_RATE "alt_hold_target_adjust_rate"
-#endif // USE_ALT_HOLD_MODE
+#ifdef USE_ALTHOLD_MODE
+#define PARAM_NAME_ALTHOLD_P "althold_pid_p"
+#define PARAM_NAME_ALTHOLD_I "althold_pid_i"
+#define PARAM_NAME_ALTHOLD_D "althold_pid_d"
+#define PARAM_NAME_ALTHOLD_I_MAX "althold_pid_imax"
+
+#define PARAM_NAME_ALTHOLD_D_CUTOFF "althold_pid_d_cutoff"
+#define PARAM_NAME_ALTHOLD_THROTTLE_CUTOFF "althold_throttle_cutoff"
+#define PARAM_NAME_ALTHOLD_ALTITUDE_CUTOFF "althold_altitude_cutoff"
+
+#define PARAM_NAME_ALTHOLD_THROTTLE_MIN "althold_throttle_min"
+#define PARAM_NAME_ALTHOLD_THROTTLE_MAX "althold_throttle_max"
+#define PARAM_NAME_ALTHOLD_THROTTLE_HOVER "althold_throttle_hover"
+
+#define PARAM_NAME_ALTHOLD_MAX_ALT "althold_max_altitude"
+#define PARAM_NAME_ALTHOLD_ENTER_FADE_DS "althold_enter_fade_deciseconds"
+#define PARAM_NAME_ALTHOLD_EXIT_FADE_DS "althold_exit_fade_deciseconds"
+#endif // USE_ALTHOLD_MODE
 
 #define PARAM_NAME_IMU_DCM_KP "imu_dcm_kp"
 #define PARAM_NAME_IMU_DCM_KI "imu_dcm_ki"

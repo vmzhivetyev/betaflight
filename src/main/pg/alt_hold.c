@@ -20,7 +20,7 @@
 
 #include "platform.h"
 
-#ifdef USE_ALT_HOLD_MODE
+#ifdef USE_ALTHOLD_MODE
 
 #include "flight/alt_hold.h"
 
@@ -29,9 +29,4 @@
 
 #include "alt_hold.h"
 
-PG_REGISTER_WITH_RESET_TEMPLATE(altholdConfig_t, altholdConfig, PG_ALTHOLD_CONFIG, 4);
-
-PG_RESET_TEMPLATE(altholdConfig_t, altholdConfig,
-    .alt_hold_target_adjust_rate = 100, // max rate of change of altitude target using sticks in cm/s
-);
 #endif

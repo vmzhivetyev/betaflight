@@ -17,20 +17,83 @@
 
 #pragma once
 
-#include "pg/alt_hold.h"
+#include "platform.h"
 
-#ifdef USE_ALT_HOLD_MODE
+#ifdef USE_ALTHOLD_MODE
 #include "common/time.h"
+#include "common/filter.h"
+#include "pg/pg.h"
+#include "pg/pg_ids.h"
 
-#define ALTHOLD_TASK_RATE_HZ 100         // hz
+#define ALTHOLD_TASK_PERIOD 100         // hz
 
 typedef struct {
-    bool isAltHoldActive;
-    float targetAltitudeCm;
-    float targetAltitudeAdjustRate;
-} altHoldState_t;
+    uint8_t throttlePidP; // 1 == 0.1 %
+    uint8_t throttlePidD; // 1 == 0.1 %
+    uint8_t throttlePidI; // 1 == 0.1 %
+    uint8_t throttlePidIMax; // 1 == 1 %
 
-void altHoldInit(void);
+    uint8_t throttlePidDFiltCutoffFreq; // 1 == 0.1 Hz
+    uint8_t throttleFiltCutoffFreq; // 1 == 0.1 Hz
+    uint8_t altitudeFiltCutoffFreq; // 1 == 0.1 Hz
+
+    uint8_t minThrottle; // 1 == 1 %
+    uint8_t maxThrottle; // 1 == 1 %
+    uint8_t hoverThrottle; // 1 == 1 %
+
+    uint16_t maxAltitude; // meters
+
+    uint8_t enterFadeTimeDecisec; // 1 == 0.1s
+    uint8_t exitFadeTimeDecisec; // 1 == 0.1s
+} altholdConfig_t;
+
+PG_DECLARE(altholdConfig_t, altholdConfig);
+
+typedef struct {
+    float max;
+    float min;
+    float kp;
+    float kd;
+    float ki;
+    float iMax;
+
+    float lastErr;
+    // float lastP;
+    // float lastI;
+    // float lastD;
+    float integral;
+    pt2Filter_t dTermLpf;
+} nicePid_s;
+
+typedef struct {
+    nicePid_s throttlePid;
+    float throttle;
+    float throttleFactor;
+    float targetAltitude;
+    float measuredAltitude;
+    bool altHoldEnabled;
+    uint32_t enterTime;
+    uint32_t exitTime;
+    float smoothedAltitude;
+    pt2Filter_t throttleLpf;
+    pt2Filter_t altitudeLpf;
+} altHoldState_s;
+
+
+void initAltHoldState(void);
+
 void updateAltHoldState(timeUs_t currentTimeUs);
+
+float getAltHoldThrottle(void);
+
+float getAltHoldThrottleFactor(float currentThrottle);
+
+ // In meters.
+float getAltHoldTargetAltitude(void);
+
+// In meters.
+float getAltHoldCurrentAltitude(void);
+
+bool getAltHoldActive(void);
 
 #endif

@@ -34,6 +34,7 @@
 #include "cms/cms_types.h"
 #include "cms/cms_menu_gps_lap_timer.h"
 #include "cms/cms_menu_ledstrip.h"
+#include "cms/cms_menu_alt_hold.h"
 
 #include "common/utils.h"
 
@@ -165,6 +166,10 @@ static const OSD_Entry menuMiscEntries[]=
 #ifdef USE_GPS_LAP_TIMER
     { "GPS LAP TIMER",  OME_Submenu, cmsMenuChange, &cms_menuGpsLapTimer },
 #endif // USE_GPS_LAP_TIMER
+
+#ifdef USE_ALTHOLD_MODE
+    { "ALTHOLD MODE", OME_Submenu, cmsMenuChange, &cmsx_menuAltitudeHold },
+#endif
 
     { "BACK", OME_Back, NULL, NULL},
     { NULL, OME_END, NULL, NULL}

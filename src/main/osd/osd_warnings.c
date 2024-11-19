@@ -70,6 +70,7 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
 {
     const batteryState_e batteryState = getBatteryState();
     const timeUs_t currentTimeUs = micros();
+    statistic_t *stats = osdGetStats();
 
     static timeUs_t armingDisabledUpdateTimeUs;
     static unsigned armingDisabledDisplayIndex;
@@ -237,7 +238,6 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
        gpsRescueIsConfigured() &&
        gpsRescueIsDisabled()) {
 
-        statistic_t *stats = osdGetStats();
         if (cmpTimeUs(stats->armed_time, OSD_GPS_RESCUE_DISABLED_WARNING_DURATION_US) < 0) {
             tfp_sprintf(warningText, "RESCUE OFF");
             *displayAttr = DISPLAYPORT_SEVERITY_WARNING;
@@ -319,6 +319,8 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
     }
 #endif // USE_ESC_SENSOR
 
+    bool shouldShowBatteryWarning = osdWarnGetState(OSD_WARNING_BATTERY_WARNING) && batteryState == BATTERY_WARNING;
+
 #if defined(USE_DSHOT) && defined(USE_DSHOT_TELEMETRY)
     // Show esc error
     if (osdWarnGetState(OSD_WARNING_ESC_FAIL)) {
@@ -332,7 +334,7 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
 
         for (uint8_t k = 0; k < getMotorCount(); k++) {
             // Skip if no extended telemetry at all
-            if ((dshotTelemetryState.motorState[k].telemetryTypes & DSHOT_EXTENDED_TELEMETRY_MASK) == 0) {
+            if (!dshotTelemetryState.motorState[k].extendedTelemetryEnabled) {
                 continue;
             }
 
@@ -343,21 +345,55 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
             warningText[dshotEscErrorLength++] = ' ';
             warningText[dshotEscErrorLength++] = '0' + k + 1;
 
-            // Add esc warnings
-            if (ARMING_FLAG(ARMED) && osdConfig()->esc_rpm_alarm != ESC_RPM_ALARM_OFF
-                    && isDshotMotorTelemetryActive(k)
-                    && (dshotTelemetryState.motorState[k].telemetryData[DSHOT_TELEMETRY_TYPE_eRPM] * 100 * 2 / motorConfig()->motorPoleCount) <= osdConfig()->esc_rpm_alarm) {
-                warningText[dshotEscErrorLength++] = 'R';
-            }
+            // Temperature warning
             if (osdConfig()->esc_temp_alarm != ESC_TEMP_ALARM_OFF
-                    && (dshotTelemetryState.motorState[k].telemetryTypes & (1 << DSHOT_TELEMETRY_TYPE_TEMPERATURE)) != 0
-                    && dshotTelemetryState.motorState[k].telemetryData[DSHOT_TELEMETRY_TYPE_TEMPERATURE] >= osdConfig()->esc_temp_alarm) {
+                && (dshotTelemetryState.motorState[k].telemetryTypes & (1 << DSHOT_TELEMETRY_TYPE_TEMPERATURE)) != 0
+                && (dshotTelemetryState.motorState[k].telemetryData[DSHOT_TELEMETRY_TYPE_TEMPERATURE] >= osdConfig()->esc_temp_alarm))
                 warningText[dshotEscErrorLength++] = 'T';
-            }
-            if (ARMING_FLAG(ARMED) && osdConfig()->esc_current_alarm != ESC_CURRENT_ALARM_OFF
-                    && (dshotTelemetryState.motorState[k].telemetryTypes & (1 << DSHOT_TELEMETRY_TYPE_CURRENT)) != 0
-                    && dshotTelemetryState.motorState[k].telemetryData[DSHOT_TELEMETRY_TYPE_CURRENT] >= osdConfig()->esc_current_alarm) {
+
+            // RPM warning
+            if (osdConfig()->esc_rpm_alarm != ESC_RPM_ALARM_OFF
+                && ARMING_FLAG(ARMED)
+                && (dshotTelemetryState.motorState[k].telemetryTypes & (1 << DSHOT_TELEMETRY_TYPE_eRPM)) != 0
+                && (erpmToRpm(dshotTelemetryState.motorState[k].telemetryData[DSHOT_TELEMETRY_TYPE_eRPM]) <= osdConfig()->esc_rpm_alarm))
+                warningText[dshotEscErrorLength++] = 'R';
+
+            // Current warning
+            if (osdConfig()->esc_current_alarm != ESC_CURRENT_ALARM_OFF
+                && ARMING_FLAG(ARMED)
+                && (dshotTelemetryState.motorState[k].telemetryTypes & (1 << DSHOT_TELEMETRY_TYPE_CURRENT)) != 0
+                && (dshotTelemetryState.motorState[k].telemetryData[DSHOT_TELEMETRY_TYPE_CURRENT] >= osdConfig()->esc_current_alarm))
                 warningText[dshotEscErrorLength++] = 'C';
+
+            // Prevent overriding "Low Battery" warning.
+            bool shouldShowESCwarning = !shouldShowBatteryWarning && osdConfig()->esc_stress_alarm > 0;
+
+            // bool shouldShowESCwarning_warningEvent = osdConfig()->esc_stress_alarm >= 2;
+            // bool shouldShowESCwarning_alertEvent = osdConfig()->esc_stress_alarm >= 3;
+            // bool shouldShowESCwarning_stressAlarm = osdConfig()->esc_stress_alarm >= 4;
+
+            // Status frame events
+            if ((dshotTelemetryState.motorState[k].telemetryTypes & (1 << DSHOT_TELEMETRY_TYPE_STATUS)) != 0
+                && ARMING_FLAG(ARMED) && shouldShowESCwarning) {
+                uint32_t telemetryStatus = dshotTelemetryState.motorState[k].telemetryData[DSHOT_TELEMETRY_TYPE_STATUS];
+
+                // Notify alert event
+                // if (telemetryStatus & DSHOT_TELEMETRY_STATUS_ALERT_EVENT_MASK)
+                //     warningText[dshotEscErrorLength++] = 'A';
+
+                // Notify warning event
+                // if (telemetryStatus & DSHOT_TELEMETRY_STATUS_WARNING_EVENT_MASK)
+                //     warningText[dshotEscErrorLength++] = 'W';
+
+                // Notify max stress lvl too high (bad commutation issue in normal flights or during aggressive with high rates flights)
+
+                uint32_t stressLevel = telemetryStatus & DSHOT_TELEMETRY_STATUS_MAX_STRESS_LVL_MASK;
+                if (stressLevel >= osdConfig()->esc_stress_alarm)
+                    warningText[dshotEscErrorLength++] = 'X';
+
+                // Notify error event
+                if (telemetryStatus & DSHOT_TELEMETRY_STATUS_ERROR_EVENT_MASK)
+                    warningText[dshotEscErrorLength++] = 'E';
             }
 
             // If no esc warning data undo esc nr (esc telemetry data types depends on the esc hw/sw)
@@ -377,7 +413,7 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
     }
 #endif
 
-    if (osdWarnGetState(OSD_WARNING_BATTERY_WARNING) && batteryState == BATTERY_WARNING) {
+    if (shouldShowBatteryWarning) {
         tfp_sprintf(warningText, "LOW BATTERY");
         *displayAttr = DISPLAYPORT_SEVERITY_WARNING;
         *blinking = true;
@@ -417,6 +453,23 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
         tfp_sprintf(warningText, "BATT < FULL");
         *displayAttr = DISPLAYPORT_SEVERITY_INFO;
         return;
+    }
+
+    if (batteryConfig()->isLiionModeActive) {
+        if (cmpTimeUs(stats->armed_time, OSD_GPS_RESCUE_DISABLED_WARNING_DURATION_US) < 0) {
+            tfp_sprintf(warningText, "LIION MOTOR LIM %d%%", currentPidProfile->motor_output_limit);
+            if (currentPidProfile->motor_output_limit > 80) {
+                *displayAttr = DISPLAYPORT_SEVERITY_CRITICAL;
+                *blinking = true;
+            } else if (currentPidProfile->motor_output_limit > 60) {
+                *displayAttr = DISPLAYPORT_SEVERITY_WARNING;
+                *blinking = true;
+            } else {
+                *displayAttr = DISPLAYPORT_SEVERITY_INFO;
+                *blinking = ARMING_FLAG(ARMED);
+            }
+            return;
+        }
     }
 
     // Visual beeper

@@ -20,6 +20,4 @@
 
 #pragma once
 
-#include <stdint.h>
-
-#include "pg/pg.h"
+extern CMS_Menu cmsx_menuAltitudeHold;

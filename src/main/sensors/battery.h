@@ -45,16 +45,22 @@ enum {
 };
 
 typedef struct batteryConfig_s {
+    // mode
+    bool isLiionModeActive;                 // Are we running Li-Ion mode? If so, we are gonna use liion params.
+
     // voltage
     uint16_t vbatmaxcellvoltage;            // maximum voltage per cell, used for auto-detecting battery voltage in 0.01V units, default is 430 (4.30V)
     uint16_t vbatmincellvoltage;            // minimum voltage per cell, this triggers battery critical alarm, in 0.01V units, default is 330 (3.30V)
+    uint16_t vbatmincellvoltageLiion;       // minimum voltage per cell, this triggers battery critical alarm, in 0.01V units, default is 330 (3.30V)
     uint16_t vbatwarningcellvoltage;        // warning voltage per cell, this triggers battery warning alarm, in 0.01V units, default is 350 (3.50V)
+    uint16_t vbatwarningcellvoltageLiion;   // minimum voltage per cell, this triggers battery critical alarm, in 0.01V units, default is 330 (3.30V)
     uint16_t vbatnotpresentcellvoltage;     // Between vbatmaxcellvoltage and 2*this is considered to be USB powered. Below this it is notpresent
     uint8_t lvcPercentage;                  // Percentage of throttle when lvc is triggered
     voltageMeterSource_e voltageMeterSource; // source of battery voltage meter used, either ADC or ESC
 
     // current
     currentMeterSource_e currentMeterSource; // source of battery current meter used, either ADC, Virtual or ESC
+    uint16_t currentMeterADCHz;             // Frequency of reading current data from ADC
     uint16_t batteryCapacity;               // mAh
 
     // warnings / alerts

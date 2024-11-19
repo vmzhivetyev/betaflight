@@ -90,3 +90,4 @@ bool imuQuaternionHeadfreeOffsetSet(void);
 void imuQuaternionHeadfreeTransformVectorEarthToBody(vector3_t *v);
 bool shouldInitializeGPSHeading(void);
 bool isUpright(void);
+void imuTransformVectorBodyToEarth(t_fp_vector * v);

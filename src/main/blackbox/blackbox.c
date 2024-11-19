@@ -1746,9 +1746,26 @@ static bool blackboxWriteSysinfo(void)
 #endif // USE_GPS_RESCUE
 #endif // USE_GPS
 
-#ifdef USE_ALT_HOLD_MODE
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALT_HOLD_TARGET_ADJUST_RATE, "%d", altholdConfig()->alt_hold_target_adjust_rate);
-#endif
+#ifdef USE_ALTHOLD_MODE
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_P, "%d",                  altholdConfig()->throttlePidP);
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_I, "%d",                  altholdConfig()->throttlePidI);
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_D, "%d",                  altholdConfig()->throttlePidD);
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_I_MAX, "%d",              altholdConfig()->throttlePidIMax);
+
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_D_CUTOFF, "%d",           altholdConfig()->throttlePidDFiltCutoffFreq);
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_THROTTLE_CUTOFF, "%d",    altholdConfig()->throttleFiltCutoffFreq);
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_ALTITUDE_CUTOFF, "%d",    altholdConfig()->altitudeFiltCutoffFreq);
+
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_THROTTLE_MIN, "%d",       altholdConfig()->minThrottle);
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_THROTTLE_MAX, "%d",       altholdConfig()->maxThrottle);
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_THROTTLE_HOVER, "%d",     altholdConfig()->hoverThrottle);
+        
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_MAX_ALT, "%d",            altholdConfig()->maxAltitude);
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_ENTER_FADE_DS, "%d",      altholdConfig()->enterFadeTimeDecisec);
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ALTHOLD_EXIT_FADE_DS, "%d",       altholdConfig()->exitFadeTimeDecisec);
+#endif // USE_ALTHOLD_MODE
+
+        BLACKBOX_PRINT_HEADER_LINE("DEBUG_MODE", "%s", systemConfig()->debug_mode < DEBUG_COUNT ? debugModeNames[systemConfig()->debug_mode] : "INVALID");
 
 #ifdef USE_WING
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_TPA_SPEED_TYPE, "%d", currentPidProfile->tpa_speed_type);

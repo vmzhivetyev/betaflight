@@ -343,7 +343,7 @@ task_attribute_t task_attributes[TASK_COUNT] = {
     [TASK_SERIAL] = DEFINE_TASK("SERIAL", NULL, NULL, taskHandleSerial, TASK_PERIOD_HZ(100), TASK_PRIORITY_LOW), // 100 Hz should be enough to flush up to 115 bytes @ 115200 baud
     [TASK_BATTERY_ALERTS] = DEFINE_TASK("BATTERY_ALERTS", NULL, NULL, taskBatteryAlerts, TASK_PERIOD_HZ(5), TASK_PRIORITY_MEDIUM),
     [TASK_BATTERY_VOLTAGE] = DEFINE_TASK("BATTERY_VOLTAGE", NULL, NULL, batteryUpdateVoltage, TASK_PERIOD_HZ(SLOW_VOLTAGE_TASK_FREQ_HZ), TASK_PRIORITY_MEDIUM), // Freq may be updated in tasksInit
-    [TASK_BATTERY_CURRENT] = DEFINE_TASK("BATTERY_CURRENT", NULL, NULL, batteryUpdateCurrentMeter, TASK_PERIOD_HZ(50), TASK_PRIORITY_MEDIUM),
+    [TASK_BATTERY_CURRENT] = DEFINE_TASK("BATTERY_CURRENT", NULL, NULL, batteryUpdateCurrentMeter, TASK_PERIOD_HZ(SLOW_VOLTAGE_TASK_FREQ_HZ), TASK_PRIORITY_MEDIUM),
 
 #ifdef USE_TRANSPONDER
     [TASK_TRANSPONDER] = DEFINE_TASK("TRANSPONDER", NULL, NULL, transponderUpdate, TASK_PERIOD_HZ(250), TASK_PRIORITY_LOW),
@@ -377,8 +377,8 @@ task_attribute_t task_attributes[TASK_COUNT] = {
     [TASK_GPS_RESCUE] = DEFINE_TASK("GPS_RESCUE", NULL, NULL, taskGpsRescue, TASK_PERIOD_HZ(TASK_GPS_RESCUE_RATE_HZ), TASK_PRIORITY_MEDIUM),
 #endif
 
-#ifdef USE_ALT_HOLD_MODE
-    [TASK_ALTHOLD] = DEFINE_TASK("ALTHOLD", NULL, NULL, updateAltHoldState, TASK_PERIOD_HZ(ALTHOLD_TASK_RATE_HZ), TASK_PRIORITY_LOW),
+#ifdef USE_ALTHOLD_MODE
+    [TASK_ALTHOLD] = DEFINE_TASK("ALTHOLD", NULL, NULL, updateAltHoldState, TASK_PERIOD_HZ(ALTHOLD_TASK_PERIOD), TASK_PRIORITY_LOW),
 #endif
 
 #ifdef USE_MAG
@@ -483,15 +483,25 @@ void tasksInit(void)
     const bool useBatteryVoltage = batteryConfig()->voltageMeterSource != VOLTAGE_METER_NONE;
     setTaskEnabled(TASK_BATTERY_VOLTAGE, useBatteryVoltage);
 
+    do {
+        uint16_t voltageSamplingHZ = batteryConfig()->currentMeterADCHz;
+
 #if defined(USE_BATTERY_VOLTAGE_SAG_COMPENSATION)
-    // If vbat motor output compensation is used, use fast vbat samplingTime
-    if (isSagCompensationConfigured()) {
-        rescheduleTask(TASK_BATTERY_VOLTAGE, TASK_PERIOD_HZ(FAST_VOLTAGE_TASK_FREQ_HZ));
-    }
+        // If vbat motor output compensation is used, use fast vbat samplingTime
+        if (isSagCompensationConfigured() && FAST_VOLTAGE_TASK_FREQ_HZ > voltageSamplingHZ) {
+            voltageSamplingHZ = FAST_VOLTAGE_TASK_FREQ_HZ;
+        }
 #endif
+        rescheduleTask(TASK_BATTERY_VOLTAGE, TASK_PERIOD_HZ(voltageSamplingHZ));
+    } while(0);
 
     const bool useBatteryCurrent = batteryConfig()->currentMeterSource != CURRENT_METER_NONE;
     setTaskEnabled(TASK_BATTERY_CURRENT, useBatteryCurrent);
+
+    if (batteryConfig()->currentMeterSource == CURRENT_METER_ADC) {
+        rescheduleTask(TASK_BATTERY_CURRENT, TASK_PERIOD_HZ(batteryConfig()->currentMeterADCHz));
+    }
+
     const bool useBatteryAlerts = batteryConfig()->useVBatAlerts || batteryConfig()->useConsumptionAlerts || featureIsEnabled(FEATURE_OSD);
     setTaskEnabled(TASK_BATTERY_ALERTS, (useBatteryVoltage || useBatteryCurrent) && useBatteryAlerts);
 
@@ -539,7 +549,7 @@ void tasksInit(void)
     setTaskEnabled(TASK_GPS_RESCUE, featureIsEnabled(FEATURE_GPS));
 #endif
 
-#ifdef USE_ALT_HOLD_MODE
+#ifdef USE_ALTHOLD_MODE
     setTaskEnabled(TASK_ALTHOLD, true);
 #endif
 

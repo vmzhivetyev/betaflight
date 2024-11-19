@@ -39,12 +39,16 @@
 
 #include "config/config.h"
 
+bool batteryConfig_isLiionModeActive;
+
 voltageMeterSource_e batteryConfig_voltageMeterSource;
 currentMeterSource_e batteryConfig_currentMeterSource;
 
 uint16_t batteryConfig_vbatmincellvoltage;
+uint16_t batteryConfig_vbatmincellvoltageLiion;
 uint16_t batteryConfig_vbatmaxcellvoltage;
 uint16_t batteryConfig_vbatwarningcellvoltage;
+uint16_t batteryConfig_vbatwarningcellvoltageLiion;
 
 uint8_t voltageSensorADCConfig_vbatscale;
 
@@ -60,12 +64,16 @@ static const void *cmsx_Power_onEnter(displayPort_t *pDisp)
 {
     UNUSED(pDisp);
 
+    batteryConfig_isLiionModeActive = batteryConfig()->isLiionModeActive;
+
     batteryConfig_voltageMeterSource = batteryConfig()->voltageMeterSource;
     batteryConfig_currentMeterSource = batteryConfig()->currentMeterSource;
 
     batteryConfig_vbatmincellvoltage = batteryConfig()->vbatmincellvoltage;
+    batteryConfig_vbatmincellvoltageLiion = batteryConfig()->vbatmincellvoltageLiion;
     batteryConfig_vbatmaxcellvoltage = batteryConfig()->vbatmaxcellvoltage;
     batteryConfig_vbatwarningcellvoltage = batteryConfig()->vbatwarningcellvoltage;
+    batteryConfig_vbatwarningcellvoltageLiion = batteryConfig()->vbatwarningcellvoltageLiion;
 
     voltageSensorADCConfig_vbatscale = voltageSensorADCConfig(0)->vbatscale;
 
@@ -85,12 +93,16 @@ static const void *cmsx_Power_onExit(displayPort_t *pDisp, const OSD_Entry *self
     UNUSED(pDisp);
     UNUSED(self);
 
+    batteryConfigMutable()->isLiionModeActive = batteryConfig_isLiionModeActive;
+
     batteryConfigMutable()->voltageMeterSource = batteryConfig_voltageMeterSource;
     batteryConfigMutable()->currentMeterSource = batteryConfig_currentMeterSource;
 
     batteryConfigMutable()->vbatmincellvoltage = batteryConfig_vbatmincellvoltage;
+    batteryConfigMutable()->vbatmincellvoltageLiion = batteryConfig_vbatmincellvoltageLiion;
     batteryConfigMutable()->vbatmaxcellvoltage = batteryConfig_vbatmaxcellvoltage;
     batteryConfigMutable()->vbatwarningcellvoltage = batteryConfig_vbatwarningcellvoltage;
+    batteryConfigMutable()->vbatwarningcellvoltageLiion = batteryConfig_vbatwarningcellvoltageLiion;
 
     voltageSensorADCConfigMutable(0)->vbatscale = voltageSensorADCConfig_vbatscale;
 
@@ -109,12 +121,16 @@ static const OSD_Entry cmsx_menuPowerEntries[] =
 {
     { "-- POWER --", OME_Label, NULL, NULL},
 
+    { "LIION MODE", OME_Bool | REBOOT_REQUIRED,  NULL, &batteryConfig_isLiionModeActive },
+
     { "V METER", OME_TAB | REBOOT_REQUIRED, NULL, &(OSD_TAB_t){ &batteryConfig_voltageMeterSource, VOLTAGE_METER_COUNT - 1, voltageMeterSourceNames } },
     { "I METER", OME_TAB | REBOOT_REQUIRED, NULL, &(OSD_TAB_t){ &batteryConfig_currentMeterSource, CURRENT_METER_COUNT - 1, currentMeterSourceNames } },
 
     { "VBAT CLMIN", OME_UINT16, NULL, &(OSD_UINT16_t) { &batteryConfig_vbatmincellvoltage, VBAT_CELL_VOTAGE_RANGE_MIN, VBAT_CELL_VOTAGE_RANGE_MAX, 1 } },
+    { "VBAT CLMIN LIION", OME_UINT16, NULL, &(OSD_UINT16_t) { &batteryConfig_vbatmincellvoltageLiion, VBAT_CELL_VOTAGE_RANGE_MIN, VBAT_CELL_VOTAGE_RANGE_MAX, 1 } },
     { "VBAT CLMAX", OME_UINT16, NULL, &(OSD_UINT16_t) { &batteryConfig_vbatmaxcellvoltage, VBAT_CELL_VOTAGE_RANGE_MIN, VBAT_CELL_VOTAGE_RANGE_MAX, 1 } },
     { "VBAT CLWARN", OME_UINT16, NULL, &(OSD_UINT16_t) { &batteryConfig_vbatwarningcellvoltage, VBAT_CELL_VOTAGE_RANGE_MIN, VBAT_CELL_VOTAGE_RANGE_MAX, 1 } },
+    { "VBAT CLWARN LIION", OME_UINT16, NULL, &(OSD_UINT16_t) { &batteryConfig_vbatwarningcellvoltageLiion, VBAT_CELL_VOTAGE_RANGE_MIN, VBAT_CELL_VOTAGE_RANGE_MAX, 1 } },
 
     { "VBAT SCALE", OME_UINT8, NULL, &(OSD_UINT8_t){ &voltageSensorADCConfig_vbatscale, VBAT_SCALE_MIN, VBAT_SCALE_MAX, 1 } },
 

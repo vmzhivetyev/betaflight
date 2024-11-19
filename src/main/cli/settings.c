@@ -39,6 +39,7 @@
 #include "drivers/bus_i2c.h"
 #include "drivers/bus_spi.h"
 #include "drivers/dshot_command.h"
+#include "drivers/dshot.h"
 #include "drivers/camera_control_impl.h"
 #include "drivers/light_led.h"
 #include "drivers/mco.h"
@@ -923,13 +924,17 @@ const clivalue_t valueTable[] = {
 #endif
 
 // PG_BATTERY_CONFIG
+    { "liion_bat_mode",             VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, isLiionModeActive) },
     { "bat_capacity",               VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 20000 }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, batteryCapacity) },
     { "vbat_max_cell_voltage",      VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { VBAT_CELL_VOTAGE_RANGE_MIN, VBAT_CELL_VOTAGE_RANGE_MAX }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, vbatmaxcellvoltage) },
     { "vbat_full_cell_voltage",     VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { VBAT_CELL_VOTAGE_RANGE_MIN, VBAT_CELL_VOTAGE_RANGE_MAX }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, vbatfullcellvoltage) },
     { "vbat_min_cell_voltage",      VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { VBAT_CELL_VOTAGE_RANGE_MIN, VBAT_CELL_VOTAGE_RANGE_MAX }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, vbatmincellvoltage) },
+    { "vbat_min_cell_voltage_liion",VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { VBAT_CELL_VOTAGE_RANGE_MIN, VBAT_CELL_VOTAGE_RANGE_MAX }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, vbatmincellvoltageLiion) },
     { "vbat_warning_cell_voltage",  VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { VBAT_CELL_VOTAGE_RANGE_MIN, VBAT_CELL_VOTAGE_RANGE_MAX }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, vbatwarningcellvoltage) },
+    { "vbat_warning_cell_voltage_liion",VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { VBAT_CELL_VOTAGE_RANGE_MIN, VBAT_CELL_VOTAGE_RANGE_MAX }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, vbatwarningcellvoltageLiion) },
     { "vbat_hysteresis",            VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, vbathysteresis) },
     { "current_meter",              VAR_UINT8  | HARDWARE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_CURRENT_METER }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, currentMeterSource) },
+    { "current_meter_adc_hz",       VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 1, 8000 }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, currentMeterADCHz) },
     { "battery_meter",              VAR_UINT8  | HARDWARE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_VOLTAGE_METER }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, voltageMeterSource) },
     { "vbat_detect_cell_voltage",   VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 2000 }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, vbatnotpresentcellvoltage) },
     { "use_vbat_alerts",            VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, useVBatAlerts) },
@@ -1106,8 +1111,25 @@ const clivalue_t valueTable[] = {
     { PARAM_NAME_YAW_DEADBAND,      VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_RC_CONTROLS_CONFIG, offsetof(rcControlsConfig_t, yaw_deadband) },
     { "yaw_control_reversed",       VAR_INT8   | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_RC_CONTROLS_CONFIG, offsetof(rcControlsConfig_t, yaw_control_reversed) },
 
-#ifdef USE_ALT_HOLD_MODE
-    { PARAM_NAME_ALT_HOLD_TARGET_ADJUST_RATE,    VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, alt_hold_target_adjust_rate) },
+#ifdef USE_ALTHOLD_MODE
+    { PARAM_NAME_ALTHOLD_P,                 VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 255 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, throttlePidP) },
+    { PARAM_NAME_ALTHOLD_D,                 VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 255 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, throttlePidD) },
+    { PARAM_NAME_ALTHOLD_I,                 VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 255 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, throttlePidI) },
+    { PARAM_NAME_ALTHOLD_I_MAX,             VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 50 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, throttlePidIMax) },
+    
+    { PARAM_NAME_ALTHOLD_D_CUTOFF,          VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 5, 255 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, throttlePidDFiltCutoffFreq) },
+    { PARAM_NAME_ALTHOLD_THROTTLE_CUTOFF,   VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 5, 255 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, throttleFiltCutoffFreq) },
+    { PARAM_NAME_ALTHOLD_ALTITUDE_CUTOFF,   VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 5, 255 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, altitudeFiltCutoffFreq) },
+
+    { PARAM_NAME_ALTHOLD_THROTTLE_MIN,      VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 50 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, minThrottle) },
+    { PARAM_NAME_ALTHOLD_THROTTLE_MAX,      VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, maxThrottle) },
+    { PARAM_NAME_ALTHOLD_THROTTLE_HOVER,    VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, hoverThrottle) },
+
+    { PARAM_NAME_ALTHOLD_MAX_ALT,          VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 4000 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, maxAltitude) },
+
+    { PARAM_NAME_ALTHOLD_ENTER_FADE_DS,     VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 10 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, enterFadeTimeDecisec) },
+    { PARAM_NAME_ALTHOLD_EXIT_FADE_DS,      VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 30 }, PG_ALTHOLD_CONFIG, offsetof(altholdConfig_t, exitFadeTimeDecisec) },
+
 #endif
 
 // PG_PID_CONFIG
@@ -1122,6 +1144,7 @@ const clivalue_t valueTable[] = {
 #ifdef USE_PROFILE_NAMES
     { "profile_name",               VAR_UINT8  | PROFILE_VALUE | MODE_STRING, .config.string = { 1, MAX_PROFILE_NAME_LENGTH, STRING_FLAGS_NONE }, PG_PID_PROFILE, offsetof(pidProfile_t, profileName) },
 #endif
+
 #ifdef USE_DYN_LPF
     { "dterm_lpf1_dyn_min_hz",      VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, DYN_LPF_MAX_HZ }, PG_PID_PROFILE, offsetof(pidProfile_t, dterm_lpf1_dyn_min_hz) },
     { "dterm_lpf1_dyn_max_hz",      VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, DYN_LPF_MAX_HZ }, PG_PID_PROFILE, offsetof(pidProfile_t, dterm_lpf1_dyn_max_hz) },
@@ -1436,6 +1459,7 @@ const clivalue_t valueTable[] = {
     { "osd_esc_temp_alarm",         VAR_UINT8  | MASTER_VALUE, .config.minmax = { 0, UINT8_MAX }, PG_OSD_CONFIG, offsetof(osdConfig_t, esc_temp_alarm) },
     { "osd_esc_rpm_alarm",          VAR_INT16  | MASTER_VALUE, .config.minmax = { ESC_RPM_ALARM_OFF, INT16_MAX }, PG_OSD_CONFIG, offsetof(osdConfig_t, esc_rpm_alarm) },
     { "osd_esc_current_alarm",      VAR_INT16  | MASTER_VALUE, .config.minmax = { ESC_CURRENT_ALARM_OFF, INT16_MAX }, PG_OSD_CONFIG, offsetof(osdConfig_t, esc_current_alarm) },
+    { "osd_esc_stress_alarm",       VAR_UINT8  | MASTER_VALUE, .config.minmax = { 0, DSHOT_TELEMETRY_STATUS_MAX_STRESS_LVL_VALUE }, PG_OSD_CONFIG, offsetof(osdConfig_t, esc_stress_alarm) },
 #ifdef USE_ADC_INTERNAL
     { "osd_core_temp_alarm",        VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, UINT8_MAX }, PG_OSD_CONFIG, offsetof(osdConfig_t, core_temp_alarm) },
 #endif
@@ -1522,6 +1546,7 @@ const clivalue_t valueTable[] = {
     { "osd_esc_tmp_pos",            VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, OSD_POSCFG_MAX }, PG_OSD_ELEMENT_CONFIG, offsetof(osdElementConfig_t, item_pos[OSD_ESC_TMP]) },
     { "osd_esc_rpm_pos",            VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, OSD_POSCFG_MAX }, PG_OSD_ELEMENT_CONFIG, offsetof(osdElementConfig_t, item_pos[OSD_ESC_RPM]) },
     { "osd_esc_rpm_freq_pos",       VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, OSD_POSCFG_MAX }, PG_OSD_ELEMENT_CONFIG, offsetof(osdElementConfig_t, item_pos[OSD_ESC_RPM_FREQ]) },
+    { "osd_esc_stress_pos",         VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, OSD_POSCFG_MAX }, PG_OSD_ELEMENT_CONFIG, offsetof(osdElementConfig_t, item_pos[OSD_ESC_STRESS]) },
     { "osd_rtc_date_time_pos",      VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, OSD_POSCFG_MAX }, PG_OSD_ELEMENT_CONFIG, offsetof(osdElementConfig_t, item_pos[OSD_RTC_DATETIME]) },
     { "osd_adjustment_range_pos",   VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, OSD_POSCFG_MAX }, PG_OSD_ELEMENT_CONFIG, offsetof(osdElementConfig_t, item_pos[OSD_ADJUSTMENT_RANGE]) },
     { "osd_flip_arrow_pos",         VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, OSD_POSCFG_MAX }, PG_OSD_ELEMENT_CONFIG, offsetof(osdElementConfig_t, item_pos[OSD_FLIP_ARROW]) },
@@ -1530,6 +1555,7 @@ const clivalue_t valueTable[] = {
 #endif
 #ifdef USE_BLACKBOX
     { "osd_log_status_pos",         VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, OSD_POSCFG_MAX }, PG_OSD_ELEMENT_CONFIG, offsetof(osdElementConfig_t, item_pos[OSD_LOG_STATUS]) },
+    { "osd_show_blackbox_percent",  VAR_UINT8   | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_OSD_CONFIG, offsetof(osdConfig_t, osd_show_blackbox_percent) },
 #endif
 
 #ifdef USE_OSD_STICK_OVERLAY

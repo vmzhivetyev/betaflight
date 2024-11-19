@@ -218,6 +218,7 @@ COMMON_SRC = \
             cms/cms_menu_firmware.c \
             cms/cms_menu_gps_rescue.c \
             cms/cms_menu_gps_lap_timer.c \
+            cms/cms_menu_alt_hold.c \
             cms/cms_menu_imu.c \
             cms/cms_menu_ledstrip.c \
             cms/cms_menu_main.c \
@@ -529,6 +530,7 @@ SIZE_OPTIMISED_SRC := $(SIZE_OPTIMISED_SRC) \
             cms/cms_menu_firmware.c \
             cms/cms_menu_gps_rescue.c \
             cms/cms_menu_gps_lap_timer.c \
+            cms/cms_menu_alt_hold.c \
             cms/cms_menu_imu.c \
             cms/cms_menu_ledstrip.c \
             cms/cms_menu_main.c \
