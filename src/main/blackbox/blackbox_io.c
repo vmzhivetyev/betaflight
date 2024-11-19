@@ -645,19 +645,6 @@ bool isBlackboxDeviceWorking(void)
     }
 }
 
-int32_t blackboxGetLogNumber(void)
-{
-    switch (blackboxConfig()->device) {
-#ifdef USE_SDCARD
-    case BLACKBOX_DEVICE_SDCARD:
-        return blackboxSDCard.largestLogFileNumber;
-#endif
-
-    default:
-        return -1;
-    }
-}
-
 /**
  * Call once every loop iteration in order to maintain the global blackboxHeaderBudget with the number of bytes we can
  * transmit this iteration.
@@ -750,6 +737,21 @@ blackboxBufferReserveStatus_e blackboxDeviceReserveBufferSpace(int32_t bytes)
     }
 }
 
+// DUPLICATE CODE with blackboxGetLogFileNo
+int32_t blackboxGetLogNumber(void)
+{
+    switch (blackboxConfig()->device) {
+#ifdef USE_SDCARD
+    case BLACKBOX_DEVICE_SDCARD:
+        return blackboxSDCard.largestLogFileNumber;
+#endif
+
+    default:
+        return -1;
+    }
+}
+
+// DUPLICATE CODE with blackboxGetLogNumber
 int8_t blackboxGetLogFileNo(void)
 {
 #ifdef USE_BLACKBOX
@@ -765,5 +767,45 @@ int8_t blackboxGetLogFileNo(void)
     return -1;
 #endif
 #endif
+}
+
+// returns tenths of percent, so 997 is 99.7%.
+int16_t blackboxGetStorageUsedPercentTenths(void)
+{
+    // bool storageDeviceIsWorking = isBlackboxDeviceWorking();
+
+    uint32_t storageUsed = 0;
+    uint32_t storageTotal = 0;
+
+    switch (blackboxConfig()->device) {
+#ifdef USE_SDCARD
+    case BLACKBOX_DEVICE_SDCARD: {
+        if (!sdcard_isFunctional()) {
+            return -3;
+        }
+        storageTotal = sdcard_getMetadata()->numBlocks / 2000;
+        storageUsed = storageTotal - (afatfs_getContiguousFreeSpace() / 1024000); // this may be slow
+        break;
+    }
+#endif
+
+#ifdef USE_FLASHFS
+    case BLACKBOX_DEVICE_FLASH: {
+        if (!flashfsIsSupported()) {
+            return -4;
+        }
+        storageTotal = flashfsGetSize() / 1024;
+        storageUsed = flashfsGetOffset() / 1024;
+        break;
+    }
+#endif
+
+    default:
+        return -2;
+    }
+
+    // Since storageUsed is in KB and we need int32 for negative codes,
+    // the next line will overflow with 2GB of memory.
+    return (storageUsed * 1000) / storageTotal;
 }
 #endif // BLACKBOX

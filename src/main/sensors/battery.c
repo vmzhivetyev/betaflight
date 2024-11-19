@@ -108,16 +108,22 @@ static float wattHoursDrawn;
 PG_REGISTER_WITH_RESET_TEMPLATE(batteryConfig_t, batteryConfig, PG_BATTERY_CONFIG, 3);
 
 PG_RESET_TEMPLATE(batteryConfig_t, batteryConfig,
+    // mode
+    .isLiionModeActive = false,
+
     // voltage
     .vbatmaxcellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_MAX,
     .vbatmincellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_MIN,
+    .vbatmincellvoltageLiion = 280,
     .vbatwarningcellvoltage = 350,
-    .vbatnotpresentcellvoltage = 300, //A cell below 3 will be ignored
+    .vbatwarningcellvoltageLiion = 290,
+    .vbatnotpresentcellvoltage = 250, //A cell below 2.5 will be ignored
     .voltageMeterSource = DEFAULT_VOLTAGE_METER_SOURCE,
     .lvcPercentage = 100, //Off by default at 100%
 
     // current
     .batteryCapacity = 0,
+    .currentMeterADCHz = SLOW_VOLTAGE_TASK_FREQ_HZ,
     .currentMeterSource = DEFAULT_CURRENT_METER_SOURCE,
 
     // cells
@@ -225,8 +231,8 @@ void batteryUpdatePresence(void)
 #ifdef USE_RPM_LIMIT
         mixerResetRpmLimiter();
 #endif
-        batteryWarningVoltage = batteryCellCount * batteryConfig()->vbatwarningcellvoltage;
-        batteryCriticalVoltage = batteryCellCount * batteryConfig()->vbatmincellvoltage;
+        batteryWarningVoltage = batteryCellCount * (batteryConfig()->isLiionModeActive ? batteryConfig()->vbatwarningcellvoltageLiion : batteryConfig()->vbatwarningcellvoltage);
+        batteryCriticalVoltage = batteryCellCount * (batteryConfig()->isLiionModeActive ? batteryConfig()->vbatmincellvoltageLiion : batteryConfig()->vbatmincellvoltage);
         batteryWarningHysteresisVoltage = (batteryWarningVoltage > batteryConfig()->vbathysteresis) ? batteryWarningVoltage - batteryConfig()->vbathysteresis : 0;
         batteryCriticalHysteresisVoltage = (batteryCriticalVoltage > batteryConfig()->vbathysteresis) ? batteryCriticalVoltage - batteryConfig()->vbathysteresis : 0;
         lowVoltageCutoff.percentage = 100;
@@ -499,9 +505,19 @@ uint8_t calculateBatteryPercentageRemaining(void)
         uint16_t batteryCapacity = batteryConfig()->batteryCapacity;
 
         if (batteryCapacity > 0) {
-            batteryPercentage = constrain(((float)batteryCapacity - currentMeter.mAhDrawn) * 100 / batteryCapacity, 0, 100);
+            batteryPercentage = constrain(
+                ((float)batteryCapacity - currentMeter.mAhDrawn) * 100 / batteryCapacity, 
+                0, 
+                100
+            );
         } else {
-            batteryPercentage = constrain((((uint32_t)voltageMeter.displayFiltered - (batteryConfig()->vbatmincellvoltage * batteryCellCount)) * 100) / ((batteryConfig()->vbatmaxcellvoltage - batteryConfig()->vbatmincellvoltage) * batteryCellCount), 0, 100);
+            batteryPercentage = constrain(
+                (((uint32_t)voltageMeter.displayFiltered - (batteryCriticalVoltage)) * 100) 
+                / 
+                (batteryConfig()->vbatmaxcellvoltage * batteryCellCount - batteryCriticalVoltage), 
+                0, 
+                100
+            );
         }
     }
 

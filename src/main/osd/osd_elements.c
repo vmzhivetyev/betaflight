@@ -303,6 +303,47 @@ static void renderOsdEscRpmOrFreq(getEscRpmOrFreqFnPtr escFnPtr, osdElementParms
     if (++motor == getMotorCount()) {
         motor = 0;
     } else {
+        // rendering is not yet complete
+        element->rendered = false;
+    }
+}
+#endif
+
+#if defined(USE_DSHOT_TELEMETRY)
+static void renderOsdEscStress(osdElementParms_t *element)
+{
+    static uint8_t motor = 0;
+
+    ///
+
+    // Status frame events
+    if ((dshotTelemetryState.motorState[motor].telemetryTypes & (1 << DSHOT_TELEMETRY_TYPE_STATUS)) != 0
+        && ARMING_FLAG(ARMED)) {
+        uint32_t telemetryStatus = dshotTelemetryState.motorState[motor].telemetryData[DSHOT_TELEMETRY_TYPE_STATUS];
+        uint32_t stressLevel = telemetryStatus & DSHOT_TELEMETRY_STATUS_MAX_STRESS_LVL_MASK;
+        // bool isAlertEvent = telemetryStatus & DSHOT_TELEMETRY_STATUS_ALERT_EVENT_MASK;
+        bool isWarningEvent = telemetryStatus & DSHOT_TELEMETRY_STATUS_WARNING_EVENT_MASK;
+        bool isErrorEvent = telemetryStatus & DSHOT_TELEMETRY_STATUS_ERROR_EVENT_MASK;
+
+        if (isErrorEvent) {
+            element->attr = DISPLAYPORT_SEVERITY_CRITICAL;
+        } else if (isWarningEvent) {
+            element->attr = DISPLAYPORT_SEVERITY_WARNING;
+        }
+        
+        tfp_sprintf(element->buff, "%d", stressLevel);
+    } else {
+        element->buff = "-\0";
+    }
+
+    ///
+
+    element->elemOffsetY = motor;
+
+    if (++motor == getMotorCount()) {
+        motor = 0;
+    } else {
+        // rendering is not yet complete
         element->rendered = false;
     }
 }
@@ -555,7 +596,8 @@ static char osdGetBatterySymbol(int cellVoltage)
         return SYM_MAIN_BATT; // FIXME: currently the BAT- symbol, ideally replace with a battery with exclamation mark
     } else {
         // Calculate a symbol offset using cell voltage over full cell voltage range
-        const int symOffset = scaleRange(cellVoltage, batteryConfig()->vbatmincellvoltage, batteryConfig()->vbatmaxcellvoltage, 0, 8);
+        const int minCellVoltage = batteryConfig()->isLiionModeActive ? batteryConfig()->vbatmincellvoltageLiion : batteryConfig()->vbatmincellvoltage;
+        const int symOffset = scaleRange(cellVoltage, minCellVoltage, batteryConfig()->vbatmaxcellvoltage, 0, 8);
         return SYM_BATT_EMPTY - constrain(symOffset, 0, 6);
     }
 }
@@ -1042,6 +1084,13 @@ static void osdElementEscRpmFreq(osdElementParms_t *element)
 
 #endif
 
+#if defined(USE_DSHOT_TELEMETRY)
+static void osdElementEscStress(osdElementParms_t *element)
+{
+    renderOsdEscStress(element);
+}
+#endif
+
 static void osdElementFlymode(osdElementParms_t *element)
 {
     // Note that flight mode display has precedence in what to display.
@@ -1306,16 +1355,44 @@ static void osdElementTxUplinkPower(osdElementParms_t *element)
 static void osdElementLogStatus(osdElementParms_t *element)
 {
     if (IS_RC_MODE_ACTIVE(BOXBLACKBOX)) {
-        if (!isBlackboxDeviceWorking()) {
+        const bool isBusy = !isBlackboxDeviceWorking();
+
+        if (isBusy && !osdConfig()->osd_show_blackbox_percent) {
+            // isBlackboxDeviceWorking() actually switches briefly when flash is a bit busy
             tfp_sprintf(element->buff, "%c!", SYM_BBLOG);
+            element->attr = DISPLAYPORT_SEVERITY_INFO;
+
         } else if (isBlackboxDeviceFull()) {
-            tfp_sprintf(element->buff, "%c>", SYM_BBLOG);
+            tfp_sprintf(element->buff, "%cFULL", SYM_BBLOG);
+            element->attr = DISPLAYPORT_SEVERITY_CRITICAL;
+
         } else {
             int32_t logNumber = blackboxGetLogNumber();
             if (logNumber >= 0) {
                 tfp_sprintf(element->buff, "%c%d", SYM_BBLOG, logNumber);
             } else {
-                tfp_sprintf(element->buff, "%c", SYM_BBLOG);
+                if (osdConfig()->osd_show_blackbox_percent) {
+                    const int16_t usedPercentTenths = blackboxGetStorageUsedPercentTenths();
+
+                    if (usedPercentTenths >= 0) {
+                        const int16_t usedPercentInt = usedPercentTenths / 10;
+                        
+                        // icon disappears briefly when flash is busy
+                        tfp_sprintf(element->buff, "%c%d.%d%%", isBusy ? ' ' : SYM_BBLOG, usedPercentInt, usedPercentTenths % 10);
+                        
+                        if (usedPercentInt > 80) {
+                            element->attr = DISPLAYPORT_SEVERITY_WARNING; // yellow font
+                        } else if (usedPercentInt > 90) {
+                            element->attr = DISPLAYPORT_SEVERITY_CRITICAL; // red font
+                        }
+                    } else {
+                        // unhandled device type, or the device failed to initialize.
+                        tfp_sprintf(element->buff, "%cE:%i", SYM_BBLOG, usedPercentTenths);
+                        element->attr = DISPLAYPORT_SEVERITY_CRITICAL;
+                    }
+                } else {
+                    tfp_sprintf(element->buff, "%c", SYM_BBLOG);
+                }
             }
         }
     }
@@ -1941,6 +2018,9 @@ const osdElementDrawFn osdElementDrawFunction[OSD_ITEM_COUNT] = {
     [OSD_ESC_TMP]                 = osdElementEscTemperature,
     [OSD_ESC_RPM]                 = osdElementEscRpm,
 #endif
+#if defined(USE_DSHOT_TELEMETRY)
+    [OSD_ESC_STRESS]              = osdElementEscStress,
+#endif
     [OSD_REMAINING_TIME_ESTIMATE] = osdElementRemainingTimeEstimate,
 #ifdef USE_RTC_TIME
     [OSD_RTC_DATETIME]            = osdElementRtcTime,
@@ -2078,6 +2158,12 @@ void osdAddActiveElements(void)
         osdAddActiveElement(OSD_ESC_TMP);
         osdAddActiveElement(OSD_ESC_RPM);
         osdAddActiveElement(OSD_ESC_RPM_FREQ);
+    }
+#endif
+
+#if defined(USE_DSHOT_TELEMETRY)
+    if (useDshotTelemetry) {
+        osdAddActiveElement(OSD_ESC_STRESS);
     }
 #endif
 

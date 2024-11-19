@@ -40,6 +40,7 @@
 #include "config/feature.h"
 
 #include "drivers/display.h"
+#include "drivers/dshot.h"
 
 #include "io/displayport_max7456.h"
 
@@ -125,9 +126,12 @@ const OSD_Entry menuOsdActiveElemsEntries[] =
     {"FLIGHT DIST",        OME_VISIBLE | DYNAMIC, NULL, &osdConfig_item_pos[OSD_FLIGHT_DIST]},
 #endif // GPS
     {"COMPASS BAR",        OME_VISIBLE | DYNAMIC, NULL, &osdConfig_item_pos[OSD_COMPASS_BAR]},
-#ifdef USE_ESC_SENSOR
+#if defined(USE_DSHOT_TELEMETRY) || defined(USE_ESC_SENSOR)
     {"ESC TEMPERATURE",    OME_VISIBLE | DYNAMIC, NULL, &osdConfig_item_pos[OSD_ESC_TMP]},
     {"ESC RPM",            OME_VISIBLE | DYNAMIC, NULL, &osdConfig_item_pos[OSD_ESC_RPM]},
+#endif
+#if defined(USE_DSHOT_TELEMETRY)
+    {"ESC STRESS",         OME_VISIBLE | DYNAMIC, NULL, &osdConfig_item_pos[OSD_ESC_STRESS]},
 #endif
     {"ALTITUDE",           OME_VISIBLE | DYNAMIC, NULL, &osdConfig_item_pos[OSD_ALTITUDE]},
     {"POWER",              OME_VISIBLE | DYNAMIC, NULL, &osdConfig_item_pos[OSD_POWER]},
@@ -190,6 +194,7 @@ static CMS_Menu menuOsdActiveElems = {
     .entries = menuOsdActiveElemsEntries
 };
 
+static uint8_t osdConfig_esc_stress_alarm;
 static uint8_t osdConfig_rssi_alarm;
 static uint16_t osdConfig_link_quality_alarm;
 static int16_t osdConfig_rssi_dbm_alarm;
@@ -204,6 +209,7 @@ static const void *menuAlarmsOnEnter(displayPort_t *pDisp)
 {
     UNUSED(pDisp);
 
+    osdConfig_esc_stress_alarm = osdConfig()->esc_stress_alarm;
     osdConfig_rssi_alarm = osdConfig()->rssi_alarm;
     osdConfig_link_quality_alarm = osdConfig()->link_quality_alarm;
     osdConfig_rssi_dbm_alarm = osdConfig()->rssi_dbm_alarm;
@@ -222,6 +228,7 @@ static const void *menuAlarmsOnExit(displayPort_t *pDisp, const OSD_Entry *self)
     UNUSED(pDisp);
     UNUSED(self);
 
+    osdConfigMutable()->esc_stress_alarm = osdConfig_esc_stress_alarm;
     osdConfigMutable()->rssi_alarm = osdConfig_rssi_alarm;
     osdConfigMutable()->link_quality_alarm = osdConfig_link_quality_alarm;
     osdConfigMutable()->rssi_dbm_alarm = osdConfig_rssi_dbm_alarm;
@@ -238,6 +245,7 @@ static const void *menuAlarmsOnExit(displayPort_t *pDisp, const OSD_Entry *self)
 const OSD_Entry menuAlarmsEntries[] =
 {
     {"--- ALARMS ---", OME_Label, NULL, NULL},
+    {"ESC STRESS",     OME_UINT8,  NULL, &(OSD_UINT8_t){&osdConfig_esc_stress_alarm, 0, DSHOT_TELEMETRY_STATUS_MAX_STRESS_LVL_VALUE, 1}},
     {"RSSI",     OME_UINT8,  NULL, &(OSD_UINT8_t){&osdConfig_rssi_alarm, 5, 90, 5}},
     {"LINK QUALITY", OME_UINT16,  NULL, &(OSD_UINT16_t){&osdConfig_link_quality_alarm, 5, 300, 5}},
     {"RSSI DBM", OME_INT16,  NULL, &(OSD_INT16_t){&osdConfig_rssi_dbm_alarm, CRSF_RSSI_MIN, CRSF_SNR_MAX, 5}},

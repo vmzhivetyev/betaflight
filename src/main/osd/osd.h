@@ -188,6 +188,7 @@ typedef enum {
     OSD_GPS_LAP_TIME_PREVIOUS,
     OSD_GPS_LAP_TIME_BEST3,
     OSD_DEBUG2,
+    OSD_ESC_STRESS,
     OSD_ITEM_COUNT // MUST BE LAST
 } osd_items_e;
 
@@ -321,6 +322,7 @@ typedef struct osdConfig_s {
     uint8_t esc_temp_alarm;
     int16_t esc_rpm_alarm;
     int16_t esc_current_alarm;
+    uint8_t esc_stress_alarm;
     uint8_t core_temp_alarm;
     uint8_t ahInvert;                         // invert the artificial horizon
     uint8_t osdProfileIndex;
@@ -355,6 +357,8 @@ typedef struct osdConfig_s {
     uint8_t osd_show_spec_prearm;
 #endif // USE_SPEC_PREARM_SCREEN
     displayPortSeverity_e arming_logo;        // font from which to display logo on arming
+
+    uint8_t osd_show_blackbox_percent;        // show used percent of blackbox memory
 } osdConfig_t;
 
 PG_DECLARE(osdConfig_t, osdConfig);
