@@ -115,6 +115,7 @@ static FAST_DATA_ZERO_INIT float motorOutputRange;
 static FAST_DATA_ZERO_INIT int8_t motorOutputMixSign;
 static FAST_DATA_ZERO_INIT bool crashflipSuccess = false;
 
+#ifdef USE_DYN_IDLE
 static void calculateDynamicIdleMotorThrottleIncrease(uint8_t motorIndex) {
     dynIdlePidState_s* pidState = &mixerRuntime.dynIdlePidState[motorIndex];
 
@@ -139,6 +140,7 @@ static void calculateDynamicIdleMotorThrottleIncrease(uint8_t motorIndex) {
         DEBUG_SET(DEBUG_DYN_IDLE, motorIndex + 3, lrintf(rps * 10.0f));
     }
 }
+#endif // USE_DYN_IDLE
 
 static void calculateThrottleAndCurrentMotorEndpoints(timeUs_t currentTimeUs)
 {
