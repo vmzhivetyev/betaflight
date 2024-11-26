@@ -433,6 +433,10 @@ void pgResetFn_osdConfig(osdConfig_t *osdConfig)
 #endif // USE_RACE_PRO
 
     osdConfig->osd_show_blackbox_percent = true;
+
+    osdConfig->osd_visual_vario_size = 5;
+    osdConfig->osd_visual_vario_min_speed = 1;
+    osdConfig->osd_visual_vario_max_speed = 5;
 }
 
 void pgResetFn_osdElementConfig(osdElementConfig_t *osdElementConfig)

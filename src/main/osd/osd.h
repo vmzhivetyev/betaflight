@@ -189,6 +189,7 @@ typedef enum {
     OSD_GPS_LAP_TIME_BEST3,
     OSD_DEBUG2,
     OSD_ESC_STRESS,
+    OSD_VISUAL_VARIO,
     OSD_ITEM_COUNT // MUST BE LAST
 } osd_items_e;
 
@@ -359,6 +360,9 @@ typedef struct osdConfig_s {
     displayPortSeverity_e arming_logo;        // font from which to display logo on arming
 
     uint8_t osd_show_blackbox_percent;        // show used percent of blackbox memory
+    uint8_t osd_visual_vario_size;            // number of lines which can be displayed above or below the pos line, total arrows can be twice as much
+    uint8_t osd_visual_vario_max_speed;       // max speed value (in 0.1m/s - in dm/s) which corresponds to `osd_visual_vario_size`
+    uint8_t osd_visual_vario_min_speed;       // min speed value (in 0.1m/s - in dm/s) which corresponds to a single arrow being rendered
 } osdConfig_t;
 
 PG_DECLARE(osdConfig_t, osdConfig);

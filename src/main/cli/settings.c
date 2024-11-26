@@ -1527,6 +1527,10 @@ const clivalue_t valueTable[] = {
     { "osd_ready_mode_pos",         VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, OSD_POSCFG_MAX }, PG_OSD_ELEMENT_CONFIG, offsetof(osdElementConfig_t, item_pos[OSD_READY_MODE]) },
 #ifdef USE_VARIO
     { "osd_nvario_pos",             VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, OSD_POSCFG_MAX }, PG_OSD_ELEMENT_CONFIG, offsetof(osdElementConfig_t, item_pos[OSD_NUMERICAL_VARIO]) },
+    { "osd_visual_vario_pos",       VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, OSD_POSCFG_MAX }, PG_OSD_ELEMENT_CONFIG, offsetof(osdElementConfig_t, item_pos[OSD_VISUAL_VARIO]) },
+    { "osd_visual_vario_min_speed",  VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 255 },            PG_OSD_CONFIG,         offsetof(osdConfig_t,        osd_visual_vario_min_speed) },
+    { "osd_visual_vario_max_speed",  VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 10, 255 },           PG_OSD_CONFIG,         offsetof(osdConfig_t,        osd_visual_vario_max_speed) },
+    { "osd_visual_vario_size",       VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 16 },             PG_OSD_CONFIG,         offsetof(osdConfig_t,        osd_visual_vario_size) },
 #endif
     { "osd_esc_tmp_pos",            VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, OSD_POSCFG_MAX }, PG_OSD_ELEMENT_CONFIG, offsetof(osdElementConfig_t, item_pos[OSD_ESC_TMP]) },
     { "osd_esc_rpm_pos",            VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, OSD_POSCFG_MAX }, PG_OSD_ELEMENT_CONFIG, offsetof(osdElementConfig_t, item_pos[OSD_ESC_RPM]) },

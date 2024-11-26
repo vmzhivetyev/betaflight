@@ -1557,6 +1557,58 @@ static void osdElementNumericalVario(osdElementParms_t *element)
         element->buff[1] = '\0';
     }
 }
+
+static void osdElementVisualVario(osdElementParms_t *element)
+{
+    bool haveBaro = false;
+    bool haveGps = false;
+#ifdef USE_BARO
+    haveBaro = sensors(SENSOR_BARO);
+#endif // USE_BARO
+#ifdef USE_GPS
+    haveGps = sensors(SENSOR_GPS) && STATE(GPS_FIX);
+#endif // USE_GPS
+    if (haveBaro || haveGps) {
+        // all speeds here are in dm/s
+
+        const long min_speed = osdConfig()->osd_visual_vario_min_speed;
+        const long max_speed = osdConfig()->osd_visual_vario_max_speed;
+        const long half_arrows_num = osdConfig()->osd_visual_vario_size;
+
+        float verticalSpeedDM = osdGetMetersToSelectedUnit(getEstimatedVario()) / 10.0f;
+        const bool isDown = verticalSpeedDM < 0;
+        verticalSpeedDM = fabsf(verticalSpeedDM);
+        if (verticalSpeedDM < min_speed) {
+            element->drawElement = false;
+            return;
+        }
+        long numArrows = MIN(
+            lroundf(scaleRangef(verticalSpeedDM, min_speed, max_speed, 1, half_arrows_num)),
+            half_arrows_num * 2
+        );
+
+        const char directionSymbol = isDown ? SYM_ARROW_SMALL_DOWN : SYM_ARROW_SMALL_UP;
+        tfp_sprintf(element->buff, "%c", directionSymbol);
+
+        static uint8_t renderIt = 0;
+        const bool isOverflowPart = renderIt > half_arrows_num;
+        
+        if (!isOverflowPart) {
+            element->elemOffsetY = renderIt + 1;
+        } else {
+            element->elemOffsetY = renderIt - half_arrows_num - 1;
+        }
+        if (isDown) {
+            element->elemOffsetY *= -1;
+        }
+
+        if (++renderIt >= numArrows) {
+            renderIt = 0;
+        } else {
+            element->rendered = false; // notify that this func requires more calls to fully render
+        }
+    }
+}
 #endif // USE_VARIO
 
 static void osdElementPidRateProfile(osdElementParms_t *element)
@@ -2012,6 +2064,7 @@ const osdElementDrawFn osdElementDrawFunction[OSD_ITEM_COUNT] = {
     [OSD_NUMERICAL_HEADING]       = osdElementNumericalHeading,
 #ifdef USE_VARIO
     [OSD_NUMERICAL_VARIO]         = osdElementNumericalVario,
+    [OSD_VISUAL_VARIO]            = osdElementVisualVario,
 #endif
     [OSD_COMPASS_BAR]             = osdElementCompassBar,
 #if defined(USE_DSHOT_TELEMETRY) || defined(USE_ESC_SENSOR)
