@@ -117,6 +117,7 @@ static bool auxiliaryProcessingRequired = false;
 
 static bool rxSignalReceived = false;
 static bool rxFlightChannelsValid = false;
+static bool rxFlightChannelsWereEverValid = false;
 static uint8_t rxChannelCount;
 
 static timeUs_t needRxSignalBefore = 0;
@@ -640,6 +641,9 @@ static uint16_t getRxfailValue(uint8_t channel)
             return rcData[channel]; // last good value
         }
     case RX_FAILSAFE_MODE_SET:
+        if (!rxFlightChannelsWereEverValid) {
+            return rcData[channel]; // defaults from initialization
+        }
         return RXFAIL_STEP_TO_CHANNEL_VALUE(channelFailsafeConfig->step);
     }
 }
@@ -759,6 +763,7 @@ void detectAndApplySignalLossBehaviour(void)
 
     if (rxFlightChannelsValid) {
         failsafeOnValidDataReceived();
+        rxFlightChannelsWereEverValid = true;
         //  --> start the timer to exit stage 2 failsafe 100ms after losing all packets or the BOXFAILSAFE switch is actioned
     } else {
         failsafeOnValidDataFailed();
