@@ -118,6 +118,7 @@ static void pwmWriteUnused(uint8_t index, float value)
 
 static void pwmWriteStandard(uint8_t index, float value)
 {
+
     /* TODO: move value to be a number between 0-1 (i.e. percent throttle from mixer) */
     *motors[index].channel.ccr = lrintf((value * motors[index].pulseScale) + motors[index].pulseOffset);
 }
@@ -238,6 +239,7 @@ motorDevice_t *motorPwmDevInit(const motorDevConfig_t *motorConfig, uint16_t idl
 
         /* standard PWM outputs */
         // margin of safety is 4 periods when unsynced
+        // pwmRateHz = 16
         const unsigned pwmRateHz = useUnsyncedPwm ? motorConfig->motorPwmRate : ceilf(1 / ((sMin + sLen) * 4));
 
         const uint32_t clock = timerClock(timerHardware->tim);
@@ -245,6 +247,13 @@ motorDevice_t *motorPwmDevInit(const motorDevConfig_t *motorConfig, uint16_t idl
         const unsigned prescaler = ((clock / pwmRateHz) + 0xffff) / 0x10000; /* rounding up */
         const uint32_t hz = clock / prescaler;
         const unsigned period = useUnsyncedPwm ? hz / pwmRateHz : 0xffff;
+
+        motors[motorIndex].pwmRateHz = pwmRateHz;
+        motors[motorIndex].clock = clock;
+        motors[motorIndex].prescaler = prescaler;
+        motors[motorIndex].hz = hz;
+        motors[motorIndex].period = period;
+        motors[motorIndex].idlePulse = idlePulse;
 
         /*
             if brushed then it is the entire length of the period.

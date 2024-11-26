@@ -4055,6 +4055,48 @@ static void cliMixer(const char *cmdName, char *cmdline)
 }
 #endif
 
+static void printPwmOutputPort(const pwmOutputPort_t* port) {
+    if (!port) {
+        cliPrintf("PWM Port: (NULL)\r\n");
+        return;
+    }
+
+    char buf0[FTOA_BUFFER_LENGTH];
+    char buf1[FTOA_BUFFER_LENGTH];
+
+    cliPrintf("  PWM Output Port:\r\n"
+        "  Channel Details:\r\n"
+        "    CCR Register   : 0x%x, ccr=%u\r\n"
+        "    Timer          : 0x%x\r\n"
+        "  Pulse Scale     : %s\r\n"
+        "  Pulse Offset    : %s\r\n"
+        "  Force Overflow  : %s\r\n"
+        "  Enabled         : %s\r\n"
+        "  IO              : 0x%x\r\n"
+        "  PWM Rate Hz     : %u\r\n"
+        "  Clock           : %lu\r\n"
+        "  Prescaler       : %u\r\n"
+        "  Hz              : %lu\r\n"
+        "  Period          : %u\r\n"
+        "  Idle Pulse      : %u\r\n",
+        // Channel details
+        (void*)port->channel.ccr, *port->channel.ccr,
+        (void*)port->channel.tim,
+
+        // Rest of the port details
+        ftoa(port->pulseScale, buf0),
+        ftoa(port->pulseOffset, buf1),
+        port->forceOverflow ? "Yes" : "No",
+        port->enabled ? "Yes" : "No",
+        (void*)port->io,
+        port->pwmRateHz,
+        port->clock,
+        port->prescaler,
+        port->hz,
+        port->period,
+        port->idlePulse);
+}
+
 static void cliMotor(const char *cmdName, char *cmdline)
 {
     if (isEmpty(cmdline)) {
@@ -4105,6 +4147,15 @@ static void cliMotor(const char *cmdName, char *cmdline)
                 cliPrintLinef("all motors: %d", motorOutputValue);
             }
         }
+    } else if (strncasecmp(cmdline, "pwm", strlen("pwm")) == 0) {
+        cliPrint("PWM Motors:");
+        pwmOutputPort_t *motors = pwmGetMotors();
+        for (uint32_t i = 0; i < getMotorCount(); i++) {
+            cliPrintf(" motor %u:", i);
+            printPwmOutputPort(motors + i);
+            cliPrintLinefeed();
+        }
+        return;
     } else {
         cliShowInvalidArgumentCountError(cmdName);
     }
