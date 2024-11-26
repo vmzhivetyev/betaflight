@@ -97,6 +97,7 @@ void calculateEstimatedAltitude(void)
     static bool gpsAltOffsetCmHasValue = false; // whether a zero for the GPS altitude value exists
     static float gpsAltOffsetCm = 0.0f;
     static float baroAltOffsetCm = 0.0f;
+    static float pendingBaroAltOffsetCm = 0.0f;
 
     static float gpsAltCmRaw = 0.0f; // will hold last value on transient loss of 3D fix
     float baroAltCmRaw = 0.0f;
@@ -136,27 +137,25 @@ void calculateEstimatedAltitude(void)
             // WE HAVE JUST DISARMED
             wasArmed = false;
         }
+        pendingBaroAltOffsetCm = 0.2f * baroAltCmRaw + 0.8f * pendingBaroAltOffsetCm;
 
-        statistic_t *stats = osdGetStats();
-        bool allowZeroing = cmpTimeUs(stats->armed_time / 1000000, 10); // if armed less than 10 seconds in total
-
-        if (allowZeroing) {
-            if (haveBaroAlt) {
-                if (baroAltOffsetCm == 0.0f) {
-                    baroAltOffsetCm = baroAltCmRaw;
-                } else {
-                    baroAltOffsetCm = 0.2f * baroAltCmRaw + 0.8f * baroAltOffsetCm;
-                }
-            }
-            if (haveGpsAlt) {
-                gpsAltOffsetCm = gpsAltCmRaw;
-                gpsAltOffsetCmHasValue = true;
-            }
-        }
     } else {
         if (!wasArmed) {
             // WE HAVE JUST ARMED
             wasArmed = true;
+
+            statistic_t *stats = osdGetStats();
+            bool allowZeroing = cmpTimeUs(stats->armed_time / 1000000, 10) < 0; // if armed less than 10 seconds in total
+
+            if (allowZeroing) {
+                if (haveBaroAlt) {
+                    baroAltOffsetCm = pendingBaroAltOffsetCm;
+                }
+                if (haveGpsAlt) {
+                    gpsAltOffsetCm = gpsAltCmRaw;
+                    gpsAltOffsetCmHasValue = true;
+                }
+            }
         }
 
         // armed without gps zero offset, we can use baro values to zero later
