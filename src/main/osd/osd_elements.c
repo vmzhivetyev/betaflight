@@ -1569,10 +1569,8 @@ static void osdElementVisualVario(osdElementParms_t *element)
     haveGps = sensors(SENSOR_GPS) && STATE(GPS_FIX);
 #endif // USE_GPS
     if (haveBaro || haveGps) {
-        // all speeds here are in dm/s
-
-        const long min_speed = osdConfig()->osd_visual_vario_min_speed;
-        const long max_speed = osdConfig()->osd_visual_vario_max_speed;
+        const long min_speed = osdConfig()->osd_visual_vario_min_speed; // dm/s
+        const long max_speed = osdConfig()->osd_visual_vario_max_speed; // dm/s
         const long half_arrows_num = osdConfig()->osd_visual_vario_size;
 
         float verticalSpeedDM = osdGetMetersToSelectedUnit(getEstimatedVario()) / 10.0f;
