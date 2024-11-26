@@ -30,6 +30,8 @@ uint8_t armingFlags = 0;
 uint8_t stateFlags = 0;
 uint16_t flightModeFlags = 0;
 
+bool ARMING_ALWAYS_ENABLED = false;
+
 static uint32_t enabledSensors = 0;
 
 // Must be no longer than OSD_WARNINGS_MAX_SIZE (11) to be displayed fully in OSD
@@ -67,6 +69,8 @@ static armingDisableFlags_e armingDisableFlags = 0;
 void setArmingDisabled(armingDisableFlags_e flag)
 {
     armingDisableFlags = armingDisableFlags | flag;
+    unsetArmingDisabled(ARMING_DISABLED_MSP);
+    unsetArmingDisabled(ARMING_DISABLED_CLI);
 }
 
 void unsetArmingDisabled(armingDisableFlags_e flag)
@@ -76,11 +80,14 @@ void unsetArmingDisabled(armingDisableFlags_e flag)
 
 bool isArmingDisabled(void)
 {
-    return armingDisableFlags;
+    return armingDisableFlags && !ARMING_ALWAYS_ENABLED;
 }
 
 armingDisableFlags_e getArmingDisableFlags(void)
 {
+    if (ARMING_ALWAYS_ENABLED) {
+        return 0;
+    }
     return armingDisableFlags;
 }
 

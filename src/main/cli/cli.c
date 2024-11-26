@@ -4902,9 +4902,7 @@ static void resetArmingDisableFlags(const char *cmdName, char *cmdline)
 {
     UNUSED(cmdName);
 
-    int len = strlen(cmdline);
-
-    if (strncasecmp(cmdline, "IAMSURE", len) != 0) {
+    if (strncasecmp(cmdline, "IAMSURE", strlen("IAMSURE")) != 0) {
         cliPrint("Pass \"IAMSURE\" if and ONLY IF you are really sure you want to FORCE ALLOW ARMING.");
         cliPrintLinefeed();
         return;
@@ -4914,7 +4912,7 @@ static void resetArmingDisableFlags(const char *cmdName, char *cmdline)
         unsetArmingDisabled(1 << i);
     }
 
-    cliPrint("WARNING: \"arming-disable\" flags cleared!!! BE CAREFUL!!!");
+    cliPrint("WARNING: ARMING IS NOW ENABLED UNTIL REBOOT NO MATTER WHAT!!! BE CAREFUL!!!");
 }
 
 static void cliTasks(const char *cmdName, char *cmdline)
