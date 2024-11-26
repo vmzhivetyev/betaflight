@@ -1951,7 +1951,7 @@ void blackboxUpdate(timeUs_t currentTimeUs)
 
     switch (blackboxState) {
     case BLACKBOX_STATE_STOPPED:
-        if (ARMING_FLAG(ARMED)) {
+        if (ARMING_FLAG(ARMED) || IS_RC_MODE_ACTIVE(BOXBLACKBOX)) {
             blackboxOpen();
             blackboxStart();
         }
@@ -2068,7 +2068,11 @@ void blackboxUpdate(timeUs_t currentTimeUs)
         // On entry to this state, blackboxIteration, blackboxPFrameIndex and blackboxIFrameIndex are reset to 0
         // Prevent the Pausing of the log on the mode switch if in Motor Test Mode
         if (blackboxModeActivationConditionPresent && !IS_RC_MODE_ACTIVE(BOXBLACKBOX) && !startedLoggingInTestMode) {
-            blackboxSetState(BLACKBOX_STATE_PAUSED);
+            if (ARMING_FLAG(ARMED)) {
+                blackboxSetState(BLACKBOX_STATE_PAUSED);
+            } else {
+                blackboxFinish();
+            }
         } else {
             blackboxLogIteration(currentTimeUs);
         }
