@@ -170,6 +170,8 @@
 #include "sensors/battery.h"
 #include "sensors/sensors.h"
 
+#include "build/debug.h"
+
 #ifdef USE_GPS_PLUS_CODES
 // located in lib/main/google/olc
 #include "olc.h"
@@ -1569,34 +1571,40 @@ static void osdElementVisualVario(osdElementParms_t *element)
     haveGps = sensors(SENSOR_GPS) && STATE(GPS_FIX);
 #endif // USE_GPS
     if (haveBaro || haveGps) {
-        const long min_speed = osdConfig()->osd_visual_vario_min_speed; // dm/s
-        const long max_speed = osdConfig()->osd_visual_vario_max_speed; // dm/s
+        const float min_speed = osdConfig()->osd_visual_vario_min_speed; // dm/s
+        const float max_speed = osdConfig()->osd_visual_vario_max_speed; // dm/s
         const long half_arrows_num = osdConfig()->osd_visual_vario_size;
 
         float verticalSpeedDM = osdGetMetersToSelectedUnit(getEstimatedVario()) / 10.0f;
+        DEBUG_SET(DEBUG_VARIO, 0, verticalSpeedDM);
+
         const bool isDown = verticalSpeedDM < 0;
         verticalSpeedDM = fabsf(verticalSpeedDM);
         if (verticalSpeedDM < min_speed) {
             element->drawElement = false;
+            DEBUG_SET(DEBUG_VARIO, 1, 0);
             return;
         }
         long numArrows = MIN(
-            lroundf(scaleRangef(verticalSpeedDM, min_speed, max_speed, 1, half_arrows_num)),
+            lroundf(scaleRangef(verticalSpeedDM, min_speed, max_speed, 1.0f, (float)half_arrows_num)),
             half_arrows_num * 2
         );
+        DEBUG_SET(DEBUG_VARIO, 1, numArrows);
 
-        const char directionSymbol = isDown ? SYM_ARROW_SMALL_DOWN : SYM_ARROW_SMALL_UP;
-        tfp_sprintf(element->buff, "%c", directionSymbol);
+        element->buff[0] = isDown ? SYM_ARROW_SMALL_DOWN : SYM_ARROW_SMALL_UP;
+        element->buff[1] = '\0';
 
         static uint8_t renderIt = 0;
+        DEBUG_SET(DEBUG_VARIO, 2, renderIt);
+
         const bool isOverflowPart = renderIt > half_arrows_num;
         
         if (!isOverflowPart) {
             element->elemOffsetY = renderIt + 1;
         } else {
-            element->elemOffsetY = renderIt - half_arrows_num - 1;
+            element->elemOffsetY = - (renderIt - half_arrows_num) - 1;
         }
-        if (isDown) {
+        if (!isDown) {
             element->elemOffsetY *= -1;
         }
 
@@ -1943,6 +1951,7 @@ static const uint8_t osdElementDisplayOrder[] = {
     OSD_READY_MODE,
 #ifdef USE_VARIO
     OSD_NUMERICAL_VARIO,
+    OSD_VISUAL_VARIO,
 #endif
     OSD_COMPASS_BAR,
     OSD_ANTI_GRAVITY,

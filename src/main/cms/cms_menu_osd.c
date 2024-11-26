@@ -155,6 +155,7 @@ const OSD_Entry menuOsdActiveElemsEntries[] =
     {"HEADING",            OME_VISIBLE | DYNAMIC, NULL, &osdConfig_item_pos[OSD_NUMERICAL_HEADING]},
 #ifdef USE_VARIO
     {"VARIO",              OME_VISIBLE | DYNAMIC, NULL, &osdConfig_item_pos[OSD_NUMERICAL_VARIO]},
+    {"VISUAL VARIO",       OME_VISIBLE | DYNAMIC, NULL, &osdConfig_item_pos[OSD_VISUAL_VARIO]},
 #endif
     {"G-FORCE",            OME_VISIBLE | DYNAMIC, NULL, &osdConfig_item_pos[OSD_G_FORCE]},
     {"MOTOR DIAGNOSTIC",   OME_VISIBLE | DYNAMIC, NULL, &osdConfig_item_pos[OSD_MOTOR_DIAG]},
