@@ -1560,8 +1560,57 @@ static void osdElementNumericalVario(osdElementParms_t *element)
     }
 }
 
-static void osdElementVisualVario(osdElementParms_t *element)
+static void osdElementVisualVarioRunningDots(osdElementParms_t *element) {
+    
+}
+
+static void osdElementVisualVarioArrows(osdElementParms_t *element)
 {
+    const float min_speed = osdConfig()->osd_visual_vario_min_speed; // dm/s
+    const float max_speed = osdConfig()->osd_visual_vario_max_speed; // dm/s
+    const long half_arrows_num = osdConfig()->osd_visual_vario_size;
+
+    float verticalSpeedDM = osdGetMetersToSelectedUnit(getEstimatedVario()) / 10.0f;
+    DEBUG_SET(DEBUG_VARIO, 0, verticalSpeedDM);
+
+    const bool isDown = verticalSpeedDM < 0;
+    verticalSpeedDM = fabsf(verticalSpeedDM);
+    if (verticalSpeedDM < min_speed) {
+        element->drawElement = false;
+        DEBUG_SET(DEBUG_VARIO, 1, 0);
+        return;
+    }
+    long numArrows = MIN(
+        lroundf(scaleRangef(verticalSpeedDM, min_speed, max_speed, 1.0f, (float)half_arrows_num)),
+        half_arrows_num * 2
+    );
+    DEBUG_SET(DEBUG_VARIO, 1, numArrows);
+
+    element->buff[0] = isDown ? SYM_ARROW_SMALL_DOWN : SYM_ARROW_SMALL_UP;
+    element->buff[1] = '\0';
+
+    static uint8_t renderIt = 0;
+    DEBUG_SET(DEBUG_VARIO, 2, renderIt);
+
+    const bool isOverflowPart = renderIt > half_arrows_num;
+    
+    if (!isOverflowPart) {
+        element->elemOffsetY = renderIt + 1;
+    } else {
+        element->elemOffsetY = - (renderIt - half_arrows_num) - 1;
+    }
+    if (!isDown) {
+        element->elemOffsetY *= -1;
+    }
+
+    if (++renderIt >= numArrows) {
+        renderIt = 0;
+    } else {
+        element->rendered = false; // notify that this func requires more calls to fully render
+    }
+}
+
+static void osdElementVisualVario(osdElementParms_t *element) {
     bool haveBaro = false;
     bool haveGps = false;
 #ifdef USE_BARO
@@ -1571,48 +1620,7 @@ static void osdElementVisualVario(osdElementParms_t *element)
     haveGps = sensors(SENSOR_GPS) && STATE(GPS_FIX);
 #endif // USE_GPS
     if (haveBaro || haveGps) {
-        const float min_speed = osdConfig()->osd_visual_vario_min_speed; // dm/s
-        const float max_speed = osdConfig()->osd_visual_vario_max_speed; // dm/s
-        const long half_arrows_num = osdConfig()->osd_visual_vario_size;
-
-        float verticalSpeedDM = osdGetMetersToSelectedUnit(getEstimatedVario()) / 10.0f;
-        DEBUG_SET(DEBUG_VARIO, 0, verticalSpeedDM);
-
-        const bool isDown = verticalSpeedDM < 0;
-        verticalSpeedDM = fabsf(verticalSpeedDM);
-        if (verticalSpeedDM < min_speed) {
-            element->drawElement = false;
-            DEBUG_SET(DEBUG_VARIO, 1, 0);
-            return;
-        }
-        long numArrows = MIN(
-            lroundf(scaleRangef(verticalSpeedDM, min_speed, max_speed, 1.0f, (float)half_arrows_num)),
-            half_arrows_num * 2
-        );
-        DEBUG_SET(DEBUG_VARIO, 1, numArrows);
-
-        element->buff[0] = isDown ? SYM_ARROW_SMALL_DOWN : SYM_ARROW_SMALL_UP;
-        element->buff[1] = '\0';
-
-        static uint8_t renderIt = 0;
-        DEBUG_SET(DEBUG_VARIO, 2, renderIt);
-
-        const bool isOverflowPart = renderIt > half_arrows_num;
-        
-        if (!isOverflowPart) {
-            element->elemOffsetY = renderIt + 1;
-        } else {
-            element->elemOffsetY = - (renderIt - half_arrows_num) - 1;
-        }
-        if (!isDown) {
-            element->elemOffsetY *= -1;
-        }
-
-        if (++renderIt >= numArrows) {
-            renderIt = 0;
-        } else {
-            element->rendered = false; // notify that this func requires more calls to fully render
-        }
+        osdElementVisualVarioRunningDots(element);
     }
 }
 #endif // USE_VARIO
