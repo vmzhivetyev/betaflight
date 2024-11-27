@@ -1532,6 +1532,7 @@ const clivalue_t valueTable[] = {
     { "osd_visual_vario_max_speed",  VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 10, 255 },           PG_OSD_CONFIG,         offsetof(osdConfig_t,        osd_visual_vario_max_speed) },
     { "osd_visual_vario_size",       VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 16 },             PG_OSD_CONFIG,         offsetof(osdConfig_t,        osd_visual_vario_size) },
 #endif
+    { "osd_altitude_stealth",       VAR_UINT8   | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_OSD_CONFIG, offsetof(osdConfig_t, osd_altitude_stealth) },
     { "osd_esc_tmp_pos",            VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, OSD_POSCFG_MAX }, PG_OSD_ELEMENT_CONFIG, offsetof(osdElementConfig_t, item_pos[OSD_ESC_TMP]) },
     { "osd_esc_rpm_pos",            VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, OSD_POSCFG_MAX }, PG_OSD_ELEMENT_CONFIG, offsetof(osdElementConfig_t, item_pos[OSD_ESC_RPM]) },
     { "osd_esc_rpm_freq_pos",       VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, OSD_POSCFG_MAX }, PG_OSD_ELEMENT_CONFIG, offsetof(osdElementConfig_t, item_pos[OSD_ESC_RPM_FREQ]) },

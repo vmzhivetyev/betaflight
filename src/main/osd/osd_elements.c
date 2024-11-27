@@ -363,7 +363,7 @@ int osdConvertTemperatureToSelectedUnit(int tempInDegreesCelcius)
 }
 #endif
 
-static void osdFormatAltitudeString(char * buff, int32_t altitudeCm, osdElementType_e variantType)
+static void osdFormatAltitudeString(osdElementParms_t *element, int32_t altitudeCm)
 {
     static const struct {
         uint8_t decimals;
@@ -377,14 +377,19 @@ static void osdFormatAltitudeString(char * buff, int32_t altitudeCm, osdElementT
 
     int32_t alt = altitudeCm;
 #ifdef USE_GPS
-    if (variantMap[variantType].asl) {
+    if (variantMap[element->type].asl) {
         alt = getAltitudeAsl();
     }
 #endif
-    unsigned decimalPlaces = variantMap[variantType].decimals;
+    unsigned decimalPlaces = variantMap[element->type].decimals;
     const char unitSymbol = osdGetMetersToSelectedUnitSymbol();
 
-    osdPrintFloat(buff, SYM_ALTITUDE, osdGetMetersToSelectedUnit(alt) / 100.0f, "", decimalPlaces, true, unitSymbol);
+    if (osdConfig()->osd_altitude_stealth) {
+        int len = osdPrintFloat(element->buff, SYM_NONE, osdGetMetersToSelectedUnit(alt) / 100.0f, "", decimalPlaces, true, unitSymbol);
+        element->elemOffsetX -= len - 4;
+    } else {
+        osdPrintFloat(element->buff, SYM_ALTITUDE, osdGetMetersToSelectedUnit(alt) / 100.0f, "", decimalPlaces, true, unitSymbol);
+    }
 }
 
 #ifdef USE_GPS
@@ -740,7 +745,7 @@ static void osdElementAltitude(osdElementParms_t *element)
     }
 
     if (haveBaro || haveGps) {
-        osdFormatAltitudeString(element->buff, getEstimatedAltitudeCm(), element->type);
+        osdFormatAltitudeString(element, getEstimatedAltitudeCm());
     } else {
         element->buff[0] = SYM_ALTITUDE;
         element->buff[1] = SYM_HYPHEN; // We use this symbol when we don't have a valid measure
@@ -1552,7 +1557,10 @@ static void osdElementNumericalVario(osdElementParms_t *element)
     if (haveBaro || haveGps) {
         const float verticalSpeed = osdGetMetersToSelectedUnit(getEstimatedVario()) / 100.0f;
         const char directionSymbol = verticalSpeed < 0 ? SYM_ARROW_SMALL_DOWN : SYM_ARROW_SMALL_UP;
-        osdPrintFloat(element->buff, directionSymbol, fabsf(verticalSpeed), "", 1, true, osdGetVarioToSelectedUnitSymbol());
+        int len = osdPrintFloat(element->buff, directionSymbol, fabsf(verticalSpeed), "", 1, true, osdGetVarioToSelectedUnitSymbol());
+        if (osdConfig()->osd_altitude_stealth) {
+            element->elemPosX -= len - 4;
+        }
     } else {
         // We use this symbol when we don't have a valid measure
         element->buff[0] = SYM_HYPHEN;
@@ -1561,7 +1569,39 @@ static void osdElementNumericalVario(osdElementParms_t *element)
 }
 
 static void osdElementVisualVarioRunningDots(osdElementParms_t *element) {
-    
+    const float min_speed = osdConfig()->osd_visual_vario_min_speed; // dm/s
+    const float max_speed = osdConfig()->osd_visual_vario_max_speed; // dm/s
+    const uint8_t half_num_symbols = osdConfig()->osd_visual_vario_size;
+
+    static float dotFloatIndex = 4.5f;
+    static timeMs_t lastUpdateMillis = 0;
+    static uint8_t renderIt = 0;
+
+    float verticalSpeedDM = osdGetMetersToSelectedUnit(getEstimatedVario()) / 10.0f; // dm/s
+    float absVerticalSpeedDM = fabsf(verticalSpeedDM); // dm/s
+
+    if (renderIt == 0) {
+        float dotsPerSecond = constrainf(
+            scaleRangef(absVerticalSpeedDM, min_speed, max_speed, 0, 10),
+            10, 2000
+        );
+        timeMs_t timeElapsed = millis() - lastUpdateMillis;
+        lastUpdateMillis = millis();
+        float change = dotsPerSecond * timeElapsed * 0.001f;
+        dotFloatIndex += change * SIGN(verticalSpeedDM);
+        dotFloatIndex -= 9.0f * floorf(dotFloatIndex / 9.0f);
+    }
+
+    element->buff[0] = SYM_AH_BAR9_0 + (uint8_t)dotFloatIndex;
+    element->buff[1] = '\0';
+
+    element->elemOffsetY = renderIt - half_num_symbols;
+
+    if (++renderIt >= half_num_symbols * 2 + 1) {
+        renderIt = 0;
+    } else {
+        element->rendered = false; // notify that this func requires more calls to fully render
+    }
 }
 
 static void osdElementVisualVarioArrows(osdElementParms_t *element)
@@ -1621,6 +1661,7 @@ static void osdElementVisualVario(osdElementParms_t *element) {
 #endif // USE_GPS
     if (haveBaro || haveGps) {
         osdElementVisualVarioRunningDots(element);
+        UNUSED(osdElementVisualVarioArrows);
     }
 }
 #endif // USE_VARIO

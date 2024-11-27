@@ -363,6 +363,7 @@ typedef struct osdConfig_s {
     uint8_t osd_visual_vario_size;            // number of lines which can be displayed above or below the pos line, total arrows can be twice as much
     uint8_t osd_visual_vario_max_speed;       // max speed value (in 0.1m/s - in dm/s) which corresponds to `osd_visual_vario_size`
     uint8_t osd_visual_vario_min_speed;       // min speed value (in 0.1m/s - in dm/s) which corresponds to a single arrow being rendered
+    uint8_t osd_altitude_stealth;             // no icons, no text, only number AND it's aligned right
 } osdConfig_t;
 
 PG_DECLARE(osdConfig_t, osdConfig);
