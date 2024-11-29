@@ -282,6 +282,12 @@ static void validateAndFixConfig(void)
             pidProfilesMutable(i)->vbat_sag_compensation = 0;
         }
 #endif
+
+#ifdef USE_WING
+    if (mixerModeIsFixedWing(mixerConfig()->mixerMode)) {
+        pidProfilesMutable(i)->tpa_mode = TPA_MODE_PDS;
+    }
+#endif
     }
 
     if (motorConfig()->dev.motorPwmProtocol == PWM_TYPE_BRUSHED) {
