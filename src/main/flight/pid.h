@@ -530,6 +530,15 @@ typedef struct pidRuntime_s {
     float tpaCurvePwl_yValues[TPA_CURVE_PWL_SIZE];
     tpaCurveType_t tpaCurveType;
 #endif // USE_ADVANCED_TPA
+
+// PID QUALITY
+    float setpointError[XYZ_AXIS_COUNT];
+    int qualityCrossesCounter[XYZ_AXIS_COUNT];
+    timeUs_t qualityMeasureStartUs[XYZ_AXIS_COUNT];
+    float qualityAccumulatedError[XYZ_AXIS_COUNT];
+    float qualityResultAvgError[XYZ_AXIS_COUNT];
+    float qualityResultFrequency[XYZ_AXIS_COUNT];
+//
 } pidRuntime_t;
 
 extern pidRuntime_t pidRuntime;

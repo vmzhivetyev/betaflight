@@ -1095,6 +1095,33 @@ NOINLINE static void applySpa(int axis, const pidProfile_t *pidProfile)
 #endif // USE_WING
 }
 
+void FAST_CODE calculatePIDQuality(const pidProfile_t *pidProfile, timeUs_t currentTimeUs, const int axis, const float currentError) {
+    pidRuntime.qualityAccumulatedError[axis] += ABS(currentError);
+
+    const float prevError = pidRuntime.setpointError[axis];
+    const bool didCross = SIGN(prevError) != SIGN(currentError);
+    const timeUs_t timeElapsedSinceMeasureStart = currentTimeUs - pidRuntime.qualityMeasureStartUs[axis];
+
+    if (didCross) {
+        pidRuntime.qualityCrossesCounter[axis] += 1;
+    }
+
+    const timeUs_t twoSeconds = 2000000;
+    if (pidRuntime.qualityCrossesCounter[axis] >= 6 || cmpTimeUs(timeElapsedSinceMeasureStart, twoSeconds) > 0) {
+        const float counter = pidRuntime.qualityCrossesCounter[axis];
+        const float timeElapsedSeconds = ((float)(timeElapsedSinceMeasureStart + 1)) / 1000000.0f;
+        const float frequency = counter / 2.0f / timeElapsedSeconds;
+        const float avgError = (float)pidRuntime.qualityAccumulatedError[axis] / (MAX(counter, 1));
+
+        pidRuntime.qualityMeasureStartUs[axis] = currentTimeUs;
+        pidRuntime.qualityAccumulatedError[axis] = 0;
+        pidRuntime.qualityCrossesCounter[axis] = 0;
+
+        pidRuntime.qualityResultAvgError[axis] = avgError;
+        pidRuntime.qualityResultFrequency[axis] = frequency;
+    }
+}
+
 // Betaflight pid controller, which will be maintained in the future with additional features specialised for current (mini) multirotor usage.
 // Based on 2DOF reference design (matlab)
 void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTimeUs)
@@ -1277,6 +1304,8 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
 #ifdef USE_ABSOLUTE_CONTROL
         const float setpointCorrection = currentPidSetpoint - uncorrectedSetpoint;
 #endif
+
+        calculatePIDQuality(pidProfile, currentTimeUs, axis, errorRate);
 
         // --------low-level gyro-based PID based on 2DOF PID controller. ----------
 
@@ -1470,6 +1499,8 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         {
             pidData[axis].Sum = pidSum;
         }
+
+        pidRuntime.setpointError[axis] = errorRate;
     }
 
     // When PASSTHRU_MODE is active - reset all PIDs to zero so the aircraft won't snap out of control 

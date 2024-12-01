@@ -510,6 +510,11 @@ static void osdFormatPID(char * buff, const char * label, uint8_t axis)
         currentPidProfile->pid[axis].F);
 }
 
+static void osdFormatPIDQuality(char * buff, const char * label, uint8_t axis)
+{
+    osdPrintFloat(buff, SYM_NONE, pidRuntime.qualityResultAvgError[axis], "", 0, false, displaySymbol);
+}
+
 #ifdef USE_RTC_TIME
 bool osdFormatRtcDateTime(char *buffer)
 {
