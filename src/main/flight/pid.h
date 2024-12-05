@@ -416,7 +416,7 @@ typedef struct pidRuntime_s {
     float itermLimit;
     float itermLimitYaw;
     bool itermRotation;
-    bool zeroThrottleItermReset;
+    bool isCurrentlyForcingItermReset;
     bool levelRaceMode;
     float tpaFactor;
     float tpaBreakpoint;

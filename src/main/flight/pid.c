@@ -1475,7 +1475,7 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
 
             pidData[axis].Sum = 0;
         }
-    } else if (pidRuntime.zeroThrottleItermReset) {
+    } else if (pidRuntime.isCurrentlyForcingItermReset) {
         pidResetIterm();
     }
 }
@@ -1557,7 +1557,7 @@ float dynLpfCutoffFreq(float throttle, uint16_t dynLpfMin, uint16_t dynLpfMax, u
 
 void pidSetItermReset(bool enabled)
 {
-    pidRuntime.zeroThrottleItermReset = enabled;
+    pidRuntime.isCurrentlyForcingItermReset = enabled;
 }
 
 float pidGetPreviousSetpoint(int axis)

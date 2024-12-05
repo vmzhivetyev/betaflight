@@ -636,6 +636,10 @@ void tryArm(void)
         runawayTakeoffAccumulatedUs = 0;
         runawayTakeoffTriggerUs = 0;
 #endif
+
+        // todo: handle staff here?
+
+        // "On armed" handling finished.
     } else {
        resetTryingToArm();
         if (!isFirstArmingGyroCalibrationRunning()) {
@@ -778,6 +782,17 @@ bool wasThrottleRaised(void)
     return throttleRaised;
 }
 
+bool isAtLowAltitude(void)
+{
+    if (!isAltitudeAvailable()) {
+        return true;
+    }
+
+    float lowAltitudeMeters = 10;
+    bool isAtLowAltitude = getAltitudeCm() < lowAltitudeMeters * 100;
+    return isAtLowAltitude;
+}
+
 /*
  * processRx called from taskUpdateRxMain
  */
@@ -805,6 +820,9 @@ bool processRx(timeUs_t currentTimeUs)
     const uint8_t throttlePercent = calculateThrottlePercentAbs();
     const bool launchControlActive = isLaunchControlActive();
     static bool isAirmodeActive;
+    static bool isInTheAir = false;
+    static bool wasArmed = false;
+    const bool onArmedEvent = ARMING_FLAG(ARMED) && !wasArmed;
 
     if (ARMING_FLAG(ARMED)) {
         if (throttlePercent >= rxConfig()->airModeActivateThreshold) {
@@ -813,15 +831,37 @@ bool processRx(timeUs_t currentTimeUs)
         if (isAirmodeEnabled() && !launchControlActive) {
             isAirmodeActive = throttleRaised;
         }
+        if (isFixedWing()) {
+            if (onArmedEvent && isAtLowAltitude()) {
+                isInTheAir = false;
+            }
+            if (!isInTheAir) {
+                // since LAST arming
+                uint32_t secondsAfterArming = 30;
+                bool isArmedAFewSecondsAgo = cmpTimeUs(millisSinceLastArm(), secondsAfterArming * 1000) < 0;
+
+                // if climbed high or enough time passed
+                if (!isArmedAFewSecondsAgo || !isAtLowAltitude()) {
+                    isInTheAir = true;
+                }
+            }
+        }
     } else {
         throttleRaised = false;
         isAirmodeActive = false;
     }
 
+    bool disableIterm = false;
+    if (isFixedWing()) {
+        // disable I term for first 30 seconds AND while we are low.
+        // I term will be enabled once we cross 10m altitude OR after 30 seconds elapses since last arming.
+        disableIterm = !isInTheAir;
+    }
+
     // Note: If Airmode is enabled, on arming, iTerm and PIDs will be off until throttle exceeds the threshold (OFF while disarmed)
     // If not, iTerm will be off at low throttle, with pidStabilisationState determining whether PIDs will be active
     if (ARMING_FLAG(ARMED) && (isAirmodeActive || throttleActive || launchControlActive || isFixedWing())) {
-        pidSetItermReset(false);
+        pidSetItermReset(disableIterm);
         pidStabilisationState(PID_STABILISATION_ON);
     } else {
         pidSetItermReset(true);
@@ -918,6 +958,8 @@ bool processRx(timeUs_t currentTimeUs)
         }
     }
 #endif
+
+    wasArmed = ARMING_FLAG(ARMED);
 
     return true;
 }

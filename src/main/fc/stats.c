@@ -90,6 +90,11 @@ static void writeStats(dispatchEntry_t *self)
     }
 }
 
+uint32_t millisSinceLastArm(void)
+{
+    return millis() - arm_millis;
+}
+
 void statsOnArm(void)
 {
     arm_millis      = millis();

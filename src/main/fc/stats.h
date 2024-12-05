@@ -22,5 +22,6 @@
 
 void statsInit(void);
 
+uint32_t millisSinceLastArm(void);
 void statsOnArm(void);
 void statsOnDisarm(void);
