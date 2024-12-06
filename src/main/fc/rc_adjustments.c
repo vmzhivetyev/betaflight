@@ -722,6 +722,7 @@ static void processStepwiseAdjustments(controlRateConfig_t *controlRateConfig, c
         const adjustmentRange_t *const adjustmentRange = adjustmentRanges(adjustmentState->adjustmentRangeIndex);
         const adjustmentConfig_t *adjustmentConfig = &defaultAdjustmentConfigs[adjustmentRange->adjustmentConfig - ADJUSTMENT_FUNCTION_CONFIG_INDEX_OFFSET];
         const adjustmentFunction_e adjustmentFunction = adjustmentConfig->adjustmentFunction;
+        static adjustmentFunction_e previousAdjustmentFunction = -1;
 
         if (!isRangeActive(adjustmentRange->auxChannelIndex, &adjustmentRange->range) ||
             adjustmentFunction == ADJUSTMENT_NONE) {
@@ -740,6 +741,12 @@ static void processStepwiseAdjustments(controlRateConfig_t *controlRateConfig, c
         }
 
         const uint8_t channelIndex = NON_AUX_CHANNEL_COUNT + adjustmentRange->auxSwitchChannelIndex;
+
+        if (adjustmentFunction != previousAdjustmentFunction) {
+            previousAdjustmentFunction = adjustmentFunction;
+            
+            updateOsdAdjustmentData(-2, adjustmentFunction);
+        }
 
         if (adjustmentConfig->mode == ADJUSTMENT_MODE_STEP) {
             int delta;
@@ -766,7 +773,7 @@ static void processStepwiseAdjustments(controlRateConfig_t *controlRateConfig, c
             adjustmentState->ready = false;
 
 #if defined(USE_OSD) && defined(USE_OSD_ADJUSTMENTS)
-            updateOsdAdjustmentData(newValue, adjustmentConfig->adjustmentFunction);
+            updateOsdAdjustmentData(newValue, adjustmentFunction);
 #else
             UNUSED(newValue);
 #endif
