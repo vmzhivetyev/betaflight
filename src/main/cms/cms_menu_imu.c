@@ -516,6 +516,7 @@ static CMS_Menu cmsx_menuLaunchControl = {
 static uint8_t  cmsx_angleP;
 static uint8_t  cmsx_angleFF;
 static uint8_t  cmsx_angleLimit;
+static uint8_t  cmsx_anglePitchOffset;
 static uint8_t  cmsx_angleEarthRef;
 
 static uint8_t  cmsx_horizonStrength;
@@ -568,6 +569,7 @@ static const void *cmsx_profileOtherOnEnter(displayPort_t *pDisp)
     cmsx_angleP =             pidProfile->pid[PID_LEVEL].P;
     cmsx_angleFF =            pidProfile->pid[PID_LEVEL].F;
     cmsx_angleLimit =         pidProfile->angle_limit;
+    cmsx_anglePitchOffset =   pidProfile->angle_pitch_offset;
     cmsx_angleEarthRef =      pidProfile->angle_earth_ref;
 
     cmsx_horizonStrength =    pidProfile->pid[PID_LEVEL].I;
@@ -626,6 +628,7 @@ static const void *cmsx_profileOtherOnExit(displayPort_t *pDisp, const OSD_Entry
     pidProfile->pid[PID_LEVEL].P = cmsx_angleP;
     pidProfile->pid[PID_LEVEL].F = cmsx_angleFF;
     pidProfile->angle_limit = cmsx_angleLimit;
+    pidProfile->angle_pitch_offset = cmsx_anglePitchOffset;
     pidProfile->angle_earth_ref = cmsx_angleEarthRef;
 
     pidProfile->pid[PID_LEVEL].I = cmsx_horizonStrength;
@@ -688,6 +691,9 @@ static const OSD_Entry cmsx_menuProfileOtherEntries[] = {
     { "ANGLE P",         OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_angleP,                     0,    200,   1  }    },
     { "ANGLE FF",        OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_angleFF,                    0,    200,   1  }    },
     { "ANGLE LIMIT",     OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_angleLimit,                10,     90,   1  }    },
+#ifdef USE_WING
+    { "PITCH OFFSET",    OME_INT16,  NULL, &(OSD_INT16_t)  { &cmsx_anglePitchOffset,  -ANGLE_PITCH_OFFSET_MAX, ANGLE_PITCH_OFFSET_MAX, 1  }  },
+#endif
     { "ANGLE E_REF",     OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_angleEarthRef,              0,    100,   1  }    },
 
     { "HORZN STR",       OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_horizonStrength,            0,    100,   1  }    },
