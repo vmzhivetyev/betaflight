@@ -516,7 +516,7 @@ static CMS_Menu cmsx_menuLaunchControl = {
 static uint8_t  cmsx_angleP;
 static uint8_t  cmsx_angleFF;
 static uint8_t  cmsx_angleLimit;
-static uint8_t  cmsx_anglePitchOffset;
+static int16_t  cmsx_anglePitchOffset;
 static uint8_t  cmsx_angleEarthRef;
 
 static uint8_t  cmsx_horizonStrength;
