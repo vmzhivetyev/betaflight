@@ -105,7 +105,7 @@ void mscActivityLed(void)
     }
 
     // reboot back to normal mode if more than 10 seconds elapsed since last read.
-    if (lastActiveTimeMs > 0 && nowMs - lastActiveTimeMs > 1000 * 10) {
+    if (lastActiveTimeMs > 0 && nowMs - lastActiveTimeMs > 1000 * 20) {
         systemResetFromMsc();
     }
 }
