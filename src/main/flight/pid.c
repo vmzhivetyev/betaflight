@@ -321,7 +321,13 @@ static float calcWingThrottle(void)
 {
     float batteryThrottleFactor = 1.0f;
     if (pidRuntime.tpaSpeed.maxVoltage > 0.0f) {
-        batteryThrottleFactor = getBatteryVoltageLatest() / 100.0f / pidRuntime.tpaSpeed.maxVoltage;
+        uint16_t batteryVoltage = getBatteryVoltageLatest(); // voltage in 0.01V steps
+        if (batteryVoltage < 50) {
+            // when no battery voltage detected (< 0.5V)
+            batteryThrottleFactor = 0.8f;
+        } else {
+            batteryThrottleFactor = batteryVoltage / 100.0f / pidRuntime.tpaSpeed.maxVoltage;
+        }
         batteryThrottleFactor = constrainf(batteryThrottleFactor, 0.0f, 1.0f);
     }
 
