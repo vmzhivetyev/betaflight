@@ -44,6 +44,7 @@
 #include "fc/core.h"
 #include "fc/rc.h"
 #include "fc/rc_controls.h"
+#include "fc/rc_modes.h"
 #include "fc/runtime_config.h"
 
 #include "flight/alt_hold.h"
@@ -1451,6 +1452,11 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
 
         pidData[axis].S = getSterm(axis, pidProfile, currentPidSetpointBeforeWingAdjust);
         applySpa(axis, pidProfile);
+
+        if (isFixedWing() && IS_RC_MODE_ACTIVE(BOXDISABLEPD)) {
+            pidData[axis].P = 0;
+            pidData[axis].D = 0;
+        }
 
         // calculating the PID sum
         const float pidSum = pidData[axis].P + pidData[axis].I + pidData[axis].D + pidData[axis].F + pidData[axis].S;

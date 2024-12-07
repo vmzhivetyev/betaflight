@@ -101,6 +101,7 @@ static const box_t boxes[CHECKBOX_ITEM_COUNT] = {
     { .boxId = BOXBEEPERMUTE, .boxName = "BEEPER MUTE", .permanentId = 52},
     { .boxId = BOXREADY, .boxName = "READY", .permanentId = 53},
     { .boxId = BOXLAPTIMERRESET, .boxName = "LAP TIMER RESET", .permanentId = 54},
+    { .boxId = BOXDISABLEPD, .boxName = "DISABLE P AND D", .permanentId = 99 },
 };
 
 // mask of enabled IDs, calculated on startup based on enabled features. boxId_e is used as bit index
@@ -254,8 +255,9 @@ void initActiveBoxIds(void)
 
     BME(BOXFAILSAFE);
 
-    if (mixerConfig()->mixerMode == MIXER_FLYING_WING || mixerConfig()->mixerMode == MIXER_AIRPLANE || mixerConfig()->mixerMode == MIXER_CUSTOM_AIRPLANE) {
+    if (isFixedWing()) {
         BME(BOXPASSTHRU);
+        BME(BOXDISABLEPD);
     }
 
     BME(BOXBEEPERON);
