@@ -190,6 +190,8 @@ typedef enum {
     OSD_DEBUG2,
     OSD_ESC_STRESS,
     OSD_VISUAL_VARIO,
+    OSD_ROLL_PID_QUALITY,
+    OSD_PITCH_PID_QUALITY,
     OSD_ITEM_COUNT // MUST BE LAST
 } osd_items_e;
 

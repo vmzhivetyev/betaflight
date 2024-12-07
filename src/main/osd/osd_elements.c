@@ -510,9 +510,22 @@ static void osdFormatPID(char * buff, const char * label, uint8_t axis)
         currentPidProfile->pid[axis].F);
 }
 
-static void osdFormatPIDQuality(char * buff, const char * label, uint8_t axis)
+static void osdFormatPIDQuality(char * buff, uint8_t axis)
 {
-    osdPrintFloat(buff, SYM_NONE, pidRuntime.qualityResultAvgError[axis], "", 0, false, displaySymbol);
+    char sym;
+    switch (axis)
+    {
+    case FD_PITCH:
+        sym = SYM_PITCH;
+        break;
+    case FD_ROLL:
+        sym = SYM_ROLL;
+        break;
+    default:
+        sym = SYM_NONE;
+        break;
+    }
+    osdPrintFloat(buff, sym, pidRuntime.qualityResultAvgError[axis], "%2u", 1, true, SYM_NONE);
 }
 
 #ifdef USE_RTC_TIME
@@ -732,6 +745,16 @@ static void osdElementAdjustmentRange(osdElementParms_t *element)
     }
 }
 #endif // USE_OSD_ADJUSTMENTS
+
+static void osdElementPIDQualityPitch(osdElementParms_t *element)
+{
+    osdFormatPIDQuality(element->buff, FD_PITCH);
+}
+
+static void osdElementPIDQualityRoll(osdElementParms_t *element)
+{
+    osdFormatPIDQuality(element->buff, FD_ROLL);
+}
 
 static void osdElementAltitude(osdElementParms_t *element)
 {
@@ -1993,6 +2016,8 @@ static const uint8_t osdElementDisplayOrder[] = {
     OSD_ROLL_PIDS,
     OSD_PITCH_PIDS,
     OSD_YAW_PIDS,
+    OSD_ROLL_PID_QUALITY,
+    OSD_PITCH_PID_QUALITY,
     OSD_POWER,
     OSD_PIDRATE_PROFILE,
     OSD_WARNINGS,
@@ -2103,6 +2128,8 @@ const osdElementDrawFn osdElementDrawFunction[OSD_ITEM_COUNT] = {
     [OSD_ROLL_PIDS]               = osdElementPidsRoll,
     [OSD_PITCH_PIDS]              = osdElementPidsPitch,
     [OSD_YAW_PIDS]                = osdElementPidsYaw,
+    [OSD_ROLL_PID_QUALITY]        = osdElementPIDQualityRoll,
+    [OSD_ROLL_PID_QUALITY]        = osdElementPIDQualityPitch,
     [OSD_POWER]                   = osdElementPower,
     [OSD_PIDRATE_PROFILE]         = osdElementPidRateProfile,
     [OSD_WARNINGS]                = osdElementWarnings,
