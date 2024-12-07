@@ -185,16 +185,17 @@ static bool vtxProcessPower(vtxDevice_t *vtxDevice)
 
 static bool vtxProcessPitMode(vtxDevice_t *vtxDevice)
 {
-    static bool prevPmSwitchState = false;
+    static bool prevEnablePitMode = false;
 
     unsigned vtxStatus;
-    if (!ARMING_FLAG(ARMED) && vtxCommonGetStatus(vtxDevice, &vtxStatus)) {
-        bool currPmSwitchState = IS_RC_MODE_ACTIVE(BOXVTXPITMODE);
+    if (vtxCommonGetStatus(vtxDevice, &vtxStatus)) {
+        // force disable pitmode if we are armed.
+        bool shouldEnablePitMode = IS_RC_MODE_ACTIVE(BOXVTXPITMODE) && !ARMING_FLAG(ARMED);
 
-        if (currPmSwitchState != prevPmSwitchState) {
-            prevPmSwitchState = currPmSwitchState;
+        if (shouldEnablePitMode != prevEnablePitMode) {
+            prevEnablePitMode = shouldEnablePitMode;
 
-            if (currPmSwitchState) {
+            if (shouldEnablePitMode) {
 #if defined(VTX_SETTINGS_FREQCMD)
                 if (vtxSettingsConfig()->pitModeFreq) {
                     return false;
