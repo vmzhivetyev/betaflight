@@ -1453,7 +1453,8 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         pidData[axis].S = getSterm(axis, pidProfile, currentPidSetpointBeforeWingAdjust);
         applySpa(axis, pidProfile);
 
-        if (isFixedWing() && IS_RC_MODE_ACTIVE(BOXDISABLEPD)) {
+        if (isFixedWing() && IS_RC_MODE_ACTIVE(BOXDISABLEPD) && !pidRuntime.isCurrentlyForcingItermReset) {
+            // reset P and D when BOXDISABLEPD is active but only when I term is active.
             pidData[axis].P = 0;
             pidData[axis].D = 0;
         }
