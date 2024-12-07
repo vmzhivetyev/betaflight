@@ -536,6 +536,7 @@ typedef struct pidRuntime_s {
     int qualityCrossesCounter[XYZ_AXIS_COUNT];
     timeUs_t qualityMeasureStartUs[XYZ_AXIS_COUNT];
     float qualityAccumulatedError[XYZ_AXIS_COUNT];
+    uint32_t qualityAccumulatedErrorCount[XYZ_AXIS_COUNT];
     float qualityResultAvgError[XYZ_AXIS_COUNT];
     float qualityResultFrequency[XYZ_AXIS_COUNT];
 //

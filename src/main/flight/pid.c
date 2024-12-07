@@ -1097,24 +1097,28 @@ NOINLINE static void applySpa(int axis, const pidProfile_t *pidProfile)
 
 void FAST_CODE calculatePIDQuality(const pidProfile_t *pidProfile, timeUs_t currentTimeUs, const int axis, const float currentError) {
     pidRuntime.qualityAccumulatedError[axis] += ABS(currentError);
+    pidRuntime.qualityAccumulatedErrorCount[axis] += 1;
 
     const float prevError = pidRuntime.setpointError[axis];
     const bool didCross = SIGN(prevError) != SIGN(currentError);
-    const timeUs_t timeElapsedSinceMeasureStart = currentTimeUs - pidRuntime.qualityMeasureStartUs[axis];
+    const timeUs_t twoSeconds = 2000000;
+    const timeUs_t measureDeadline = pidRuntime.qualityMeasureStartUs[axis] + twoSeconds;
 
     if (didCross) {
         pidRuntime.qualityCrossesCounter[axis] += 1;
     }
 
-    const timeUs_t twoSeconds = 2000000;
-    if (pidRuntime.qualityCrossesCounter[axis] >= 6 || cmpTimeUs(timeElapsedSinceMeasureStart, twoSeconds) > 0) {
+    if (pidRuntime.qualityCrossesCounter[axis] >= 6 || cmpTimeUs(currentTimeUs, measureDeadline) > 0) {
         const float counter = pidRuntime.qualityCrossesCounter[axis];
-        const float timeElapsedSeconds = ((float)(timeElapsedSinceMeasureStart + 1)) / 1000000.0f;
+        const timeUs_t timeElapsedSinceMeasureStart = currentTimeUs - pidRuntime.qualityMeasureStartUs[axis];
+        const float timeElapsedSeconds = ((float)timeElapsedSinceMeasureStart) / 1000000.0f;
         const float frequency = counter / 2.0f / timeElapsedSeconds;
-        const float avgError = (float)pidRuntime.qualityAccumulatedError[axis] / (MAX(counter, 1));
+        const float errorCount = qualityAccumulatedErrorCount[axis];
+        const float avgError = (float)pidRuntime.qualityAccumulatedError[axis] / timeElapsedSeconds;
 
         pidRuntime.qualityMeasureStartUs[axis] = currentTimeUs;
         pidRuntime.qualityAccumulatedError[axis] = 0;
+        pidRuntime.qualityAccumulatedErrorCount[axis] = 0;
         pidRuntime.qualityCrossesCounter[axis] = 0;
 
         pidRuntime.qualityResultAvgError[axis] = avgError;
