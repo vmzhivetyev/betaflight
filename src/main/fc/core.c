@@ -837,8 +837,7 @@ bool processRx(timeUs_t currentTimeUs)
             }
             if (!isInTheAir) {
                 // since LAST arming
-                uint32_t secondsAfterArming = 60;
-                bool isArmedAFewSecondsAgo = cmpTimeUs(millisSinceLastArm(), secondsAfterArming * 1000) < 0;
+                bool isArmedAFewSecondsAgo = millisSinceLastArm() < 30 * 1000;
 
                 // if climbed high or enough time passed
                 if (!isArmedAFewSecondsAgo || !isAtLowAltitude()) {
