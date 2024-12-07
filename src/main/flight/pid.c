@@ -1095,10 +1095,9 @@ NOINLINE static void applySpa(int axis, const pidProfile_t *pidProfile)
 #endif // USE_WING
 }
 
-void FAST_CODE calculatePIDQuality(const pidProfile_t *pidProfile, timeUs_t currentTimeUs, const int axis, const float currentError) {
+void FAST_CODE calculatePIDQuality(timeUs_t currentTimeUs, const int axis, const float currentError, const float prevError) {
     pidRuntime.qualityAccumulatedError[axis] += ABS(currentError);
 
-    const float prevError = pidRuntime.setpointError[axis];
     const bool didCross = SIGN(prevError) != SIGN(currentError);
     const timeUs_t twoSeconds = 2000000;
     const timeUs_t measureDeadline = pidRuntime.qualityMeasureStartUs[axis] + twoSeconds;
@@ -1306,7 +1305,8 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         const float setpointCorrection = currentPidSetpoint - uncorrectedSetpoint;
 #endif
 
-        calculatePIDQuality(pidProfile, currentTimeUs, axis, errorRate);
+        const float prevError = pidRuntime.setpointError[axis];
+        calculatePIDQuality(currentTimeUs, axis, errorRate, prevError);
 
         // --------low-level gyro-based PID based on 2DOF PID controller. ----------
 
