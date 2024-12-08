@@ -226,6 +226,10 @@ static const adjustmentConfig_t defaultAdjustmentConfigs[ADJUSTMENT_FUNCTION_COU
         .adjustmentFunction = ADJUSTMENT_LED_PROFILE,
         .mode = ADJUSTMENT_MODE_SELECT,
         .data = { .switchPositions = 3 }
+    }, {
+        .adjustmentFunction = ADJUSTMENT_D_CUTOFF,
+        .mode = ADJUSTMENT_MODE_STEP,
+        .data = { .step = 1 }
     }
 };
 
@@ -425,6 +429,11 @@ static int applyStepAdjustment(controlRateConfig_t *controlRateConfig, uint8_t a
         blackboxLogInflightAdjustmentEvent(ADJUSTMENT_FEEDFORWARD_TRANSITION, newValue);
         break;
 #endif
+    case ADJUSTMENT_D_CUTOFF:
+        newValue = constrain(currentPidProfile->dterm_lpf1_static_hz, 0, 1000);
+        currentPidProfile->dterm_lpf1_static_hz = newValue;
+        blackboxLogInflightAdjustmentEvent(ADJUSTMENT_D_CUTOFF, newValue);
+        break;
     default:
         newValue = -1;
         break;
