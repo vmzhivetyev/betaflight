@@ -741,7 +741,12 @@ static void osdElementAdjustmentRange(osdElementParms_t *element)
 {
     const char *name = getAdjustmentsRangeName();
     if (name) {
-        tfp_sprintf(element->buff, "%s: %3d", name, getAdjustmentsRangeValue());
+        const int value = getAdjustmentsRangeValue();
+        if (value == -2) {
+            tfp_sprintf(element->buff, "%s", name);
+        } else {
+            tfp_sprintf(element->buff, "%s: %3d", name, value);
+        }
     }
 }
 #endif // USE_OSD_ADJUSTMENTS

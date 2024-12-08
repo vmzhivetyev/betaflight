@@ -274,6 +274,64 @@ static int adjustmentRangeNameIndex = 0;
 static int adjustmentRangeValue = -1;
 #endif
 
+static int getCurrentAdjustmentValue(controlRateConfig_t *controlRateConfig, uint8_t adjustmentFunction) {
+    switch (adjustmentFunction) {
+    case ADJUSTMENT_RC_RATE:
+    case ADJUSTMENT_ROLL_RC_RATE:
+        return controlRateConfig->rcRates[FD_ROLL];
+    case ADJUSTMENT_PITCH_RC_RATE:
+        return controlRateConfig->rcRates[FD_PITCH];
+    case ADJUSTMENT_RC_EXPO:
+    case ADJUSTMENT_ROLL_RC_EXPO:
+        return controlRateConfig->rcExpo[FD_ROLL];
+    case ADJUSTMENT_PITCH_RC_EXPO:
+        return controlRateConfig->rcExpo[FD_PITCH];
+    case ADJUSTMENT_THROTTLE_EXPO:
+        return controlRateConfig->thrExpo8;
+    case ADJUSTMENT_PITCH_ROLL_RATE:
+    case ADJUSTMENT_PITCH_RATE:
+        return controlRateConfig->rates[FD_PITCH];
+    case ADJUSTMENT_ROLL_RATE:
+        return controlRateConfig->rates[FD_ROLL];
+    case ADJUSTMENT_YAW_RATE:
+        return controlRateConfig->rates[FD_YAW];
+    case ADJUSTMENT_PITCH_ROLL_P:
+    case ADJUSTMENT_PITCH_P:
+        return currentPidProfile->pid[PID_PITCH].P;
+    case ADJUSTMENT_ROLL_P:
+        return currentPidProfile->pid[PID_ROLL].P;
+    case ADJUSTMENT_PITCH_ROLL_I:
+    case ADJUSTMENT_PITCH_I:
+        return currentPidProfile->pid[PID_PITCH].I;
+    case ADJUSTMENT_ROLL_I:
+        return currentPidProfile->pid[PID_ROLL].I;
+    case ADJUSTMENT_PITCH_ROLL_D:
+    case ADJUSTMENT_PITCH_D:
+        return currentPidProfile->pid[PID_PITCH].D;
+    case ADJUSTMENT_ROLL_D:
+        return currentPidProfile->pid[PID_ROLL].D;
+    case ADJUSTMENT_YAW_P:
+        return currentPidProfile->pid[PID_YAW].P;
+    case ADJUSTMENT_YAW_I:
+        return currentPidProfile->pid[PID_YAW].I;
+    case ADJUSTMENT_YAW_D:
+        return currentPidProfile->pid[PID_YAW].D;
+    case ADJUSTMENT_RC_RATE_YAW:
+        return controlRateConfig->rcRates[FD_YAW];
+    case ADJUSTMENT_PITCH_ROLL_F:
+    case ADJUSTMENT_PITCH_F:
+        return currentPidProfile->pid[PID_PITCH].F;
+    case ADJUSTMENT_ROLL_F:
+        return currentPidProfile->pid[PID_ROLL].F;
+    case ADJUSTMENT_YAW_F:
+        return currentPidProfile->pid[PID_YAW].F;
+    case ADJUSTMENT_D_CUTOFF:
+        return currentPidProfile->dterm_lpf1_static_hz;
+    default:
+        return -1; // Invalid adjustment function
+    }
+}
+
 static int applyStepAdjustment(controlRateConfig_t *controlRateConfig, uint8_t adjustmentFunction, int delta)
 {
     beeperConfirmationBeeps(delta > 0 ? 2 : 1);
@@ -430,7 +488,7 @@ static int applyStepAdjustment(controlRateConfig_t *controlRateConfig, uint8_t a
         break;
 #endif
     case ADJUSTMENT_D_CUTOFF:
-        newValue = constrain(currentPidProfile->dterm_lpf1_static_hz, 0, 1000);
+        newValue = constrain(currentPidProfile->dterm_lpf1_static_hz + delta, 0, 1000);
         currentPidProfile->dterm_lpf1_static_hz = newValue;
         blackboxLogInflightAdjustmentEvent(ADJUSTMENT_D_CUTOFF, newValue);
         break;
@@ -754,7 +812,12 @@ static void processStepwiseAdjustments(controlRateConfig_t *controlRateConfig, c
         if (adjustmentFunction != previousAdjustmentFunction) {
             previousAdjustmentFunction = adjustmentFunction;
             
-            updateOsdAdjustmentData(-2, adjustmentFunction);
+            if (adjustmentConfig->mode == ADJUSTMENT_MODE_STEP) {
+                const int curValue = getCurrentAdjustmentValue(controlRateConfig, adjustmentFunction);
+                updateOsdAdjustmentData(curValue, adjustmentFunction);
+            } else {
+                updateOsdAdjustmentData(-2, adjustmentFunction);
+            }
         }
 
         if (adjustmentConfig->mode == ADJUSTMENT_MODE_STEP) {
