@@ -218,15 +218,15 @@ static const adjustmentConfig_t defaultAdjustmentConfigs[ADJUSTMENT_FUNCTION_COU
         .adjustmentFunction = ADJUSTMENT_YAW_F,
         .mode = ADJUSTMENT_MODE_STEP,
         .data = { .step = 1 }
-    }, {
+    }, { // 29 in cli
         .adjustmentFunction = ADJUSTMENT_OSD_PROFILE,
         .mode = ADJUSTMENT_MODE_SELECT,
         .data = { .switchPositions = 3 }
-    }, {
+    }, { // 30 in cli
         .adjustmentFunction = ADJUSTMENT_LED_PROFILE,
         .mode = ADJUSTMENT_MODE_SELECT,
         .data = { .switchPositions = 3 }
-    }, {
+    }, { // 31 in cli
         .adjustmentFunction = ADJUSTMENT_D_CUTOFF,
         .mode = ADJUSTMENT_MODE_STEP,
         .data = { .step = 1 }
@@ -268,6 +268,8 @@ static const char * const adjustmentLabels[] = {
     "ROLL F",
     "YAW F",
     "OSD PROFILE",
+    "LED PROFILE",
+    "D LPF1 CUTOFF",
 };
 
 static int adjustmentRangeNameIndex = 0;
