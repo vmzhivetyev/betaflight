@@ -1096,33 +1096,37 @@ NOINLINE static void applySpa(int axis, const pidProfile_t *pidProfile)
 }
 
 void FAST_CODE calculatePIDQuality(timeUs_t currentTimeUs, const int axis, const float currentError, const float prevError) {
-    pidRuntime.qualityAccumulatedError[axis] += ABS(currentError);
-    pidRuntime.qualityAccumulatedErrorCount[axis] += 1;
+    UNUSED(currentTimeUs);
+    UNUSED(prevError);
+    // pidRuntime.qualityAccumulatedError[axis] += ABS(currentError);
+    // pidRuntime.qualityAccumulatedErrorCount[axis] += 1;
 
-    const bool didCross = SIGN(prevError) != SIGN(currentError);
-    const timeUs_t twoSeconds = 2000000;
-    const timeUs_t measureDeadline = pidRuntime.qualityMeasureStartUs[axis] + twoSeconds;
+    // const bool didCross = SIGN(prevError) != SIGN(currentError);
+    // const timeUs_t twoSeconds = 2000000;
+    // const timeUs_t measureDeadline = pidRuntime.qualityMeasureStartUs[axis] + twoSeconds;
 
-    if (didCross) {
-        pidRuntime.qualityCrossesCounter[axis] += 1;
-    }
+    pidRuntime.qualityResultAvgError[axis] = pt3FilterApply(&pidRuntime.qualitySmoothedErrorFilter[axis], ABS(currentError));
 
-    if (pidRuntime.qualityCrossesCounter[axis] >= 6 || cmpTimeUs(currentTimeUs, measureDeadline) > 0) {
-        const float counter = pidRuntime.qualityCrossesCounter[axis];
-        const timeUs_t timeElapsedSinceMeasureStart = currentTimeUs - pidRuntime.qualityMeasureStartUs[axis];
-        const float timeElapsedSeconds = ((float)timeElapsedSinceMeasureStart) / 1000000.0f;
-        const float frequency = counter / 2.0f / timeElapsedSeconds;
-        const float errorCount = pidRuntime.qualityAccumulatedErrorCount[axis];
-        const float avgError = (float)pidRuntime.qualityAccumulatedError[axis] / errorCount;
+    // if (didCross) {
+    //     pidRuntime.qualityCrossesCounter[axis] += 1;
+    // }
 
-        pidRuntime.qualityMeasureStartUs[axis] = currentTimeUs;
-        pidRuntime.qualityAccumulatedError[axis] = 0;
-        pidRuntime.qualityAccumulatedErrorCount[axis] = 0;
-        pidRuntime.qualityCrossesCounter[axis] = 0;
+    // if (pidRuntime.qualityCrossesCounter[axis] >= 6 || cmpTimeUs(currentTimeUs, measureDeadline) > 0) {
+    //     const float counter = pidRuntime.qualityCrossesCounter[axis];
+    //     const timeUs_t timeElapsedSinceMeasureStart = currentTimeUs - pidRuntime.qualityMeasureStartUs[axis];
+    //     const float timeElapsedSeconds = ((float)timeElapsedSinceMeasureStart) / 1000000.0f;
+    //     const float frequency = counter / 2.0f / timeElapsedSeconds;
+    //     const float errorCount = pidRuntime.qualityAccumulatedErrorCount[axis];
+    //     const float avgError = (float)pidRuntime.qualityAccumulatedError[axis] / errorCount;
 
-        pidRuntime.qualityResultAvgError[axis] = avgError;
-        pidRuntime.qualityResultFrequency[axis] = frequency;
-    }
+    //     pidRuntime.qualityMeasureStartUs[axis] = currentTimeUs;
+    //     pidRuntime.qualityAccumulatedError[axis] = 0;
+    //     pidRuntime.qualityAccumulatedErrorCount[axis] = 0;
+    //     pidRuntime.qualityCrossesCounter[axis] = 0;
+
+    //     pidRuntime.qualityResultAvgError[axis] = avgError;
+    //     pidRuntime.qualityResultFrequency[axis] = frequency;
+    // }
 }
 
 // Betaflight pid controller, which will be maintained in the future with additional features specialised for current (mini) multirotor usage.

@@ -366,6 +366,7 @@ typedef struct osdConfig_s {
     uint8_t osd_visual_vario_max_speed;       // max speed value (in 0.1m/s - in dm/s) which corresponds to `osd_visual_vario_size`
     uint8_t osd_visual_vario_min_speed;       // min speed value (in 0.1m/s - in dm/s) which corresponds to a single arrow being rendered
     uint8_t osd_altitude_stealth;             // no icons, no text, only number AND it's aligned right
+    uint8_t osd_pid_qual_lpf_cutoff;          // cutoff for setpoint err osd element lpf, in 0.1 Hz
 } osdConfig_t;
 
 PG_DECLARE(osdConfig_t, osdConfig);

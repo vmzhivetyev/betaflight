@@ -37,6 +37,8 @@
 #include "fc/runtime_config.h"
 #include "fc/rc.h"
 
+#include "osd/osd.h"
+
 #include "flight/pid.h"
 #include "flight/rpm_filter.h"
 
@@ -323,6 +325,10 @@ void pidInitFilters(const pidProfile_t *pidProfile)
         pidRuntime.spa[axis] = 1.0f; // 1.0 = no PID attenuation in runtime. 0 - full attenuation (no PIDs)
     }
 #endif
+
+    for (int axis = FD_ROLL; axis <= FD_YAW; axis++) {
+        pt3FilterInit(&pidRuntime.qualitySmoothedErrorFilter[axis], pt3FilterGain(osdConfig()->osd_pid_qual_lpf_cutoff / 10.0f, pidRuntime.dT));
+    }
 }
 
 #ifdef USE_ADVANCED_TPA

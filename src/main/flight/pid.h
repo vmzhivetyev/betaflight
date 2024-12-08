@@ -533,12 +533,13 @@ typedef struct pidRuntime_s {
 
 // PID QUALITY
     float setpointError[XYZ_AXIS_COUNT];
-    int qualityCrossesCounter[XYZ_AXIS_COUNT];
-    timeUs_t qualityMeasureStartUs[XYZ_AXIS_COUNT];
-    float qualityAccumulatedError[XYZ_AXIS_COUNT];
-    uint32_t qualityAccumulatedErrorCount[XYZ_AXIS_COUNT];
+    // int qualityCrossesCounter[XYZ_AXIS_COUNT];
+    // timeUs_t qualityMeasureStartUs[XYZ_AXIS_COUNT];
+    // float qualityAccumulatedError[XYZ_AXIS_COUNT];
+    pt3Filter_t qualitySmoothedErrorFilter[XYZ_AXIS_COUNT];
+    // uint32_t qualityAccumulatedErrorCount[XYZ_AXIS_COUNT];
     float qualityResultAvgError[XYZ_AXIS_COUNT];
-    float qualityResultFrequency[XYZ_AXIS_COUNT];
+    // float qualityResultFrequency[XYZ_AXIS_COUNT];
 //
 } pidRuntime_t;
 
