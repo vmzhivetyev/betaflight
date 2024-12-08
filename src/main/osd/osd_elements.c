@@ -525,7 +525,7 @@ static void osdFormatPIDQuality(char * buff, uint8_t axis)
         sym = SYM_NONE;
         break;
     }
-    osdPrintFloat(buff, sym, pidRuntime.qualityResultAvgError[axis], "%2u", 1, true, SYM_NONE);
+    osdPrintFloat(buff, sym, pidRuntime.qualityResultAvgError[axis], "%3u", 0, true, SYM_NONE);
 }
 
 #ifdef USE_RTC_TIME
