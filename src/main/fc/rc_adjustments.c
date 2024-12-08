@@ -493,6 +493,7 @@ static int applyStepAdjustment(controlRateConfig_t *controlRateConfig, uint8_t a
         newValue = constrain(currentPidProfile->dterm_lpf1_static_hz + delta, 0, 1000);
         currentPidProfile->dterm_lpf1_static_hz = newValue;
         blackboxLogInflightAdjustmentEvent(ADJUSTMENT_D_CUTOFF, newValue);
+        pidInitFilters(currentPidProfile); // reinitialize all filters
         break;
     default:
         newValue = -1;
