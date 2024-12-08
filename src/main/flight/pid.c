@@ -1129,6 +1129,23 @@ void FAST_CODE calculatePIDQuality(timeUs_t currentTimeUs, const int axis, const
     // }
 }
 
+bool isInAcroMode(void)
+{
+    if (
+        FLIGHT_MODE(FAILSAFE_MODE)
+        || FLIGHT_MODE(GPS_RESCUE_MODE)
+        || FLIGHT_MODE(HEADFREE_MODE)
+        || FLIGHT_MODE(PASSTHRU_MODE)
+        || FLIGHT_MODE(ANGLE_MODE)
+        || FLIGHT_MODE(ALT_HOLD_MODE)
+        || FLIGHT_MODE(HORIZON_MODE)
+        || IS_RC_MODE_ACTIVE(BOXACROTRAINER)
+    ) {
+        return false;
+    }
+    return true;
+}
+
 // Betaflight pid controller, which will be maintained in the future with additional features specialised for current (mini) multirotor usage.
 // Based on 2DOF reference design (matlab)
 void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTimeUs)
@@ -1490,7 +1507,7 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         pidData[axis].S = getSterm(axis, pidProfile, currentPidSetpointBeforeWingAdjust);
         applySpa(axis, pidProfile);
 
-        if (isFixedWing() && IS_RC_MODE_ACTIVE(BOXDISABLEPD) && !pidRuntime.isCurrentlyForcingItermReset) {
+        if (isFixedWing() && IS_RC_MODE_ACTIVE(BOXDISABLEPD) && !pidRuntime.isCurrentlyForcingItermReset && isInAcroMode()) {
             // reset P and D when BOXDISABLEPD is active but only when I term is active.
             pidData[axis].P = 0;
             pidData[axis].D = 0;
