@@ -1112,8 +1112,8 @@ void FAST_CODE calculatePIDQuality(timeUs_t currentTimeUs, const int axis, const
         const timeUs_t timeElapsedSinceMeasureStart = currentTimeUs - pidRuntime.qualityMeasureStartUs[axis];
         const float timeElapsedSeconds = ((float)timeElapsedSinceMeasureStart) / 1000000.0f;
         const float frequency = counter / 2.0f / timeElapsedSeconds;
-        const float errorCount = qualityAccumulatedErrorCount[axis];
-        const float avgError = (float)pidRuntime.qualityAccumulatedError[axis] / timeElapsedSeconds;
+        const float errorCount = pidRuntime.qualityAccumulatedErrorCount[axis];
+        const float avgError = (float)pidRuntime.qualityAccumulatedError[axis] / errorCount;
 
         pidRuntime.qualityMeasureStartUs[axis] = currentTimeUs;
         pidRuntime.qualityAccumulatedError[axis] = 0;
