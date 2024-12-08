@@ -230,6 +230,10 @@ static const adjustmentConfig_t defaultAdjustmentConfigs[ADJUSTMENT_FUNCTION_COU
         .adjustmentFunction = ADJUSTMENT_D_CUTOFF,
         .mode = ADJUSTMENT_MODE_STEP,
         .data = { .step = 1 }
+    }, { // 32 in cli
+        .adjustmentFunction = ADJUSTMENT_ROLL_S,
+        .mode = ADJUSTMENT_MODE_STEP,
+        .data = { .step = 1 }
     }
 };
 
@@ -269,7 +273,8 @@ static const char * const adjustmentLabels[] = {
     "YAW F",
     "OSD PROFILE",
     "LED PROFILE",
-    "D LPF1 CUTOFF",
+    "D LPF1 CUTOFF", // ADJUSTMENT_D_CUTOFF
+    "ROLL S", // ADJUSTMENT_ROLL_S
 };
 
 static int adjustmentRangeNameIndex = 0;
@@ -329,6 +334,8 @@ static int getCurrentAdjustmentValue(controlRateConfig_t *controlRateConfig, uin
         return currentPidProfile->pid[PID_YAW].F;
     case ADJUSTMENT_D_CUTOFF:
         return currentPidProfile->dterm_lpf1_static_hz;
+    case ADJUSTMENT_ROLL_S:
+        return currentPidProfile->pid[PID_ROLL].S;
     default:
         return -1; // Invalid adjustment function
     }
@@ -494,6 +501,11 @@ static int applyStepAdjustment(controlRateConfig_t *controlRateConfig, uint8_t a
         currentPidProfile->dterm_lpf1_static_hz = newValue;
         blackboxLogInflightAdjustmentEvent(ADJUSTMENT_D_CUTOFF, newValue);
         pidInitFilters(currentPidProfile); // reinitialize all filters
+        break;
+    case ADJUSTMENT_ROLL_S:
+        newValue = constrain(currentPidProfile->pid[PID_ROLL].S + delta, 0, 100);
+        currentPidProfile->pid[PID_ROLL].S = newValue;
+        blackboxLogInflightAdjustmentEvent(ADJUSTMENT_ROLL_S, newValue);
         break;
     default:
         newValue = -1;
