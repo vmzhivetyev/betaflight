@@ -728,6 +728,16 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs)
     float scaledAxisPidYaw =
         constrainf(pidData[FD_YAW].Sum, -yawPidSumLimit, yawPidSumLimit) / PID_MIXER_SCALING;
 
+#ifdef USE_WING
+    // todo: fix duplicate condition code in pid.c
+    bool isFixedWingAndPassthru = isFixedWing() && FLIGHT_MODE(PASSTHRU_MODE);
+
+    // When in PASSTHRU - PIDs are zero, we have to keep differential thrust working directly from YAW stick command.
+    if (isFixedWingAndPassthru && currentPidProfile->yaw_type == YAW_TYPE_DIFF_THRUST) {
+        scaledAxisPidYaw = getRcDeflection(FD_YAW);
+    }
+#endif
+
     if (!mixerConfig()->yaw_motors_reversed) {
         scaledAxisPidYaw = -scaledAxisPidYaw;
     }
