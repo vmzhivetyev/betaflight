@@ -1095,6 +1095,57 @@ NOINLINE static void applySpa(int axis, const pidProfile_t *pidProfile)
 #endif // USE_WING
 }
 
+void FAST_CODE calculatePIDQuality(timeUs_t currentTimeUs, const int axis, const float currentError, const float prevError) {
+    UNUSED(currentTimeUs);
+    UNUSED(prevError);
+    // pidRuntime.qualityAccumulatedError[axis] += ABS(currentError);
+    // pidRuntime.qualityAccumulatedErrorCount[axis] += 1;
+
+    // const bool didCross = SIGN(prevError) != SIGN(currentError);
+    // const timeUs_t twoSeconds = 2000000;
+    // const timeUs_t measureDeadline = pidRuntime.qualityMeasureStartUs[axis] + twoSeconds;
+
+    pidRuntime.qualityResultAvgError[axis] = pt3FilterApply(&pidRuntime.qualitySmoothedErrorFilter[axis], ABS(currentError));
+
+    // if (didCross) {
+    //     pidRuntime.qualityCrossesCounter[axis] += 1;
+    // }
+
+    // if (pidRuntime.qualityCrossesCounter[axis] >= 6 || cmpTimeUs(currentTimeUs, measureDeadline) > 0) {
+    //     const float counter = pidRuntime.qualityCrossesCounter[axis];
+    //     const timeUs_t timeElapsedSinceMeasureStart = currentTimeUs - pidRuntime.qualityMeasureStartUs[axis];
+    //     const float timeElapsedSeconds = ((float)timeElapsedSinceMeasureStart) / 1000000.0f;
+    //     const float frequency = counter / 2.0f / timeElapsedSeconds;
+    //     const float errorCount = pidRuntime.qualityAccumulatedErrorCount[axis];
+    //     const float avgError = (float)pidRuntime.qualityAccumulatedError[axis] / errorCount;
+
+    //     pidRuntime.qualityMeasureStartUs[axis] = currentTimeUs;
+    //     pidRuntime.qualityAccumulatedError[axis] = 0;
+    //     pidRuntime.qualityAccumulatedErrorCount[axis] = 0;
+    //     pidRuntime.qualityCrossesCounter[axis] = 0;
+
+    //     pidRuntime.qualityResultAvgError[axis] = avgError;
+    //     pidRuntime.qualityResultFrequency[axis] = frequency;
+    // }
+}
+
+bool isInAcroMode(void)
+{
+    if (
+        FLIGHT_MODE(FAILSAFE_MODE)
+        || FLIGHT_MODE(GPS_RESCUE_MODE)
+        || FLIGHT_MODE(HEADFREE_MODE)
+        || FLIGHT_MODE(PASSTHRU_MODE)
+        || FLIGHT_MODE(ANGLE_MODE)
+        || FLIGHT_MODE(ALT_HOLD_MODE)
+        || FLIGHT_MODE(HORIZON_MODE)
+        || IS_RC_MODE_ACTIVE(BOXACROTRAINER)
+    ) {
+        return false;
+    }
+    return true;
+}
+
 // Betaflight pid controller, which will be maintained in the future with additional features specialised for current (mini) multirotor usage.
 // Based on 2DOF reference design (matlab)
 void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTimeUs)
@@ -1278,6 +1329,9 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         const float setpointCorrection = currentPidSetpoint - uncorrectedSetpoint;
 #endif
 
+        const float prevError = pidRuntime.setpointError[axis];
+        calculatePIDQuality(currentTimeUs, axis, errorRate, prevError);
+
         // --------low-level gyro-based PID based on 2DOF PID controller. ----------
 
         // -----calculate P component
@@ -1453,7 +1507,7 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         pidData[axis].S = getSterm(axis, pidProfile, currentPidSetpointBeforeWingAdjust);
         applySpa(axis, pidProfile);
 
-        if (isFixedWing() && IS_RC_MODE_ACTIVE(BOXDISABLEPD) && !pidRuntime.isCurrentlyForcingItermReset) {
+        if (isFixedWing() && IS_RC_MODE_ACTIVE(BOXDISABLEPD) && !pidRuntime.isCurrentlyForcingItermReset && isInAcroMode()) {
             // reset P and D when BOXDISABLEPD is active but only when I term is active.
             pidData[axis].P = 0;
             pidData[axis].D = 0;
@@ -1470,6 +1524,8 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         {
             pidData[axis].Sum = pidSum;
         }
+
+        pidRuntime.setpointError[axis] = errorRate;
     }
 
     // When PASSTHRU_MODE is active - reset all PIDs to zero so the aircraft won't snap out of control 

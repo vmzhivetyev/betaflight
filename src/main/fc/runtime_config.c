@@ -68,9 +68,9 @@ static armingDisableFlags_e armingDisableFlags = 0;
 
 void setArmingDisabled(armingDisableFlags_e flag)
 {
-    armingDisableFlags = armingDisableFlags | flag;
-    unsetArmingDisabled(ARMING_DISABLED_MSP);
-    unsetArmingDisabled(ARMING_DISABLED_CLI);
+    if (!ARMING_ALWAYS_ENABLED) {
+        armingDisableFlags = armingDisableFlags | flag;
+    }
 }
 
 void unsetArmingDisabled(armingDisableFlags_e flag)

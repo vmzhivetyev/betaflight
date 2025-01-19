@@ -437,6 +437,8 @@ void pgResetFn_osdConfig(osdConfig_t *osdConfig)
     osdConfig->osd_visual_vario_size = 5;
     osdConfig->osd_visual_vario_min_speed = 1;  // 0.1 m/s
     osdConfig->osd_visual_vario_max_speed = 50; // 5.0 m/s
+    
+    osdConfig->osd_pid_qual_lpf_cutoff = 15; // 15 = 1.5Hz
 }
 
 void pgResetFn_osdElementConfig(osdElementConfig_t *osdElementConfig)
