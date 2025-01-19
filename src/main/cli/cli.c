@@ -4953,19 +4953,18 @@ static void resetArmingDisableFlags(const char *cmdName, char *cmdline)
 {
     UNUSED(cmdName);
 
-    int len = strlen(cmdline);
-
-    if (strncasecmp(cmdline, "IAMSURE", len) != 0) {
+    if (strncasecmp(cmdline, "IAMSURE", strlen("IAMSURE")) != 0) {
         cliPrint("Pass \"IAMSURE\" if and ONLY IF you are really sure you want to FORCE ALLOW ARMING.");
         cliPrintLinefeed();
         return;
     }
 
+    ARMING_ALWAYS_ENABLED = true;
     for (int i = 0; i < ARMING_DISABLE_FLAGS_COUNT; i++) {
         unsetArmingDisabled(1 << i);
     }
 
-    cliPrint("WARNING: \"arming-disable\" flags cleared!!! BE CAREFUL!!!");
+    cliPrint("WARNING: ARMING IS NOW ENABLED UNTIL REBOOT NO MATTER WHAT!!! BE CAREFUL!!!");
 }
 
 static void cliTasks(const char *cmdName, char *cmdline)
@@ -6742,7 +6741,7 @@ const clicmd_t cmdTable[] = {
         "\tload <mixer>\r\n"
         "\treverse <servo> <source> r|n", cliServoMix),
 #endif
-    CLI_COMMAND_DEF("allow_arming", "FORCE reset all flags that prevent arming. DANGEROUS.", NULL, resetArmingDisableFlags),
+    CLI_COMMAND_DEF("allow_arming", "Disables ALL arming safety checks UNTIL REBOOT. DANGEROUS.", NULL, resetArmingDisableFlags),
 
     CLI_COMMAND_DEF("status", "show status", NULL, cliStatus),
     CLI_COMMAND_DEF("tasks", "show task stats", NULL, cliTasks),

@@ -30,6 +30,7 @@ typedef enum {
 } armingFlag_e;
 
 extern uint8_t armingFlags;
+extern bool ARMING_ALWAYS_ENABLED;
 
 #define DISABLE_ARMING_FLAG(mask) (armingFlags &= ~(mask))
 #define ENABLE_ARMING_FLAG(mask) (armingFlags |= (mask))
