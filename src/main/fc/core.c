@@ -820,7 +820,7 @@ bool processRx(timeUs_t currentTimeUs)
     const uint8_t throttlePercent = calculateThrottlePercentAbs();
     const bool launchControlActive = isLaunchControlActive();
     static bool isAirmodeActive;
-    static bool isInTheAir = false;
+    static bool isInTheAir = false; // warning: currently it's never reset to false
     static bool wasArmed = false;
     const bool onArmedEvent = ARMING_FLAG(ARMED) && !wasArmed;
 
@@ -837,10 +837,11 @@ bool processRx(timeUs_t currentTimeUs)
             }
             if (!isInTheAir) {
                 // since LAST arming
-                bool isArmedAFewSecondsAgo = millisSinceLastArm() < 30 * 1000;
+                bool isArmedAFewSecondsAgo = millisSinceLastArm() < 15 * 1000;
+                bool isInAcro = isInAcroMode() && throttleActive;
 
                 // if climbed high or enough time passed
-                if (!isArmedAFewSecondsAgo || !isAtLowAltitude()) {
+                if (!isArmedAFewSecondsAgo || !isAtLowAltitude() || isInAcro) {
                     isInTheAir = true;
                 }
             }
