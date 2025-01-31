@@ -439,6 +439,11 @@ void pgResetFn_osdConfig(osdConfig_t *osdConfig)
     osdConfig->osd_visual_vario_max_speed = 50; // 5.0 m/s
     
     osdConfig->osd_pid_qual_lpf_cutoff = 15; // 15 = 1.5Hz
+
+#ifdef USE_WING
+    osdConfig->osd_speed_stall_warn = 35; // km/h
+    osdConfig->osd_speed_stall_crit = 30; // km/h
+#endif
 }
 
 void pgResetFn_osdElementConfig(osdElementConfig_t *osdElementConfig)

@@ -1536,6 +1536,8 @@ const clivalue_t valueTable[] = {
 #endif
 #ifdef USE_WING
     { "osd_tpa_speed_pos",          VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, OSD_POSCFG_MAX }, PG_OSD_ELEMENT_CONFIG, offsetof(osdElementConfig_t, item_pos[OSD_WING_TPA_ESTIMATED_SPEED]) },
+    { "osd_speed_stall_warn",       VAR_UINT8   | MASTER_VALUE, .config.minmaxUnsigned = { 0, 255 },            PG_OSD_CONFIG,         offsetof(osdConfig_t,        osd_speed_stall_warn) },
+    { "osd_speed_stall_crit",       VAR_UINT8   | MASTER_VALUE, .config.minmaxUnsigned = { 0, 255 },            PG_OSD_CONFIG,         offsetof(osdConfig_t,        osd_speed_stall_crit) },
 #endif
     { "osd_pid_qual_lpf_cutoff",     VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 1, 100 },            PG_OSD_CONFIG,         offsetof(osdConfig_t,        osd_pid_qual_lpf_cutoff) },
     { "osd_altitude_stealth",       VAR_UINT8   | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_OSD_CONFIG, offsetof(osdConfig_t, osd_altitude_stealth) },

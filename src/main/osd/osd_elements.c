@@ -1283,6 +1283,14 @@ static void osdElementWingEstimatedSpeed(osdElementParms_t *element)
 {
     int32_t speed = pidRuntime.tpaSpeed.speed * 100; // m/s to cm/s
     tfp_sprintf(element->buff, "%c%3d%c", SYM_SPEED, osdGetSpeedToSelectedUnit(speed), osdGetSpeedToSelectedUnitSymbol());
+
+    int32_t stall_speed_warn = osdConfig()->osd_speed_stall_warn * 27.7777f; // km/h to cm/s
+    int32_t stall_speed_crit = osdConfig()->osd_speed_stall_crit * 27.7777f; // km/h to cm/s
+    if (speed < stall_speed_crit) {
+        element->attr = DISPLAYPORT_SEVERITY_CRITICAL;
+    } else if (speed < stall_speed_warn) {
+        element->attr = DISPLAYPORT_SEVERITY_WARNING;
+    }
 }
 #endif
 

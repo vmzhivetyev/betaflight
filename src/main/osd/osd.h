@@ -368,6 +368,11 @@ typedef struct osdConfig_s {
     uint8_t osd_visual_vario_min_speed;       // min speed value (in 0.1m/s - in dm/s) which corresponds to a single arrow being rendered
     uint8_t osd_altitude_stealth;             // no icons, no text, only number AND it's aligned right
     uint8_t osd_pid_qual_lpf_cutoff;          // cutoff for setpoint err osd element lpf, in 0.1 Hz
+
+#ifdef USE_WING
+    uint8_t osd_speed_stall_warn;             // near stall speed to warn about (km/h)
+    uint8_t osd_speed_stall_crit;             // stall speed to YELL about (km/h)
+#endif
 } osdConfig_t;
 
 PG_DECLARE(osdConfig_t, osdConfig);
