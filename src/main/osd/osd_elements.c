@@ -1278,6 +1278,14 @@ static void osdElementGpsSpeed(osdElementParms_t *element)
     }
 }
 
+#ifdef USE_WING
+static void osdElementWingEstimatedSpeed(osdElementParms_t *element)
+{
+    int32_t speed = pidRuntime.tpaSpeed.speed * 100; // m/s to cm/s
+    tfp_sprintf(element->buff, "%c%3d%c", SYM_SPEED, osdGetSpeedToSelectedUnit(speed), osdGetSpeedToSelectedUnitSymbol());
+}
+#endif
+
 static void osdElementEfficiency(osdElementParms_t *element)
 {
     int efficiency = 0;
@@ -2012,6 +2020,9 @@ static const uint8_t osdElementDisplayOrder[] = {
     OSD_ITEM_TIMER_1,
     OSD_ITEM_TIMER_2,
     OSD_REMAINING_TIME_ESTIMATE,
+#ifdef USE_WING
+    OSD_WING_TPA_ESTIMATED_SPEED,
+#endif
     OSD_FLYMODE,
     OSD_THROTTLE_POS,
     OSD_VTX_CHANNEL,
@@ -2130,6 +2141,9 @@ const osdElementDrawFn osdElementDrawFunction[OSD_ITEM_COUNT] = {
 #ifdef USE_GPS
     [OSD_GPS_SPEED]               = osdElementGpsSpeed,
     [OSD_GPS_SATS]                = osdElementGpsSats,
+#endif
+#ifdef USE_WING
+    [OSD_WING_TPA_ESTIMATED_SPEED]= osdElementWingEstimatedSpeed,
 #endif
     [OSD_ALTITUDE]                = osdElementAltitude,
     [OSD_ROLL_PIDS]               = osdElementPidsRoll,
