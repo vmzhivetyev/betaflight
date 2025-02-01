@@ -1281,7 +1281,7 @@ static void osdElementGpsSpeed(osdElementParms_t *element)
 #ifdef USE_WING
 static void osdElementWingEstimatedSpeed(osdElementParms_t *element)
 {
-    int32_t speed = pidRuntime.tpaSpeed.speed * 100; // m/s to cm/s
+    int32_t speed = lrintf(pidRuntime.tpaSpeed.speed * 100.0f); // m/s to cm/s
     tfp_sprintf(element->buff, "%c%3d%c", SYM_SPEED, osdGetSpeedToSelectedUnit(speed), osdGetSpeedToSelectedUnitSymbol());
 
     int32_t stall_speed_warn = osdConfig()->osd_speed_stall_warn * 27.7777f; // km/h to cm/s
