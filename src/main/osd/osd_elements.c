@@ -1198,8 +1198,6 @@ static void osdElementFlymode(osdElementParms_t *element)
         strcpy(element->buff, "POSH");
     } else if (IS_RC_MODE_ACTIVE(BOXDISABLEPD)) {
         strcpy(element->buff, "PRO ");
-    } else if (FLIGHT_MODE(ANGLE_MODE)) {
-        strcpy(element->buff, "ANGL");
     } else if (FLIGHT_MODE(ALT_HOLD_MODE)) {
         strcpy(element->buff, "ALTH");
     } else if (FLIGHT_MODE(ANGLE_MODE)) {
