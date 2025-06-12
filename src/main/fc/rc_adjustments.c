@@ -234,6 +234,10 @@ static const adjustmentConfig_t defaultAdjustmentConfigs[ADJUSTMENT_FUNCTION_COU
         .adjustmentFunction = ADJUSTMENT_ROLL_S,
         .mode = ADJUSTMENT_MODE_STEP,
         .data = { .step = 1 }
+    }, { // 33 in cli
+        .adjustmentFunction = ADJUSTMENT_LED_DIMMER,
+        .mode = ADJUSTMENT_MODE_SELECT,
+        .data = { .switchPositions = 100 }
     }
 };
 
@@ -275,6 +279,7 @@ static const char * const adjustmentLabels[] = {
     "LED PROFILE",
     "D LPF1 CUTOFF", // ADJUSTMENT_D_CUTOFF
     "ROLL S", // ADJUSTMENT_ROLL_S
+    "LED DIMMER",
 };
 
 static int adjustmentRangeNameIndex = 0;
@@ -722,6 +727,13 @@ static uint8_t applySelectAdjustment(adjustmentFunction_e adjustmentFunction, ui
 #ifdef USE_LED_STRIP
         if (getLedProfile() != position) {
             setLedProfile(position);
+        }
+#endif
+        break;
+    case ADJUSTMENT_LED_DIMMER:
+#ifdef USE_LED_STRIP
+        if (getLedBrightness() != position) {
+            setLedBrightness(position);
         }
 #endif
         break;

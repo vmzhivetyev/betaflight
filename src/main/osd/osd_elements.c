@@ -50,6 +50,8 @@
 
     Add the mapping for the element ID to the background drawing function to the
     osdElementBackgroundFunction array.
+    
+    You should also add a corresponding entry to the file: cms_menu_osd.c
 
     Accelerometer reqirement:
     -------------------------
@@ -161,6 +163,7 @@
 #include "osd/osd_warnings.h"
 
 #include "pg/motor.h"
+#include "pg/pilot.h"
 #include "pg/stats.h"
 
 #include "rx/rx.h"
@@ -169,6 +172,7 @@
 #include "sensors/barometer.h"
 #include "sensors/battery.h"
 #include "sensors/sensors.h"
+#include "sensors/rangefinder.h"
 
 #include "build/debug.h"
 
@@ -538,7 +542,15 @@ bool osdFormatRtcDateTime(char *buffer)
         return false;
     }
 
-    dateTimeFormatLocalShort(buffer, &dateTime);
+    switch (activeElement.type) {
+    case OSD_ELEMENT_TYPE_2:
+        tfp_sprintf(buffer, "%02d.%02d %02d:%02d", dateTime.month, dateTime.day, dateTime.hours, dateTime.minutes);
+        break;
+    case OSD_ELEMENT_TYPE_1:
+    default:
+        dateTimeFormatLocalShort(buffer, &dateTime);
+        break;
+    }
 
     return true;
 }
@@ -580,6 +592,8 @@ static char osdGetTimerSymbol(osd_timer_source_e src)
         return SYM_FLY_M;
     case OSD_TIMER_SRC_ON_OR_ARMED:
         return ARMING_FLAG(ARMED) ? SYM_FLY_M : SYM_ON_M;
+    case OSD_TIMER_SRC_LAUNCH_TIME:
+        return 'L';
     default:
         return ' ';
     }
@@ -598,6 +612,8 @@ static timeUs_t osdGetTimerValue(osd_timer_source_e src)
     }
     case OSD_TIMER_SRC_ON_OR_ARMED:
         return ARMING_FLAG(ARMED) ? osdFlyTime : micros();
+    case OSD_TIMER_SRC_LAUNCH_TIME:
+        return osdLaunchTime;
     default:
         return 0;
     }
@@ -710,7 +726,7 @@ char osdGetSpeedToSelectedUnitSymbol(void)
     }
 }
 
-char osdGetVarioToSelectedUnitSymbol(void)
+MAYBE_UNUSED static char osdGetVarioToSelectedUnitSymbol(void)
 {
     switch (osdConfig()->units) {
     case UNIT_IMPERIAL:
@@ -735,6 +751,22 @@ char osdGetTemperatureSymbolForSelectedUnit(void)
 // *************************
 // Element drawing functions
 // *************************
+
+#ifdef USE_RANGEFINDER
+static void osdElementLidarDist(osdElementParms_t *element)
+{
+    int16_t dist = rangefinderGetLatestAltitude();
+
+    if (dist > 0) {
+
+        tfp_sprintf(element->buff, "RF:%3d", dist);
+
+    } else {
+
+        tfp_sprintf(element->buff, "RF:---");
+    }
+}
+#endif
 
 #ifdef USE_OSD_ADJUSTMENTS
 static void osdElementAdjustmentRange(osdElementParms_t *element)
@@ -892,6 +924,18 @@ static void osdElementCompassBar(osdElementParms_t *element)
     element->buff[9] = 0;
 }
 
+//display custom message from MSPv2
+static void osdElementCustomMsg(osdElementParms_t *element)
+{
+    int msgIndex = element->item - OSD_CUSTOM_MSG0;
+    if (msgIndex < 0 || msgIndex >= OSD_CUSTOM_MSG_COUNT || pilotConfig()->message[msgIndex][0] == '\0') {
+        tfp_sprintf(element->buff, "CUSTOM_MSG%d", msgIndex + 1);
+    } else {
+        strncpy(element->buff, pilotConfig()->message[msgIndex], MAX_NAME_LENGTH);
+        element->buff[MAX_NAME_LENGTH] = 0;   // terminate maximum-length string
+    }
+}
+
 #ifdef USE_ADC_INTERNAL
 static void osdElementCoreTemperature(osdElementParms_t *element)
 {
@@ -969,6 +1013,7 @@ static void osdElementCrashFlipArrow(osdElementParms_t *element)
     }
 
     if ((isCrashFlipModeActive() || (!ARMING_FLAG(ARMED) && !isUpright())) && !((imuConfig()->small_angle < 180 && isUpright()) || (rollAngle == 0 && pitchAngle == 0))) {
+        element->attr = DISPLAYPORT_SEVERITY_INFO;
         if (abs(pitchAngle) < 2 * abs(rollAngle) && abs(rollAngle) < 2 * abs(pitchAngle)) {
             if (pitchAngle > 0) {
                 if (rollAngle > 0) {
@@ -1136,9 +1181,10 @@ static void osdElementFlymode(osdElementParms_t *element)
     // Note that flight mode display has precedence in what to display.
     //  1. FS
     //  2. GPS RESCUE
-    //  3. ANGLE, HORIZON, ACRO TRAINER, ALTHOLD
-    //  4. AIR
-    //  5. ACRO
+    //  3. PASSTHRU
+    //  4. HEAD, POSHOLD, ALTHOLD, ANGLE, HORIZON, ACRO TRAINER
+    //  5. AIR
+    //  6. ACRO
 
     if (FLIGHT_MODE(FAILSAFE_MODE)) {
         strcpy(element->buff, "!FS!");
@@ -1147,17 +1193,26 @@ static void osdElementFlymode(osdElementParms_t *element)
     } else if (FLIGHT_MODE(HEADFREE_MODE)) {
         strcpy(element->buff, "HEAD");
     } else if (FLIGHT_MODE(PASSTHRU_MODE)) {
-        strcpy(element->buff, "MANU");
+        strcpy(element->buff, "PASS");
+    } else if (FLIGHT_MODE(POS_HOLD_MODE)) {
+        strcpy(element->buff, "POSH");
     } else if (IS_RC_MODE_ACTIVE(BOXDISABLEPD)) {
         strcpy(element->buff, "PRO ");
     } else if (FLIGHT_MODE(ANGLE_MODE)) {
         strcpy(element->buff, "ANGL");
     } else if (FLIGHT_MODE(ALT_HOLD_MODE)) {
         strcpy(element->buff, "ALTH");
+    } else if (FLIGHT_MODE(ANGLE_MODE)) {
+        strcpy(element->buff, "ANGL");
     } else if (FLIGHT_MODE(HORIZON_MODE)) {
         strcpy(element->buff, "HOR ");
     } else if (IS_RC_MODE_ACTIVE(BOXACROTRAINER)) {
         strcpy(element->buff, "ATRN");
+#ifdef USE_CHIRP
+    // the additional check for pidChirpIsFinished() is to have visual feedback for user that don't have warnings enabled in their goggles
+    } else if (FLIGHT_MODE(CHIRP_MODE) && !pidChirpIsFinished()) {
+        strcpy(element->buff, "CHIR");
+#endif
     } else if (isAirmodeEnabled()) {
         strcpy(element->buff, "AIR ");
     } else {
@@ -1255,7 +1310,7 @@ static void osdElementGpsSats(osdElementParms_t *element)
     }
 #endif
     else {
-        element->attr = DISPLAYPORT_SEVERITY_INFO;
+        element->attr = DISPLAYPORT_SEVERITY_NORMAL;
     }
 
     if (!gpsIsHealthy()) {
@@ -2038,6 +2093,10 @@ static const uint8_t osdElementDisplayOrder[] = {
     OSD_MAH_DRAWN,
     OSD_WATT_HOURS_DRAWN,
     OSD_CRAFT_NAME,
+    OSD_CUSTOM_MSG0,
+    OSD_CUSTOM_MSG1,
+    OSD_CUSTOM_MSG2,
+    OSD_CUSTOM_MSG3,
     OSD_ALTITUDE,
     OSD_ROLL_PIDS,
     OSD_PITCH_PIDS,
@@ -2121,6 +2180,9 @@ static const uint8_t osdElementDisplayOrder[] = {
     OSD_SYS_VTX_TEMP,
     OSD_SYS_FAN_SPEED,
 #endif
+#ifdef USE_RANGEFINDER
+    OSD_LIDAR_DIST,
+#endif
 };
 
 // Define the mapping between the OSD element id and the function to draw it
@@ -2139,6 +2201,10 @@ const osdElementDrawFn osdElementDrawFunction[OSD_ITEM_COUNT] = {
     [OSD_ITEM_TIMER_2]            = osdElementTimer,
     [OSD_FLYMODE]                 = osdElementFlymode,
     [OSD_CRAFT_NAME]              = NULL,  // only has background
+    [OSD_CUSTOM_MSG0]             = osdElementCustomMsg,
+    [OSD_CUSTOM_MSG1]             = osdElementCustomMsg,
+    [OSD_CUSTOM_MSG2]             = osdElementCustomMsg,
+    [OSD_CUSTOM_MSG3]             = osdElementCustomMsg,
     [OSD_THROTTLE_POS]            = osdElementThrottlePosition,
 #ifdef USE_VTX_COMMON
     [OSD_VTX_CHANNEL]             = osdElementVtxChannel,
@@ -2270,6 +2336,9 @@ const osdElementDrawFn osdElementDrawFunction[OSD_ITEM_COUNT] = {
     [OSD_SYS_VTX_TEMP]            = osdElementSys,
     [OSD_SYS_FAN_SPEED]           = osdElementSys,
 #endif
+#ifdef USE_RANGEFINDER
+    [OSD_LIDAR_DIST]              = osdElementLidarDist,
+#endif
 };
 
 // Define the mapping between the OSD element id and the function to draw its background (static part)
@@ -2354,6 +2423,9 @@ void osdAddActiveElements(void)
 
 static bool osdDrawSingleElement(displayPort_t *osdDisplayPort, uint8_t item)
 {
+    // By default mark the element as rendered in case it's in the off blink state
+    activeElement.rendered = true;
+
     if (!osdElementDrawFunction[item]) {
         // Element has no drawing function
         return true;
@@ -2374,7 +2446,6 @@ static bool osdDrawSingleElement(displayPort_t *osdDisplayPort, uint8_t item)
     activeElement.buff = elementBuff;
     activeElement.osdDisplayPort = osdDisplayPort;
     activeElement.drawElement = true;
-    activeElement.rendered = true;
     activeElement.attr = DISPLAYPORT_SEVERITY_NORMAL;
 
     // Call the element drawing function
@@ -2498,14 +2569,13 @@ bool osdDrawNextActiveElement(displayPort_t *osdDisplayPort)
     // Only advance to the next element if rendering is complete
     if (osdDrawSingleElement(osdDisplayPort, item)) {
         // If rendering is complete then advance to the next element
-        if (activeElement.rendered) {
-            // Prepare to render the background of the next element
-            backgroundRendered = false;
 
-            if (++activeElementNumber >= activeOsdElementCount) {
-                activeElementNumber = 0;
-                return false;
-            }
+        // Prepare to render the background of the next element
+        backgroundRendered = false;
+
+        if (++activeElementNumber >= activeOsdElementCount) {
+            activeElementNumber = 0;
+            return false;
         }
     }
 
@@ -2721,7 +2791,7 @@ void osdUpdateAlarms(void)
 #endif
 
 #if defined(USE_ESC_SENSOR) || defined(USE_DSHOT_TELEMETRY)
-    bool blink;
+    bool blink = false;
 
 #if defined(USE_ESC_SENSOR)
     if (featureIsEnabled(FEATURE_ESC_SENSOR)) {
@@ -2731,7 +2801,6 @@ void osdUpdateAlarms(void)
 #endif
 #if defined(USE_DSHOT_TELEMETRY)
     {
-        blink = false;
         if (osdConfig()->esc_temp_alarm != ESC_TEMP_ALARM_OFF) {
             for (uint32_t k = 0; !blink && (k < getMotorCount()); k++) {
                 blink = (dshotTelemetryState.motorState[k].telemetryTypes & (1 << DSHOT_TELEMETRY_TYPE_TEMPERATURE)) != 0 &&

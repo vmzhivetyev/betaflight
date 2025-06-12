@@ -161,6 +161,14 @@
 #endif // USE_ADC
 
 #ifdef USE_SPI
+#ifdef USE_SPI_DEVICE_0
+#ifndef SPI0_TX_DMA_OPT
+#define SPI0_TX_DMA_OPT (DMA_OPT_UNUSED)
+#endif
+#ifndef SPI0_RX_DMA_OPT
+#define SPI0_RX_DMA_OPT (DMA_OPT_UNUSED)
+#endif
+#endif
 #ifdef USE_SPI_DEVICE_1
 #ifndef SPI1_TX_DMA_OPT
 #define SPI1_TX_DMA_OPT (DMA_OPT_UNUSED)
@@ -208,6 +216,15 @@
 #ifndef SPI6_RX_DMA_OPT
 #define SPI6_RX_DMA_OPT (DMA_OPT_UNUSED)
 #endif
+#endif
+#endif
+
+#ifdef USE_UART0
+#ifndef UART0_TX_DMA_OPT
+#define UART0_TX_DMA_OPT (DMA_OPT_UNUSED)
+#endif
+#ifndef UART0_RX_DMA_OPT
+#define UART0_RX_DMA_OPT (DMA_OPT_UNUSED)
 #endif
 #endif
 

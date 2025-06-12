@@ -246,7 +246,7 @@ static void calculateThrottleAndCurrentMotorEndpoints(timeUs_t currentTimeUs)
             throttle = 0;
             currentThrottleInputRange = rcCommandThrottleRange3dHigh;
         }
-        if (currentTimeUs - reversalTimeUs < 250000) {
+        if (cmpTimeUs(currentTimeUs, reversalTimeUs) < 250000) {
             // keep iterm zero for 250ms after motor reversal
             pidResetIterm();
         }
@@ -822,7 +822,7 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs)
     }
 #endif
 
-#ifdef USE_ALT_HOLD_MODE
+#ifdef USE_ALTITUDE_HOLD
     // Throttle value to be used during altitude hold mode (and failsafe landing mode)
     if (FLIGHT_MODE(ALT_HOLD_MODE)) {
         throttle = getAutopilotThrottle();
@@ -859,8 +859,8 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs)
     if (featureIsEnabled(FEATURE_MOTOR_STOP)
         && ARMING_FLAG(ARMED)
         && !mixerRuntime.feature3dEnabled
-        && !airmodeEnabled                               // not with airmode or launch control
-        && !FLIGHT_MODE(GPS_RESCUE_MODE | ALT_HOLD_MODE) // not in autopilot modes
+        && !airmodeEnabled
+        && !FLIGHT_MODE(GPS_RESCUE_MODE | ALT_HOLD_MODE | POS_HOLD_MODE)   // disable motor_stop while GPS Rescue / Alt Hold / Pos Hold is active
         && (rcData[THROTTLE] < rxConfig()->mincheck)) {
         applyMotorStop();
     } else {

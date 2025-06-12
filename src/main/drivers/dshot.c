@@ -29,6 +29,8 @@
 
 #include "platform.h"
 
+#include "dshot.h"
+
 #ifdef USE_DSHOT
 
 #include "build/debug.h"
@@ -40,21 +42,20 @@
 
 #include "config/feature.h"
 
-#include "drivers/motor.h"
+#include "drivers/motor_types.h"
 #include "drivers/timer.h"
 
 #include "drivers/dshot_command.h"
 #include "drivers/nvic.h"
 
-#include "flight/mixer.h"
 
 #include "pg/rpm_filter.h"
 
 #include "rx/rx.h"
 
-#include "dshot.h"
-
 #define ERPM_PER_LSB            100.0f
+
+FAST_DATA_ZERO_INIT uint8_t dshotMotorCount = 0;
 
 void dshotInitEndpoints(const motorConfig_t *motorConfig, float outputLimit, float *outputLow, float *outputHigh, float *disarm, float *deadbandMotor3dHigh, float *deadbandMotor3dLow)
 {
@@ -160,12 +161,16 @@ void initDshotTelemetry(const timeUs_t looptimeUs)
     // erpmToHz is used by bidir dshot and ESC telemetry
     erpmToHz = ERPM_PER_LSB / SECONDS_PER_MINUTE / (motorConfig()->motorPoleCount / 2.0f);
 
+#ifdef USE_RPM_FILTER
     if (motorConfig()->dev.useDshotTelemetry) {
         // init LPFs for RPM data
-        for (int i = 0; i < getMotorCount(); i++) {
+        for (unsigned i = 0; i < dshotMotorCount; i++) {
             pt1FilterInit(&motorFreqLpf[i], pt1FilterGain(rpmFilterConfig()->rpm_filter_lpf_hz, looptimeUs * 1e-6f));
         }
     }
+#else
+    UNUSED(looptimeUs);
+#endif
 }
 
 static uint32_t dshotDecodeErpmTelemetryValue(uint16_t value)
@@ -356,7 +361,7 @@ bool isDshotMotorTelemetryActive(uint8_t motorIndex)
 
 bool isDshotTelemetryActive(void)
 {
-    const unsigned motorCount = motorDeviceCount();
+    const unsigned motorCount = dshotMotorCount;
     if (motorCount) {
         for (unsigned i = 0; i < motorCount; i++) {
             if (!isDshotMotorTelemetryActive(i)) {
