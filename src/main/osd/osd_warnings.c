@@ -344,7 +344,7 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
             warningText[dshotEscErrorLength++] = '0' + k + 1;
 
             // Skip if no extended telemetry available
-            bool edt = (dshotTelemetryState.motorState[k].telemetryTypes & DSHOT_EXTENDED_TELEMETRY_MASK) != 0;
+            bool edt = dshotTelemetryState.motorState[k].extendedTelemetryEnabled;
 
             // Temperature warning
             if (edt && osdConfig()->esc_temp_alarm != ESC_TEMP_ALARM_OFF

@@ -237,12 +237,12 @@ bool motorPwmDevInit(motorDevice_t *device, const motorDevConfig_t *motorConfig,
         const uint32_t hz = clock / prescaler;
         const unsigned period = useContinuousUpdate ? hz / pwmRateHz : 0xffff;
 
-        motors[motorIndex].pwmRateHz = pwmRateHz;
-        motors[motorIndex].clock = clock;
-        motors[motorIndex].prescaler = prescaler;
-        motors[motorIndex].hz = hz;
-        motors[motorIndex].period = period;
-        motors[motorIndex].idlePulse = idlePulse;
+        pwmMotors[motorIndex].pwmRateHz = pwmRateHz;
+        pwmMotors[motorIndex].clock = clock;
+        pwmMotors[motorIndex].prescaler = prescaler;
+        pwmMotors[motorIndex].hz = hz;
+        pwmMotors[motorIndex].period = period;
+        pwmMotors[motorIndex].idlePulse = idlePulse;
 
         /*
             if brushed then it is the entire length of the period.

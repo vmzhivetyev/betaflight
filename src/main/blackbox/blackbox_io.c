@@ -821,36 +821,6 @@ blackboxBufferReserveStatus_e blackboxDeviceReserveBufferSpace(int32_t bytes)
     }
 }
 
-// DUPLICATE CODE with blackboxGetLogFileNo
-int32_t blackboxGetLogNumber(void)
-{
-    switch (blackboxConfig()->device) {
-#ifdef USE_SDCARD
-    case BLACKBOX_DEVICE_SDCARD:
-        return blackboxSDCard.largestLogFileNumber;
-#endif
-
-    default:
-        return -1;
-    }
-}
-
-// DUPLICATE CODE with blackboxGetLogNumber
-int8_t blackboxGetLogFileNo(void)
-{
-#ifdef USE_SDCARD
-    // return current file number or -1
-    if (blackboxSDCard.state == BLACKBOX_SDCARD_READY_TO_LOG) {
-        return blackboxSDCard.largestLogFileNumber;
-    } else {
-        return -1;
-    }
-#else
-    // will be implemented later for flash based storage
-    return -1;
-#endif
-}
-
 // returns tenths of percent, so 997 is 99.7%.
 int16_t blackboxGetStorageUsedPercentTenths(void)
 {

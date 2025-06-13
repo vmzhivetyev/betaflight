@@ -41,6 +41,7 @@
 #include "config/feature.h"
 
 #include "drivers/motor.h"
+#include "drivers/motor_types.h"
 #include "drivers/timer.h"
 
 #include "drivers/dshot_command.h"
@@ -55,6 +56,8 @@
 #include "dshot.h"
 
 #define ERPM_PER_LSB            100.0f
+
+FAST_DATA_ZERO_INIT uint8_t dshotMotorCount = 0;
 
 void dshotInitEndpoints(const motorConfig_t *motorConfig, float outputLimit, float *outputLow, float *outputHigh, float *disarm, float *deadbandMotor3dHigh, float *deadbandMotor3dLow)
 {
@@ -149,6 +152,7 @@ FAST_DATA_ZERO_INIT static float motorFrequencyHz[MAX_SUPPORTED_MOTORS];
 FAST_DATA_ZERO_INIT static float minMotorFrequencyHz;
 FAST_DATA_ZERO_INIT static float erpmToHz;
 FAST_DATA_ZERO_INIT static float dshotRpmAverage;
+FAST_DATA_ZERO_INIT static float dshotRpm[MAX_SUPPORTED_MOTORS];
 
 void initDshotTelemetry(const timeUs_t looptimeUs)
 {
@@ -160,12 +164,16 @@ void initDshotTelemetry(const timeUs_t looptimeUs)
     // erpmToHz is used by bidir dshot and ESC telemetry
     erpmToHz = ERPM_PER_LSB / SECONDS_PER_MINUTE / (motorConfig()->motorPoleCount / 2.0f);
 
+#ifdef USE_RPM_FILTER
     if (motorConfig()->dev.useDshotTelemetry) {
         // init LPFs for RPM data
-        for (int i = 0; i < getMotorCount(); i++) {
+        for (unsigned i = 0; i < dshotMotorCount; i++) {
             pt1FilterInit(&motorFreqLpf[i], pt1FilterGain(rpmFilterConfig()->rpm_filter_lpf_hz, looptimeUs * 1e-6f));
         }
     }
+#else
+    UNUSED(looptimeUs);
+#endif
 }
 
 static uint32_t dshotDecodeErpmTelemetryValue(uint16_t value)
@@ -270,11 +278,28 @@ static bool dshotDecodeTelemetryValue(unsigned motorIndex, uint32_t *pDecoded, d
     return true;
 }
 
-// Update telemetry data, set flag that entry is valid
-static void dshotUpdateTelemetryData(uint8_t motorIndex, dshotTelemetryType_e type, uint32_t value)
-{
+static void dshotUpdateTelemetryData(
+    uint8_t motorIndex,
+    dshotTelemetryType_e type,
+    uint32_t value,
+    uint32_t* erpmTotal,
+    uint32_t* rpmSamples
+) {
+    // Update telemetry data
     dshotTelemetryState.motorState[motorIndex].telemetryData[type] = value;
     dshotTelemetryState.motorState[motorIndex].telemetryTypes |= (1 << type);
+
+    // Update max temp
+    if ((type == DSHOT_TELEMETRY_TYPE_TEMPERATURE) && (value > dshotTelemetryState.motorState[motorIndex].maxTemp)) {
+        dshotTelemetryState.motorState[motorIndex].maxTemp = value;
+    }
+
+    // Update rpm values
+    if (type == DSHOT_TELEMETRY_TYPE_eRPM) {
+        dshotRpm[motorIndex] = erpmToRpm(value);
+        *erpmTotal += value;
+        *rpmSamples += 1;
+    }
 }
 
 FAST_CODE_NOINLINE void updateDshotTelemetry(void)
@@ -288,38 +313,31 @@ FAST_CODE_NOINLINE void updateDshotTelemetry(void)
         return;
     }
 
-    const unsigned motorCount = motorDeviceCount();
+    const unsigned motorCount = MIN(MAX_SUPPORTED_MOTORS, dshotMotorCount);
+    uint32_t erpmTotal = 0;
+    uint32_t rpmSamples = 0;
 
     // Decode all telemetry data now to discharge interrupt from this task
-    for (unsigned k = 0; k < motorCount; k++) {
+    for (uint8_t k = 0; k < motorCount; k++) {
         dshotTelemetryType_e type;
         uint32_t value;
         if (dshotDecodeTelemetryValue(k, &value, &type)) {
-            dshotUpdateTelemetryData(k, type, value);
-            // Update max temp
-            if ((type == DSHOT_TELEMETRY_TYPE_TEMPERATURE) && (value > dshotTelemetryState.motorState[k].maxTemp)) {
-                dshotTelemetryState.motorState[k].maxTemp = value;
-            }
+            dshotUpdateTelemetryData(k, type, value, &erpmTotal, &rpmSamples);
         }
     }
 
+    // Update average
+    if (rpmSamples > 0) {
+        dshotRpmAverage = erpmToRpm(erpmTotal) / (float)rpmSamples;
+    }
+
     // update filtered rotation speed of motors for features (e.g. "RPM filter")
-    // calculate average RPM
     minMotorFrequencyHz = FLT_MAX;
-    float motorHzSum = 0;
-    int  motorHzCount = 0;
-    for (int motor = 0; motor < getMotorCount(); motor++) {
-        const float motorHz = erpmToHz * getDshotErpm(motor);
-        motorFrequencyHz[motor] = pt1FilterApply(&motorFreqLpf[motor], motorHz);
+    for (unsigned motor = 0; motor < dshotMotorCount; motor++) {
+        motorFrequencyHz[motor] = pt1FilterApply(&motorFreqLpf[motor], erpmToHz * getDshotErpm(motor));
         minMotorFrequencyHz = MIN(minMotorFrequencyHz, motorFrequencyHz[motor]);
-        if (motorHz > 0) {  // sum and count all nonzero rps values for average
-            motorHzSum += motorHz;
-            motorHzCount++;
-        }
     }
-    if (motorHzCount) {
-        dshotRpmAverage = motorHzSum * 60.0f / motorHzCount;
-    }
+
     // Set state to processed
     dshotTelemetryState.rawValueState = DSHOT_RAW_VALUE_STATE_PROCESSED;
 }
@@ -331,7 +349,7 @@ uint16_t getDshotErpm(uint8_t motorIndex)
 
 float getDshotRpm(uint8_t motorIndex)
 {
-    return erpmToRpm(getDshotErpm(motorIndex));
+    return dshotRpm[motorIndex];
 }
 
 float getDshotRpmAverage(void)
@@ -356,7 +374,7 @@ bool isDshotMotorTelemetryActive(uint8_t motorIndex)
 
 bool isDshotTelemetryActive(void)
 {
-    const unsigned motorCount = motorDeviceCount();
+    const unsigned motorCount = dshotMotorCount;
     if (motorCount) {
         for (unsigned i = 0; i < motorCount; i++) {
             if (!isDshotMotorTelemetryActive(i)) {
