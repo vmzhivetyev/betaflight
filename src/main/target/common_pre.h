@@ -63,6 +63,12 @@
 #define USE_DMA
 #define USE_TIMER
 
+// === VMZ CUSTOM ===
+#ifdef SITL
+#define USE_WING
+#endif
+// ==================
+
 #define USE_CLI
 #define USE_SERIAL_PASSTHROUGH
 #define USE_GYRO_REGISTER_DUMP  // Adds gyroregisters command to cli to dump configured register values
