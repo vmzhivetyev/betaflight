@@ -335,7 +335,12 @@ void pidInitFilters(const pidProfile_t *pidProfile)
 #endif
 
     for (int axis = FD_ROLL; axis <= FD_YAW; axis++) {
-        pt3FilterInit(&pidRuntime.qualitySmoothedErrorFilter[axis], pt3FilterGain(osdConfig()->osd_pid_qual_lpf_cutoff / 10.0f, pidRuntime.dT));
+#if defined(USE_OSD)
+        const float pidQualityCutoff = osdConfig()->osd_pid_qual_lpf_cutoff / 10.0f;
+#else
+        const float pidQualityCutoff = 1.5f; // 1.5 Hz
+#endif
+        pt3FilterInit(&pidRuntime.qualitySmoothedErrorFilter[axis], pt3FilterGain(pidQualityCutoff, pidRuntime.dT));
     }
 }
 

@@ -839,12 +839,16 @@ static void processStepwiseAdjustments(controlRateConfig_t *controlRateConfig, c
         if (adjustmentFunction != previousAdjustmentFunction) {
             previousAdjustmentFunction = adjustmentFunction;
             
+            #if defined(USE_OSD) && defined(USE_OSD_ADJUSTMENTS)
             if (adjustmentConfig->mode == ADJUSTMENT_MODE_STEP) {
                 const int curValue = getCurrentAdjustmentValue(controlRateConfig, adjustmentFunction);
                 updateOsdAdjustmentData(curValue, adjustmentFunction);
             } else {
                 updateOsdAdjustmentData(-2, adjustmentFunction);
             }
+            #else
+            UNUSED(getCurrentAdjustmentValue);
+            #endif
         }
 
         if (adjustmentConfig->mode == ADJUSTMENT_MODE_STEP) {

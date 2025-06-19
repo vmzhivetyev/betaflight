@@ -144,8 +144,12 @@ void calculateEstimatedAltitude(void)
             // WE HAVE JUST ARMED
             wasArmed = true;
 
+            #if defined(USE_OSD)
             statistic_t *stats = osdGetStats();
             bool allowZeroing = cmpTimeUs(stats->armed_time / 1000000, 10) < 0; // if armed less than 10 seconds in total
+            #else
+            bool allowZeroing = baroAltOffsetCm == 0.0f && gpsAltOffsetCm == 0.0f;
+            #endif
 
             if (allowZeroing) {
                 if (haveBaroAlt) {
