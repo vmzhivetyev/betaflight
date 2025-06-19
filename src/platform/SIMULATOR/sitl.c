@@ -30,13 +30,18 @@
 
 #include "common/maths.h"
 
+#include "build/debug.h"
+
+#include "drivers/adc_impl.h"
 #include "drivers/io.h"
 #include "drivers/dma.h"
-#include "drivers/motor.h"
+#include "drivers/motor_impl.h"
 #include "drivers/serial.h"
 #include "drivers/serial_tcp.h"
 #include "drivers/system.h"
+#include "drivers/time.h"
 #include "drivers/pwm_output.h"
+#include "drivers/pwm_output_impl.h"
 #include "drivers/light_led.h"
 
 #include "drivers/timer.h"
@@ -49,6 +54,8 @@
 #include "config/feature.h"
 #include "config/config.h"
 #include "config/config_streamer.h"
+#include "config/config_streamer_impl.h"
+#include "config/config_eeprom_impl.h"
 
 #include "scheduler/scheduler.h"
 
@@ -56,6 +63,7 @@
 #include "pg/motor.h"
 
 #include "rx/rx.h"
+#include "rx/spektrum.h"
 
 #include "io/gps.h"
 #include "io/gps_virtual.h"
@@ -110,12 +118,12 @@ int lockMainPID(void)
 #define ACC_SCALE (256 / 9.80665)
 #define GYRO_SCALE (16.4)
 
-void sendMotorUpdate(void)
+static void sendMotorUpdate(void)
 {
     udpSend(&pwmLink, &pwmPkt, sizeof(servo_packet));
 }
 
-void updateState(const fdm_packet* pkt)
+static void updateState(const fdm_packet* pkt)
 {
     static double last_timestamp = 0; // in seconds
     static uint64_t last_realtime = 0; // in uS
@@ -469,7 +477,7 @@ uint32_t getCycleCounter(void)
     return (uint32_t) (micros64() & 0xFFFFFFFF);
 }
 
-void microsleep(uint32_t usec)
+static void microsleep(uint32_t usec)
 {
     struct timespec ts;
     ts.tv_sec = 0;
@@ -520,7 +528,6 @@ int timeval_sub(struct timespec *result, struct timespec *x, struct timespec *y)
 }
 
 // PWM part
-pwmOutputPort_t motors[MAX_SUPPORTED_MOTORS];
 static pwmOutputPort_t servos[MAX_SUPPORTED_SERVOS];
 
 // real value to send
@@ -537,11 +544,9 @@ void servoDevInit(const servoDevConfig_t *servoConfig)
     }
 }
 
-static motorDevice_t motorPwmDevice; // Forward
-
 pwmOutputPort_t *pwmGetMotors(void)
 {
-    return motors;
+    return pwmMotors;
 }
 
 static float pwmConvertFromExternal(uint16_t externalValue)
@@ -556,14 +561,7 @@ static uint16_t pwmConvertToExternal(float motorValue)
 
 static void pwmDisableMotors(void)
 {
-    motorPwmDevice.enabled = false;
-}
-
-static bool pwmEnableMotors(void)
-{
-    motorPwmDevice.enabled = true;
-
-    return true;
+    // NOOP
 }
 
 static void pwmWriteMotor(uint8_t index, float value)
@@ -588,12 +586,7 @@ static void pwmWriteMotorInt(uint8_t index, uint16_t value)
 
 static void pwmShutdownPulsesForAllMotors(void)
 {
-    motorPwmDevice.enabled = false;
-}
-
-bool pwmIsMotorEnabled(uint8_t index)
-{
-    return motors[index].enabled;
+    // NOOP
 }
 
 static void pwmCompleteMotorUpdate(void)
@@ -627,40 +620,44 @@ void pwmWriteServo(uint8_t index, float value)
     }
 }
 
-static motorDevice_t motorPwmDevice = {
-    .vTable = {
-        .postInit = motorPostInitNull,
-        .convertExternalToMotor = pwmConvertFromExternal,
-        .convertMotorToExternal = pwmConvertToExternal,
-        .enable = pwmEnableMotors,
-        .disable = pwmDisableMotors,
-        .isMotorEnabled = pwmIsMotorEnabled,
-        .decodeTelemetry = motorDecodeTelemetryNull,
-        .write = pwmWriteMotor,
-        .writeInt = pwmWriteMotorInt,
-        .updateComplete = pwmCompleteMotorUpdate,
-        .shutdown = pwmShutdownPulsesForAllMotors,
-    }
+static const motorVTable_t vTable = {
+    .postInit = motorPostInitNull,
+    .convertExternalToMotor = pwmConvertFromExternal,
+    .convertMotorToExternal = pwmConvertToExternal,
+    .enable = pwmEnableMotors,
+    .disable = pwmDisableMotors,
+    .isMotorEnabled = pwmIsMotorEnabled,
+    .decodeTelemetry = motorDecodeTelemetryNull,
+    .write = pwmWriteMotor,
+    .writeInt = pwmWriteMotorInt,
+    .updateComplete = pwmCompleteMotorUpdate,
+    .shutdown = pwmShutdownPulsesForAllMotors,
+    .requestTelemetry = NULL,
+    .isMotorIdle = NULL,
+    .getMotorIO = NULL,
 };
 
-motorDevice_t *motorPwmDevInit(const motorDevConfig_t *motorConfig, uint16_t _idlePulse, uint8_t motorCount, bool useUnsyncedPwm)
+bool motorPwmDevInit(motorDevice_t *device, const motorDevConfig_t *motorConfig, uint16_t _idlePulse)
 {
     UNUSED(motorConfig);
-    UNUSED(useUnsyncedPwm);
 
-    printf("Initialized motor count %d\n", motorCount);
-    pwmRawPkt.motorCount = motorCount;
+    if (!device) {
+        return false;
+    }
+
+    pwmMotorCount = device->count;
+    device->vTable = &vTable;
+    
+    printf("Initialized motor count %d\n", pwmMotorCount);
+    pwmRawPkt.motorCount = pwmMotorCount;
 
     idlePulse = _idlePulse;
 
-    for (int motorIndex = 0; motorIndex < MAX_SUPPORTED_MOTORS && motorIndex < motorCount; motorIndex++) {
-        motors[motorIndex].enabled = true;
+    for (int motorIndex = 0; motorIndex < MAX_SUPPORTED_MOTORS && motorIndex < pwmMotorCount; motorIndex++) {
+        pwmMotors[motorIndex].enabled = true;
     }
-    motorPwmDevice.count = motorCount; // Never used, but seemingly a right thing to set it anyways.
-    motorPwmDevice.initialized = true;
-    motorPwmDevice.enabled = false;
 
-    return &motorPwmDevice;
+    return true;
 }
 
 // ADC part

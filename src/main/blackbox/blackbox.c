@@ -365,7 +365,7 @@ typedef struct blackboxMainState_s {
     int16_t gyroUnfilt[XYZ_AXIS_COUNT];
 #ifdef USE_ACC
     int16_t accADC[XYZ_AXIS_COUNT];
-    int16_t imuAttitudeQuaternion[XYZ_AXIS_COUNT];
+    int16_t imuAttitudeQuaternion3[XYZ_AXIS_COUNT]; // only x,y,z is stored; w is always positive
 #endif
     int16_t debug[DEBUG16_VALUE_COUNT];
     int16_t motor[MAX_SUPPORTED_MOTORS];
@@ -747,7 +747,7 @@ static void writeIntraframe(void)
     }
 
     if (testBlackboxCondition(CONDITION(ATTITUDE))) {
-        blackboxWriteSigned16VBArray(blackboxCurrent->imuAttitudeQuaternion, XYZ_AXIS_COUNT);
+        blackboxWriteSigned16VBArray(blackboxCurrent->imuAttitudeQuaternion3, XYZ_AXIS_COUNT);
     }
 #endif
 
@@ -932,7 +932,7 @@ static void writeInterframe(void)
     }
 
     if (testBlackboxCondition(CONDITION(ATTITUDE))) {
-        blackboxWriteMainStateArrayUsingAveragePredictor(offsetof(blackboxMainState_t, imuAttitudeQuaternion), XYZ_AXIS_COUNT);
+        blackboxWriteMainStateArrayUsingAveragePredictor(offsetof(blackboxMainState_t, imuAttitudeQuaternion3), XYZ_AXIS_COUNT);
     }
 #endif
 
@@ -1050,6 +1050,9 @@ void blackboxValidateConfig(void)
 #endif
 #ifdef USE_SDCARD
     case BLACKBOX_DEVICE_SDCARD:
+#endif
+#ifdef USE_BLACKBOX_VIRTUAL
+    case BLACKBOX_DEVICE_VIRTUAL:
 #endif
     case BLACKBOX_DEVICE_SERIAL:
         // Device supported, leave the setting alone
@@ -1250,14 +1253,22 @@ static void loadMainState(timeUs_t currentTimeUs)
 
 #if defined(USE_ACC)
         blackboxCurrent->accADC[i] = lrintf(acc.accADC.v[i]);
-        STATIC_ASSERT(offsetof(quaternion_t, w) == 0, "Code expects quaternion in w, x, y, z order");
-        blackboxCurrent->imuAttitudeQuaternion[i] = lrintf(imuAttitudeQuaternion.v[i + 1] * 0x7FFF);  //Scale to int16 by value 0x7FFF = 2^15 - 1; Use i+1 index for x,y,z components access, [0] - w
 #endif
 #ifdef USE_MAG
         blackboxCurrent->magADC[i] = lrintf(mag.magADC.v[i]);
 #endif
     }
-
+#if defined(USE_ACC) // IMU quaternion
+    {
+        // write x,y,z of IMU quaternion. Make sure that w is always positive
+        STATIC_ASSERT(offsetof(quaternion_t, w) == 0, "Code expects quaternion in w, x, y, z order");
+        const float q_sign = imuAttitudeQuaternion.w < 0 ? -1 : 1;     // invert quaternion if w is negative
+        const float q_scale = q_sign * 0x7FFF;                         // Scale to int16 by value 0x7FFF = 2^15 - 1 (-1 <= x,y,z <= 1)
+        for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
+            blackboxCurrent->imuAttitudeQuaternion3[i] = lrintf(imuAttitudeQuaternion.v[i + 1] * q_scale); // Use i+1 index for x,y,z components access, [0] - w
+        }
+    }
+#endif
     for (int i = 0; i < 4; i++) {
         blackboxCurrent->rcCommand[i] = lrintf(rcCommand[i] * blackboxHighResolutionScale);
     }
@@ -1519,6 +1530,7 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_PID_PROCESS_DENOM, "%d",      activePidLoopDenom);
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_THR_MID, "%d",                currentControlRateProfile->thrMid8);
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_THR_EXPO, "%d",               currentControlRateProfile->thrExpo8);
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_THR_HOVER, "%d",              currentControlRateProfile->thrHover8);
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_TPA_MODE, "%d",               currentPidProfile->tpa_mode);
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_TPA_RATE, "%d",               currentPidProfile->tpa_rate);
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_TPA_BREAKPOINT, "%d",         currentPidProfile->tpa_breakpoint);
@@ -1733,8 +1745,8 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_GYRO_CAL_ON_FIRST_ARM, "%d",  armingConfig()->gyro_cal_on_first_arm);
         BLACKBOX_PRINT_HEADER_LINE("airmode_activate_throttle", "%d",       rxConfig()->airModeActivateThreshold);
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_SERIAL_RX_PROVIDER, "%d",     rxConfig()->serialrx_provider);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_USE_UNSYNCED_PWM, "%d",       motorConfig()->dev.useUnsyncedPwm);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_MOTOR_PWM_PROTOCOL, "%d",     motorConfig()->dev.motorPwmProtocol);
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_USE_UNSYNCED_PWM, "%d",       motorConfig()->dev.useContinuousUpdate);
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_MOTOR_PWM_PROTOCOL, "%d",     motorConfig()->dev.motorProtocol);
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_MOTOR_PWM_RATE, "%d",         motorConfig()->dev.motorPwmRate);
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_MOTOR_IDLE, "%d",             motorConfig()->motorIdle);
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_DEBUG_MODE, "%d",             debugMode);
@@ -1842,8 +1854,8 @@ static bool blackboxWriteSysinfo(void)
 
 #ifdef USE_POSITION_HOLD
 #ifndef USE_WING
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_POS_HOLD_WITHOUT_MAG, "%d", posHoldConfig()->pos_hold_without_mag);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_POS_HOLD_DEADBAND,    "%d", posHoldConfig()->pos_hold_deadband);
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_POS_HOLD_WITHOUT_MAG, "%d", posHoldConfig()->posHoldWithoutMag);
+        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_POS_HOLD_DEADBAND,    "%d", posHoldConfig()->deadband);
 #endif // !USE_WING
 #endif
 

@@ -68,8 +68,8 @@ PG_REGISTER_WITH_RESET_TEMPLATE(opticalflowConfig_t, opticalflowConfig, PG_OPTIC
 PG_RESET_TEMPLATE(opticalflowConfig_t, opticalflowConfig,
     .opticalflow_hardware = OPTICALFLOW_NONE,
     .rotation = 0,
-    .flow_lpf = 0,
-    .flip_x = 0
+    .flip_x = 0,
+    .flow_lpf = 0
 );
 
 static opticalflow_t opticalflow;
@@ -186,7 +186,7 @@ static void applyLPF(vector2_t * flowRates) {
     flowRates->y = pt2FilterApply(&yFlowLpf, flowRates->y);
 }
 
-const opticalflow_t * getLatestFlowOpticalflowData(void) {
+LOCAL_UNUSED_FUNCTION static const opticalflow_t * getLatestFlowOpticalflowData(void) {
     return &opticalflow;
 }
 

@@ -68,8 +68,6 @@ bool cliMode = false;
 #include "drivers/dma_reqmap.h"
 #include "drivers/dshot.h"
 #include "drivers/dshot_command.h"
-#include "drivers/dshot_dpwm.h"
-#include "drivers/pwm_output_dshot_shared.h"
 #include "drivers/camera_control_impl.h"
 #include "drivers/compass/compass.h"
 #include "drivers/display.h"
@@ -226,7 +224,8 @@ static const char * const mixerNames[] = {
     "FLYING_WING", "Y4", "HEX6X", "OCTOX8", "OCTOFLATP", "OCTOFLATX",
     "AIRPLANE", "HELI_120_CCPM", "HELI_90_DEG", "VTAIL4",
     "HEX6H", "PPM_TO_SERVO", "DUALCOPTER", "SINGLECOPTER",
-    "ATAIL4", "CUSTOM", "CUSTOMAIRPLANE", "CUSTOMTRI", "QUADX1234", NULL
+    "ATAIL4", "CUSTOM", "CUSTOMAIRPLANE", "CUSTOMTRI", "QUADX1234",
+    "OCTOX8P", NULL
 };
 #endif
 
@@ -341,31 +340,37 @@ static void cliWriterFlush(void)
     cliWriterFlushInternal(cliWriter);
 }
 
-void cliPrint(const char *str)
+#ifdef USE_CLI_DEBUG_PRINT
+#define CLI_DEBUG_EXPORT /* empty */
+#else
+#define CLI_DEBUG_EXPORT static
+#endif
+
+CLI_DEBUG_EXPORT void cliPrint(const char *str)
 {
     cliPrintInternal(cliWriter, str);
 }
 
-void cliPrintLinefeed(void)
+CLI_DEBUG_EXPORT void cliPrintLinefeed(void)
 {
     cliPrint("\r\n");
 }
 
-void cliPrintLine(const char *str)
+CLI_DEBUG_EXPORT void cliPrintLine(const char *str)
 {
     cliPrint(str);
     cliPrintLinefeed();
 }
 
-#ifdef MINIMAL_CLI
-#define cliPrintHashLine(str)
-#else
 static void cliPrintHashLine(const char *str)
 {
+#ifndef MINIMAL_CLI
     cliPrint("\r\n# ");
     cliPrintLine(str);
-}
+#else
+    UNUSED(str);
 #endif
+}
 
 static void cliPutp(void *p, char ch)
 {
@@ -417,7 +422,7 @@ static bool cliDefaultPrintLinef(dumpFlags_t dumpMask, bool equalsDefault, const
     }
 }
 
-void cliPrintf(const char *format, ...)
+CLI_DEBUG_EXPORT void cliPrintf(const char *format, ...)
 {
     va_list va;
     va_start(va, format);
@@ -425,7 +430,7 @@ void cliPrintf(const char *format, ...)
     va_end(va);
 }
 
-void cliPrintLinef(const char *format, ...)
+CLI_DEBUG_EXPORT void cliPrintLinef(const char *format, ...)
 {
     va_list va;
     va_start(va, format);
@@ -1350,7 +1355,7 @@ static void cliSerial(const char *cmdName, char *cmdline)
             portConfig.msp_baudrateIndex = baudRateIndex;
             break;
         case 1:
-            if (baudRateIndex < BAUD_9600 || baudRateIndex > BAUD_115200) {
+            if (baudRateIndex < BAUD_9600 || baudRateIndex > BAUD_230400) {
                 continue;
             }
             portConfig.gps_baudrateIndex = baudRateIndex;
@@ -1530,7 +1535,7 @@ static void cliSerialPassthrough(const char *cmdName, char *cmdline)
             cliPrintLinef("Invalid port%d %d", i + 1, ports[i].id);
             return;
         } else {
-            cliPrintLinef("Port%d: %s", i + 1, serialName(ports[i].id, "<invalid>"));
+            cliPrintLinef("Port%d: %s", i + 1, serialName(ports[i].id, invalidName));
         }
     }
 
@@ -3230,7 +3235,7 @@ static void cliManufacturerId(const char *cmdName, char *cmdline)
 }
 
 #if defined(USE_SIGNATURE)
-static void writeSignature(char *signatureStr, uint8_t *signature)
+static void writeSignature(char *signatureStr, const uint8_t *signature)
 {
     for (unsigned i = 0; i < SIGNATURE_LENGTH; i++) {
         tfp_sprintf(&signatureStr[2 * i], "%02x", signature[i]);
@@ -4271,7 +4276,7 @@ static bool prepareSave(void)
     return true;
 }
 
-bool tryPrepareSave(const char *cmdName)
+static bool tryPrepareSave(const char *cmdName)
 {
     bool success = prepareSave();
 #if defined(USE_CLI_BATCH)
@@ -4445,7 +4450,7 @@ static uint8_t getWordLength(const char *bufBegin, const char *bufEnd)
     return bufEnd - bufBegin;
 }
 
-uint16_t cliGetSettingIndex(const char *name, size_t length)
+STATIC_UNIT_TESTED uint16_t cliGetSettingIndex(const char *name, size_t length)
 {
     for (uint32_t i = 0; i < valueTableEntryCount; i++) {
         const char *settingName = valueTable[i].name;
@@ -4851,7 +4856,7 @@ if (buildKey) {
             if (!gpsPortConfig) {
                 cliPrint("NO PORT, ");
             } else {
-                cliPrintf("UART%d %ld (set to ", (gpsPortConfig->identifier + 1), baudRates[getGpsPortActualBaudRateIndex()]);
+                cliPrintf("%s %ld (set to ", serialName(gpsPortConfig->identifier, invalidName), baudRates[getGpsPortActualBaudRateIndex()]);
                 if (gpsConfig()->autoBaud == GPS_AUTOBAUD_ON) {
                     cliPrint("AUTO");
                 } else {
@@ -4996,9 +5001,9 @@ static void cliRcSmoothing(const char *cmdName, char *cmdline)
         if (rcSmoothingAutoCalculate()) {
             cliPrint("# Detected Rx frequency: ");
             if (getRxRateValid()) {
-	            cliPrintLinef("%dHz", lrintf(rcSmoothingData->smoothedRxRateHz));
+                cliPrintLinef("%dHz", lrintf(rcSmoothingData->smoothedRxRateHz));
             } else {
-            	cliPrintLine("NO SIGNAL");
+                cliPrintLine("NO SIGNAL");
             }
         }
         cliPrintf("# Active setpoint cutoff: %dhz ", rcSmoothingData->setpointCutoffFrequency);
@@ -5092,7 +5097,9 @@ const cliResourceValue_t resourceTable[] = {
     DEFW( OWNER_I2C_SCL,       PG_I2C_CONFIG, i2cConfig_t, ioTagScl, I2CDEV_COUNT ),
     DEFW( OWNER_I2C_SDA,       PG_I2C_CONFIG, i2cConfig_t, ioTagSda, I2CDEV_COUNT ),
 #endif
-    DEFA( OWNER_LED,           PG_STATUS_LED_CONFIG, statusLedConfig_t, ioTags[0], STATUS_LED_NUMBER ),
+#if !defined(USE_VIRTUAL_LED)
+    DEFA( OWNER_LED,           PG_STATUS_LED_CONFIG, statusLedConfig_t, ioTags[0], STATUS_LED_COUNT ),
+#endif
 #ifdef USE_SPEKTRUM_BIND
     DEFS( OWNER_RX_BIND,       PG_RX_CONFIG, rxConfig_t, spektrum_bind_pin_override_ioTag ),
     DEFS( OWNER_RX_BIND_PLUG,  PG_RX_CONFIG, rxConfig_t, spektrum_bind_plug_ioTag ),
@@ -6583,7 +6590,7 @@ const clicmd_t cmdTable[] = {
 #endif
     CLI_COMMAND_DEF("flash_info", "show flash chip info", NULL, cliFlashInfo),
 #if defined(USE_FLASH_TOOLS) && defined(USE_FLASHFS)
-    CLI_COMMAND_DEF("flash_read", NULL, "<length> <address>", cliFlashRead),
+    CLI_COMMAND_DEF("flash_read", NULL, "<address> <length>", cliFlashRead),
     CLI_COMMAND_DEF("flash_scan", "scan flash device for errors", NULL, cliFlashVerify),
     CLI_COMMAND_DEF("flash_write", NULL, "<address> <message>", cliFlashWrite),
 #endif
@@ -6892,7 +6899,7 @@ void cliEnter(serialPort_t *serialPort, bool interactive)
         setPrintfSerialPort(cliPort);
     }
 
-    bufWriterInit(&cliWriterDesc, cliWriteBuffer, sizeof(cliWriteBuffer), (bufWrite_t)serialWriteBufShim, serialPort);
+    bufWriterInit(&cliWriterDesc, cliWriteBuffer, sizeof(cliWriteBuffer), (bufWrite_t)serialWriteBufBlockingShim, serialPort);
     cliErrorWriter = cliWriter = &cliWriterDesc;
 
     if (interactive) {

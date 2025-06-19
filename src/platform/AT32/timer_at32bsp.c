@@ -35,7 +35,7 @@
 #include "drivers/nvic.h"
 
 #include "drivers/io.h"
-#include "drivers/rcc.h"
+#include "platform/rcc.h"
 #include "drivers/system.h"
 #include "drivers/timer.h"
 #include "drivers/timer_impl.h"
@@ -321,7 +321,7 @@ uint8_t timerInputIrq(const tmr_type *tim)
     return 0;
 }
 
-void timerNVICConfigure(uint8_t irq)
+static void timerNVICConfigure(uint8_t irq)
 {
     nvic_irq_enable(irq,NVIC_PRIORITY_BASE(NVIC_PRIO_TIMER),NVIC_PRIORITY_SUB(NVIC_PRIO_TIMER));
 }
@@ -676,10 +676,6 @@ void timerInit(void)
 {
     memset(timerConfig, 0, sizeof(timerConfig));
 
-#if defined(PARTIAL_REMAP_TIM3)
-    GPIO_PinRemapConfig(GPIO_PartialRemap_TIM3, ENABLE);
-#endif
-
     #ifdef USE_TIMER_MGMT
     /* enable the timer peripherals */
     for (unsigned i = 0; i < TIMER_CHANNEL_COUNT; i++) {
@@ -781,4 +777,50 @@ uint16_t timerGetPrescalerByDesiredHertz(tmr_type *tim, uint32_t hz)
     }
     return (uint16_t)((timerClock(tim) + hz / 2 ) / hz) - 1;
 }
+
+void timerReset(tmr_type *timer)
+{
+    ATOMIC_BLOCK(NVIC_PRIO_TIMER) {
+        tmr_counter_enable(timer, FALSE);
+    }
+}
+
+void timerSetPeriod(tmr_type *timer, uint32_t period)
+{
+    tmr_period_value_set(timer, period);
+}
+
+uint32_t timerGetPeriod(tmr_type *timer)
+{
+    return tmr_period_value_get(timer);
+}
+
+void timerSetCounter(tmr_type *timer, uint32_t counter)
+{
+    tmr_counter_value_set(timer, counter);
+}
+
+void timerReconfigureTimeBase(tmr_type *timer, uint16_t period, uint32_t hz)
+{
+    configTimeBase(timer, period, hz);
+}
+
+void timerDisable(TIM_TypeDef *timer)
+{
+    tmr_interrupt_enable(timer, TMR_OVF_INT, FALSE);
+    tmr_counter_enable(timer, FALSE);
+}
+
+void timerEnable(TIM_TypeDef *timer)
+{
+    tmr_counter_enable(timer, TRUE);
+    tmr_overflow_event_disable(timer, TRUE);
+}
+
+void timerEnableInterrupt(TIM_TypeDef *timer)
+{
+    tmr_flag_clear(timer, TMR_OVF_FLAG);
+    tmr_interrupt_enable(timer, TMR_OVF_INT, TRUE);
+}
+
 #endif

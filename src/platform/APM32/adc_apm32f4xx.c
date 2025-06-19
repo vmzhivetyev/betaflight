@@ -32,7 +32,7 @@
 #include "drivers/dma_reqmap.h"
 #include "drivers/io.h"
 #include "drivers/io_impl.h"
-#include "drivers/rcc.h"
+#include "platform/rcc.h"
 #include "drivers/dma.h"
 #include "drivers/sensor.h"
 #include "drivers/adc.h"
@@ -97,7 +97,7 @@ const adcTagMap_t adcTagMap[] = {
     { DEFIO_TAG_E__PA7, ADC_DEVICES_12,  ADC_CHANNEL_7  },
 };
 
-void adcInitDevice(adcDevice_t *adcdev, int channelCount)
+static void adcInitDevice(adcDevice_t *adcdev, int channelCount)
 {
     ADC_HandleTypeDef *hadc = &adcdev->ADCHandle;
 
@@ -133,7 +133,7 @@ static adcDevice_t adc;
 static adcDevice_t adcInternal;
 static ADC_HandleTypeDef *adcInternalHandle;
 
-void adcInitInternalInjected(adcDevice_t *adcdev)
+static void adcInitInternalInjected(adcDevice_t *adcdev)
 {
     adcInternalHandle = &adcdev->ADCHandle;
 
@@ -270,8 +270,7 @@ void adcInit(const adcConfig_t *config)
         adcInitDevice(&adcInternal, 2);
         DDL_ADC_Enable(adcInternal.ADCx);
         adcInitInternalInjected(&adcInternal);
-    }
-    else {
+    } else {
         // Initialize for injected conversion
         adcInitInternalInjected(&adc);
     }

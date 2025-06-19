@@ -36,7 +36,6 @@
 #include "config/config_reset.h"
 #include "config/simplified_tuning.h"
 
-#include "drivers/pwm_output.h"
 #include "drivers/sound_beeper.h"
 #include "drivers/time.h"
 
@@ -417,7 +416,7 @@ static float wingAdjustSetpoint(float currentPidSetpoint, int axis)
 #endif // USE_WING
 }
 
-float getTpaFactorClassic(float tpaArgument)
+static float getTpaFactorClassic(float tpaArgument)
 {
     static bool isTpaLowFaded = false;
     bool isThrottlePastTpaLowBreakpoint = (tpaArgument >= pidRuntime.tpaLowBreakpoint || pidRuntime.tpaLowBreakpoint <= 0.01f);

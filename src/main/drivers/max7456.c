@@ -281,7 +281,7 @@ static void max7456ClearLayer(displayPortLayer_e layer)
     memset(getLayerBuffer(layer), 0x20, VIDEO_BUFFER_CHARS_PAL);
 }
 
-void max7456ReInit(void)
+static void max7456ReInit(void)
 {
     uint8_t srdata = 0;
 
@@ -330,9 +330,9 @@ void max7456ReInit(void)
     max7456ClearShadowBuffer();
 }
 
-void max7456PreInit(const max7456Config_t *max7456Config)
+void max7456Preinit(const max7456Config_t *max7456Config)
 {
-    spiPreinitRegister(max7456Config->csTag, max7456Config->preInitOPU ? IOCFG_OUT_PP : IOCFG_IPU, 1);
+    ioPreinitByTag(max7456Config->csTag, max7456Config->preInitOPU ? IOCFG_OUT_PP : IOCFG_IPU, PREINIT_PIN_STATE_HIGH);
 }
 
 // Here we init only CS and try to init MAX for first time.
@@ -612,7 +612,7 @@ bool max7456ReInitIfRequired(bool forceStallCheck)
 }
 
 // Called in ISR context
-busStatus_e max7456_callbackReady(uint32_t arg)
+static busStatus_e max7456_callbackReady(uint32_t arg)
 {
     UNUSED(arg);
 

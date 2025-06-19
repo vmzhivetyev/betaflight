@@ -51,11 +51,11 @@ static posHoldState_t posHold;
 
 void posHoldInit(void)
 {
-    posHold.deadband = posHoldConfig()->pos_hold_deadband * 0.01f;
-    posHold.useStickAdjustment = posHoldConfig()->pos_hold_deadband;
+    posHold.deadband = posHoldConfig()->deadband * 0.01f;
+    posHold.useStickAdjustment = posHoldConfig()->deadband;
 }
 
-void posHoldCheckSticks(void)
+static void posHoldCheckSticks(void)
 {
     // if failsafe is active, eg landing mode, don't update the original start point
     if (!failsafeIsActive() && posHold.useStickAdjustment) {
@@ -64,7 +64,7 @@ void posHoldCheckSticks(void)
     }
 }
 
-bool sensorsOk(void)
+static bool sensorsOk(void)
 {
     if (!STATE(GPS_FIX)) {
         return false;
@@ -73,7 +73,7 @@ bool sensorsOk(void)
 #ifdef USE_MAG
         !compassIsHealthy() &&
 #endif
-        (!posHoldConfig()->pos_hold_without_mag || !canUseGPSHeading)) {
+        (!posHoldConfig()->posHoldWithoutMag || !canUseGPSHeading)) {
         return false;
     }
     return true;
@@ -105,6 +105,6 @@ bool posHoldFailure(void) {
     return FLIGHT_MODE(POS_HOLD_MODE) && (!posHold.isControlOk || !posHold.areSensorsOk);
 }
 
-#endif // USE_POS_HOLD
+#endif // USE_POSITION_HOLD
 
 #endif // !USE_WING

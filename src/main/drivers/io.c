@@ -22,18 +22,10 @@
 
 #include "drivers/io.h"
 #include "drivers/io_impl.h"
-#include "drivers/rcc.h"
 
 #include "common/utils.h"
 
-// io ports defs are stored in array by index now
-struct ioPortDef_s {
-    rccPeriphTag_t rcc;
-};
-
-#if defined(SITL)
-const struct ioPortDef_s ioPortDefs[] = { 0 };
-#endif
+// io ports defs are stored by index in array ioRecs of ioRec_t
 
 ioRec_t* IO_Rec(IO_t io)
 {
@@ -50,35 +42,6 @@ uint16_t IO_Pin(IO_t io)
 {
     const ioRec_t *ioRec = IO_Rec(io);
     return ioRec->pin;
-}
-
-int IO_EXTI_PortSourceGPIO(IO_t io)
-{
-    return IO_GPIOPortIdx(io);
-}
-
-int IO_GPIO_PortSource(IO_t io)
-{
-    return IO_GPIOPortIdx(io);
-}
-
-// zero based pin index
-int IO_GPIOPinIdx(IO_t io)
-{
-    if (!io) {
-        return -1;
-    }
-    return 31 - __builtin_clz(IO_Pin(io));
-}
-
-int IO_EXTI_PinSource(IO_t io)
-{
-    return IO_GPIOPinIdx(io);
-}
-
-int IO_GPIO_PinSource(IO_t io)
-{
-    return IO_GPIOPinIdx(io);
 }
 
 // claim IO pin, set owner and resources

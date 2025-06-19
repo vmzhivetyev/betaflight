@@ -35,7 +35,6 @@
 #include "drivers/io.h"
 #include "drivers/io_impl.h"
 #include "drivers/nvic.h"
-#include "drivers/rcc.h"
 #include "drivers/system.h"
 #include "drivers/time.h"
 
@@ -70,12 +69,12 @@ extDevice_t *rxSpiGetDevice(void)
     return dev;
 }
 
-void rxSpiDevicePreInit(const rxSpiConfig_t *rxSpiConfig)
+void rxSpiDevicePreinit(const rxSpiConfig_t *rxSpiConfig)
 {
-    spiPreinitRegister(rxSpiConfig->csnTag, IOCFG_IPU, 1);
+    ioPreinitByTag(rxSpiConfig->csnTag, IOCFG_IPU, PREINIT_PIN_STATE_HIGH);
 }
 
-void rxSpiExtiHandler(extiCallbackRec_t* callback)
+static void rxSpiExtiHandler(extiCallbackRec_t* callback)
 {
     UNUSED(callback);
 
