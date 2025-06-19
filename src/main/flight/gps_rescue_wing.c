@@ -127,7 +127,7 @@ typedef struct {
 #define GPS_RESCUE_MAX_ANGULAR_ITERM     1500    // max iterm value for pitch in degrees * 100
 #define GPS_RESCUE_ALLOWED_YAW_RANGE   30.0f  // yaw error must be less than this to enter fly home phase, and to pitch during descend()
 
-float       gpsRescueAngle[ANGLE_INDEX_COUNT] = { 0, 0 };
+float       gpsRescueAngle[RP_AXIS_COUNT] = { 0, 0 };
 bool        magForceDisable = false;
 static bool newGPSData = false;
 static pt2Filter_t throttleDLpf;

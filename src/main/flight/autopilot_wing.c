@@ -78,9 +78,10 @@ void resetPositionControl(const gpsLocation_t *initialTargetLocation, unsigned t
 void autopilotInit(void)
 {
     ap.sticksActive = false;
+    float cutoffHz = autopilotConfig()->ap_altitude_d_lpf_hz * 0.01f;
     float gain;
-    gain = pt2FilterGain(cutoffHz, rescueState.sensor.gpsRescueTaskIntervalSeconds);
-    pt2FilterInit(&altitudeDLpf, gain);
+    gain = pt2FilterGain(cutoffHz, 0.1f); // assume 10Hz
+    pt2FilterInit(&ap.altitudeDLpf, gain);
 }
 
 void resetAltitudeControl (void) {
@@ -90,6 +91,7 @@ void resetAltitudeControl (void) {
 void altitudeControl(float targetAltitudeCm, float taskIntervalS, float targetAltitudeStep)
 {
     const float altitudeErrorCm = targetAltitudeCm - getAltitudeCm();
+    UNUSED(altitudeErrorCm);
     UNUSED(targetAltitudeCm);
     UNUSED(taskIntervalS);
     UNUSED(targetAltitudeStep);
