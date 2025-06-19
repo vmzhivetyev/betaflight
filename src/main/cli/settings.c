@@ -1175,8 +1175,8 @@ const clivalue_t valueTable[] = {
 
 #ifdef USE_ALTITUDE_HOLD
 #ifndef USE_WING
-    { PARAM_NAME_ALT_HOLD_CLIMB_RATE,  VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_ALTHOLD_CONFIG, offsetof(altHoldConfig_t, climbRate) },
-    { PARAM_NAME_ALT_HOLD_DEADBAND,    VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 70 },  PG_ALTHOLD_CONFIG, offsetof(altHoldConfig_t, deadband) },
+    { PARAM_NAME_ALT_HOLD_CLIMB_RATE,  VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_ALTHOLD_CONFIG, offsetof(altHoldConfig_t, alt_hold_climb_rate) },
+    { PARAM_NAME_ALT_HOLD_DEADBAND,    VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 70 },  PG_ALTHOLD_CONFIG, offsetof(altHoldConfig_t, alt_hold_deadband) },
 #endif // !USE_WING
 #endif // USE_ALTITUDE_HOLD
 
@@ -1960,21 +1960,35 @@ const clivalue_t valueTable[] = {
     { PARAM_NAME_ALTITUDE_D_LPF,        VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 10, 1000 }, PG_POSITION, offsetof(positionConfig_t, altitude_d_lpf) },
 
 // PG_AUTOPILOT
-#ifndef USE_WING
-    { PARAM_NAME_AP_LANDING_ALTITUDE_M,  VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 },     PG_AUTOPILOT, offsetof(autopilotConfig_t, landingAltitudeM) },
-    { PARAM_NAME_AP_HOVER_THROTTLE,      VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 1100, 1700 }, PG_AUTOPILOT, offsetof(autopilotConfig_t, hoverThrottle) },
-    { PARAM_NAME_AP_THROTTLE_MIN,        VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 1050, 1400 }, PG_AUTOPILOT, offsetof(autopilotConfig_t, throttleMin) },
-    { PARAM_NAME_AP_THROTTLE_MAX,        VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 1400, 2000 }, PG_AUTOPILOT, offsetof(autopilotConfig_t, throttleMax) },
-    { PARAM_NAME_AP_ALTITUDE_P,          VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 },     PG_AUTOPILOT, offsetof(autopilotConfig_t, altitudeP) },
-    { PARAM_NAME_AP_ALTITUDE_I,          VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 },     PG_AUTOPILOT, offsetof(autopilotConfig_t, altitudeI) },
-    { PARAM_NAME_AP_ALTITUDE_D,          VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 },     PG_AUTOPILOT, offsetof(autopilotConfig_t, altitudeD) },
-    { PARAM_NAME_AP_ALTITUDE_F,          VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 },     PG_AUTOPILOT, offsetof(autopilotConfig_t, altitudeF) },
-    { PARAM_NAME_AP_POSITION_P,          VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 },     PG_AUTOPILOT, offsetof(autopilotConfig_t, positionP) },
-    { PARAM_NAME_AP_POSITION_I,          VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 },     PG_AUTOPILOT, offsetof(autopilotConfig_t, positionI) },
-    { PARAM_NAME_AP_POSITION_D,          VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 },     PG_AUTOPILOT, offsetof(autopilotConfig_t, positionD) },
-    { PARAM_NAME_AP_POSITION_A,          VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 },     PG_AUTOPILOT, offsetof(autopilotConfig_t, positionA) },
-    { PARAM_NAME_AP_POSITION_CUTOFF,     VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 10, 250 },    PG_AUTOPILOT, offsetof(autopilotConfig_t, positionCutoff) },
-    { PARAM_NAME_AP_MAX_ANGLE,           VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 10, 70 },     PG_AUTOPILOT, offsetof(autopilotConfig_t, maxAngle) },
+
+#ifdef USE_WING
+    { PARAM_NAME_AP_THROTTLE,            VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 1100, 1900 }, PG_AUTOPILOT, offsetof(autopilotConfig_t, ap_throttle) },
+    { PARAM_NAME_AP_THROTTLE_MIN,        VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 1050, 1800 }, PG_AUTOPILOT, offsetof(autopilotConfig_t, ap_throttle_min) },
+    { PARAM_NAME_AP_THROTTLE_MAX,        VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 1200, 2000 }, PG_AUTOPILOT, offsetof(autopilotConfig_t, ap_throttle_max) },
+    { PARAM_NAME_AP_ALTITUDE_P,          VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 },     PG_AUTOPILOT, offsetof(autopilotConfig_t, ap_altitude_P) },
+    { PARAM_NAME_AP_ALTITUDE_I,          VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 },     PG_AUTOPILOT, offsetof(autopilotConfig_t, ap_altitude_I) },
+    { PARAM_NAME_AP_ALTITUDE_D,          VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 },     PG_AUTOPILOT, offsetof(autopilotConfig_t, ap_altitude_D) },
+    { PARAM_NAME_AP_ALTITUDE_D_LPF_HZ,   VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 },     PG_AUTOPILOT, offsetof(autopilotConfig_t, ap_altitude_d_lpf_hz) },
+    { PARAM_NAME_AP_COG_P,               VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 },     PG_AUTOPILOT, offsetof(autopilotConfig_t, ap_cog_P) },
+    { PARAM_NAME_AP_COG_I,               VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 },     PG_AUTOPILOT, offsetof(autopilotConfig_t, ap_cog_I) },
+    { PARAM_NAME_AP_COG_D,               VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 },     PG_AUTOPILOT, offsetof(autopilotConfig_t, ap_cog_D) },
+    { PARAM_NAME_AP_MAX_ROLL,            VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 10, 70 },     PG_AUTOPILOT, offsetof(autopilotConfig_t, ap_max_roll) },
+    { PARAM_NAME_AP_MAX_PITCH,           VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 10, 70 },     PG_AUTOPILOT, offsetof(autopilotConfig_t, ap_max_pitch) },
+#else // USE_WING
+    { PARAM_NAME_AP_LANDING_ALTITUDE_M,  VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 },     PG_AUTOPILOT, offsetof(autopilotConfig_t, ap_landing_altitude_m) },
+    { PARAM_NAME_AP_HOVER_THROTTLE,      VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 1100, 1700 }, PG_AUTOPILOT, offsetof(autopilotConfig_t, ap_hover_throttle) },
+    { PARAM_NAME_AP_THROTTLE_MIN,        VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 1050, 1400 }, PG_AUTOPILOT, offsetof(autopilotConfig_t, ap_throttle_min) },
+    { PARAM_NAME_AP_THROTTLE_MAX,        VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 1400, 2000 }, PG_AUTOPILOT, offsetof(autopilotConfig_t, ap_throttle_max) },
+    { PARAM_NAME_AP_ALTITUDE_P,          VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 },     PG_AUTOPILOT, offsetof(autopilotConfig_t, ap_altitude_P) },
+    { PARAM_NAME_AP_ALTITUDE_I,          VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 },     PG_AUTOPILOT, offsetof(autopilotConfig_t, ap_altitude_I) },
+    { PARAM_NAME_AP_ALTITUDE_D,          VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 },     PG_AUTOPILOT, offsetof(autopilotConfig_t, ap_altitude_D) },
+    { PARAM_NAME_AP_ALTITUDE_F,          VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 },     PG_AUTOPILOT, offsetof(autopilotConfig_t, ap_altitude_F) },
+    { PARAM_NAME_AP_POSITION_P,          VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 },     PG_AUTOPILOT, offsetof(autopilotConfig_t, ap_position_P) },
+    { PARAM_NAME_AP_POSITION_I,          VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 },     PG_AUTOPILOT, offsetof(autopilotConfig_t, ap_position_I) },
+    { PARAM_NAME_AP_POSITION_D,          VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 },     PG_AUTOPILOT, offsetof(autopilotConfig_t, ap_position_D) },
+    { PARAM_NAME_AP_POSITION_A,          VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 200 },     PG_AUTOPILOT, offsetof(autopilotConfig_t, ap_position_A) },
+    { PARAM_NAME_AP_POSITION_CUTOFF,     VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 10, 250 },    PG_AUTOPILOT, offsetof(autopilotConfig_t, ap_position_cutoff) },
+    { PARAM_NAME_AP_MAX_ANGLE,           VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 10, 70 },     PG_AUTOPILOT, offsetof(autopilotConfig_t, ap_max_angle) },
 #endif // !USE_WING
 
 // PG_MODE_ACTIVATION_CONFIG
