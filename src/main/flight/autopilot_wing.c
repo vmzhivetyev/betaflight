@@ -49,6 +49,8 @@
 
 float autopilotAngle[RP_AXIS_COUNT];
 
+static float throttleOut = 0.0f;
+
 typedef struct autopilotState_s {
     gpsLocation_t targetLocation;
     bool sticksActive;
@@ -99,7 +101,7 @@ void altitudeControl(float targetAltitudeCm, float taskIntervalS, float targetAl
 
 void setSticksActiveStatus(bool areSticksActive)
 {
-    UNUSED(areSticksActive);
+    ap.sticksActive = areSticksActive;
 }
 
 bool positionControl(void)
@@ -114,12 +116,19 @@ bool isBelowLandingAltitude(void)
 
 float getAutopilotThrottle(void)
 {
-    return 0.0f;
+    THROTTLED_PRINT("getAutopilotThrottle: %f", (double)throttleOut);
+    return throttleOut;
+}
+
+void setAutopilotThrottle(float newThrottle)
+{
+    throttleOut = constrainf(newThrottle, 0.0f, 1.0f);
 }
 
 bool isAutopilotInControl(void)
 {
-    return false;
+    PRINT_ON_CHANGE(ap.sticksActive, "Autopilot sticks active: %s", ap.sticksActive ? "true" : "false");
+    return !ap.sticksActive;
 }
 
 #endif // USE_WING

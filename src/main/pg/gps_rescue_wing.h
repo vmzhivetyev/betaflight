@@ -58,8 +58,6 @@ typedef struct gpsRescue_s {
     uint16_t ap_wing_loiter_seconds;
     uint8_t ap_wing_landing_alt;
     uint16_t ap_wing_landing_approach_dist;
-
-    uint16_t throttle;
 } gpsRescueConfig_t;
 
 PG_DECLARE(gpsRescueConfig_t, gpsRescueConfig);

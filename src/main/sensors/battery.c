@@ -164,7 +164,15 @@ void batteryUpdateVoltage(timeUs_t currentTimeUs)
 
         default:
         case VOLTAGE_METER_NONE:
+#ifdef SITL
+            voltageMeter.displayFiltered = 1616; // 16.16V
+            voltageMeter.unfiltered = 1616;
+            #if defined(USE_BATTERY_VOLTAGE_SAG_COMPENSATION)
+                voltageMeter.sagFiltered = 1616;
+            #endif
+#else
             voltageMeterReset(&voltageMeter);
+#endif
             break;
     }
 

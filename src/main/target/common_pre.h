@@ -66,6 +66,40 @@
 // === VMZ CUSTOM ===
 #ifdef SITL
 #define USE_WING
+#define USE_GPS
+#define USE_GPS_RESCUE
+
+#include <stdio.h>
+#define PRINT(...) do { printf(__VA_ARGS__); putchar('\n'); } while(0)
+
+#define THROTTLED_PRINT_MS(interval_ms, format, ...) do { \
+    static uint32_t lastPrintTime = 0; \
+    uint32_t currentTime = millis(); \
+    if (currentTime - lastPrintTime >= interval_ms) { \
+        PRINT(format, ##__VA_ARGS__); \
+        lastPrintTime = currentTime; \
+    } \
+} while(0)
+
+#define THROTTLED_PRINT(format, ...) THROTTLED_PRINT_MS(1000, format, ##__VA_ARGS__)
+
+#define PRINT_ON_CHANGE(value, format, ...) do { \
+    static typeof(value) lastValue = 0; \
+    static bool initialized = false; \
+    if (!initialized || lastValue != (value)) { \
+        PRINT(format, ##__VA_ARGS__); \
+        lastValue = (value); \
+        initialized = true; \
+    } \
+} while(0)
+
+#else
+
+#define PRINT(x)
+#define THROTTLED_PRINT_MS(interval_ms, format, ...)
+#define THROTTLED_PRINT(format, ...)
+#define PRINT_ON_CHANGE(value, format, ...)
+
 #endif
 // ==================
 

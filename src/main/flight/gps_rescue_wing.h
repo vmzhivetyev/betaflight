@@ -58,4 +58,7 @@ bool gpsRescueIsDisabled(void);
 bool gpsRescueDisableMag(void);
 float gpsRescueGetImuYawCogGain(void);
 
+// should be forward declared in gps_rescue_multirotor.c
+float gpsRescueGetThrottle(float velocityPIDSum);
+
 #endif // USE_WING
