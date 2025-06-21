@@ -62,7 +62,7 @@ typedef enum {
     RESCUE_LOITER, // 4
     RESCUE_DESCEND_TO_LAND, // 5
     RESCUE_APPROACH_MANEUVRE, // 6
-    RESCUE_WAIT_FOR_CORUSE, // 7
+    RESCUE_WAIT_FOR_COURSE, // 7
     RESCUE_PREPARE_TO_LAND, // 8
     RESCUE_LAST_COURSE_ADJUSTMENT, // 9
     RESCUE_LAND, // 10
@@ -78,7 +78,7 @@ static const char* rescuePhaseStrings[] = {
     [RESCUE_LOITER] = "RESCUE_LOITER",
     [RESCUE_DESCEND_TO_LAND] = "RESCUE_DESCEND_TO_LAND",
     [RESCUE_APPROACH_MANEUVRE] = "RESCUE_APPROACH_MANEUVRE",
-    [RESCUE_WAIT_FOR_CORUSE] = "RESCUE_WAIT_FOR_CORUSE",
+    [RESCUE_WAIT_FOR_COURSE] = "RESCUE_WAIT_FOR_COURSE",
     [RESCUE_PREPARE_TO_LAND] = "RESCUE_PREPARE_TO_LAND",
     [RESCUE_LAST_COURSE_ADJUSTMENT] = "RESCUE_LAST_COURSE_ADJUSTMENT",
     [RESCUE_LAND] = "RESCUE_LAND",
@@ -233,7 +233,8 @@ static void setReturnAltitude(bool newGpsData)
 
 static void rescueAttainPosition(float desiredCourseDecidegrees, float desiredAltitudeCm, bool newGpsData)
 {
-    THROTTLED_PRINT("rescueAttainPosition: desiredCourseDecidegrees: %f, desiredAltitudeCm: %f",  (double)desiredCourseDecidegrees,  (double)desiredAltitudeCm);
+    //THROTTLED_PRINT("rescueAttainPosition: desiredCourseDecidegrees: %f, desiredAltitudeCm: %f",  (double)desiredCourseDecidegrees,  (double)desiredAltitudeCm);
+    // PRINT_ON_CHANGE((int)(desiredAltitudeCm / 50), "desiredAltitudeCm: %f", (double)desiredAltitudeCm);
 
     // runs at 100hz, but only updates RPYT settings when new GPS Data arrives and when not in idle phase.
     static float altI = 0.0f;
@@ -301,7 +302,7 @@ static void rescueAttainPosition(float desiredCourseDecidegrees, float desiredAl
     pitchLimitUp = constrainf(pitchLimitUp, -30.0f, -10.0f);
     calculatedPitchDegrees = constrainf(calculatedPitchDegrees, pitchLimitUp, 45.0f);
 
-    THROTTLED_PRINT_MS(500, ">>>> calculatedPitchDegrees: %f, pitchLimitUp: %f", (double)calculatedPitchDegrees, (double)pitchLimitUp);
+    //THROTTLED_PRINT_MS(500, ">>>> calculatedPitchDegrees: %f, pitchLimitUp: %f", (double)calculatedPitchDegrees, (double)pitchLimitUp);
 
     if (newGpsData) {
         // course PID
@@ -674,10 +675,11 @@ void gpsRescueUpdate(void)
 
     rescueState.isAvailable = checkGPSRescueIsAvailable();
     // THROTTLED_PRINT("rescueState.isAvailable: %s", rescueState.isAvailable ? "true" : "false");
-    THROTTLED_PRINT("distanceToHomeM: %f, currentAltitudeCm: %f, returnAltitudeCm: %f",
+    THROTTLED_PRINT("distance: %f, current: %f, return: %f, desired: %f",
                     (double)rescueState.sensor.distanceToHomeM,
-                    (double)rescueState.sensor.currentAltitudeCm,
-                    (double)rescueState.intent.returnAltitudeCm);
+                    (double)rescueState.sensor.currentAltitudeCm / 100.0,
+                    (double)rescueState.intent.returnAltitudeCm / 100.0,
+                    (double)desiredAltitudeCm / 100.0);
 
     //DEBUG_SET(DEBUG_WING_RTH, 0, lrintf(rescueState.phase));
     
@@ -768,12 +770,12 @@ void gpsRescueUpdate(void)
 
         if (rescueState.sensor.distanceToHomeM > gpsRescueConfig()->ap_wing_landing_approach_dist) {
             waitForCourseActivatedTime = micros();
-            rescueState.phase = RESCUE_WAIT_FOR_CORUSE;
+            rescueState.phase = RESCUE_WAIT_FOR_COURSE;
         }
 
         break;
 
-    case RESCUE_WAIT_FOR_CORUSE:
+    case RESCUE_WAIT_FOR_COURSE:
         float courseError = (desiredCourseDecidegrees - gpsSol.groundCourse) / 10.0f;
         desiredAltitudeCm = descendAltitudeCm;
         if (courseError > 180.0f) {
@@ -956,7 +958,7 @@ float gpsRescueGetThrottle(float velocityPIDSum)
         batteryThrottleFactor = getBatteryVoltageLatest() / 100.0f / pidRuntime.tpaSpeed.maxVoltage;
         batteryThrottleFactor = constrainf(batteryThrottleFactor, 0.0f, 1.0f);
     }
-    THROTTLED_PRINT("batteryThrottleFactor: %f", (double)(1.0f/batteryThrottleFactor));
+    THROTTLED_PRINT_MS(30000, "batteryThrottleFactor: %f", (double)(1.0f/batteryThrottleFactor));
     commandedThrottle = commandedThrottle / batteryThrottleFactor;
 
     DEBUG_SET(DEBUG_WING_RTH, 2, lrintf(commandedThrottle * 100.0f));
@@ -970,7 +972,7 @@ float gpsRescueGetThrottle(float velocityPIDSum)
     DEBUG_SET(DEBUG_WING_RTH, 4, lrintf(twr * 100.0f));
     DEBUG_SET(DEBUG_WING_RTH, 5, lrintf(getSinPitchAngle() * 100.0f));
 
-    THROTTLED_PRINT("twr: %f", (double)twr);
+    THROTTLED_PRINT_MS(30000, "twr: %f", (double)twr);
 
     float underSqrt = (commandedThrottle * commandedThrottle * twr - getSinPitchAngle()) / twr;
 
@@ -989,7 +991,7 @@ float gpsRescueGetThrottle(float velocityPIDSum)
 
     DEBUG_SET(DEBUG_WING_RTH, 0, lrintf(commandedThrottle * 100.0f));
 
-    THROTTLED_PRINT("commandedThrottle: %f", (double)commandedThrottle);
+    THROTTLED_PRINT_MS(500, "throttle: %f", (double)commandedThrottle);
     return commandedThrottle;
 }
 
