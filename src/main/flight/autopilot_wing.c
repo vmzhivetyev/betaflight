@@ -116,7 +116,7 @@ bool isBelowLandingAltitude(void)
 
 float getAutopilotThrottle(void)
 {
-    THROTTLED_PRINT("getAutopilotThrottle: %f", (double)throttleOut);
+    // THROTTLED_PRINT("getAutopilotThrottle: %f", (double)throttleOut);
     return throttleOut;
 }
 

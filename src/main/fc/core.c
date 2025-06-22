@@ -483,6 +483,8 @@ void disarm(flightLogDisarmReason_e reason)
         DISABLE_ARMING_FLAG(ARMED);
         lastDisarmTimeUs = micros();
         lastDisarmReason = reason;
+        
+        PRINT("disarm: %d", reason);
 
 #ifdef USE_OSD
         if (IS_RC_MODE_ACTIVE(BOXCRASHFLIP) || isLaunchControlActive()) {

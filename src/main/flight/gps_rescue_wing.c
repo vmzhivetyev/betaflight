@@ -61,10 +61,10 @@ typedef enum {
     RESCUE_DESCEND_TO_LOITER, // 3
     RESCUE_LOITER, // 4
     RESCUE_DESCEND_TO_LAND, // 5
-    RESCUE_APPROACH_MANEUVRE, // 6
+    RESCUE_FLY_AWAY_BEFORE_APPROACH, // 6
     RESCUE_WAIT_FOR_COURSE_AWAY, // 7
     RESCUE_PREPARE_TO_LAND, // 8
-    RESCUE_WAIT_FOR_LANDING_DISTANCE, // 9
+    RESCUE_WAIT_FOR_LANDING_COURSE, // 9
     RESCUE_LAND, // 10
     RESCUE_DISARM_ON_IMPACT,
     RESCUE_ABORT,
@@ -77,10 +77,10 @@ static const char* rescuePhaseStrings[] = {
     [RESCUE_DESCEND_TO_LOITER] = "RESCUE_DESCEND_TO_LOITER",
     [RESCUE_LOITER] = "RESCUE_LOITER",
     [RESCUE_DESCEND_TO_LAND] = "RESCUE_DESCEND_TO_LAND",
-    [RESCUE_APPROACH_MANEUVRE] = "RESCUE_APPROACH_MANEUVRE",
+    [RESCUE_FLY_AWAY_BEFORE_APPROACH] = "RESCUE_FLY_AWAY_BEFORE_APPROACH",
     [RESCUE_WAIT_FOR_COURSE_AWAY] = "RESCUE_WAIT_FOR_COURSE_AWAY",
     [RESCUE_PREPARE_TO_LAND] = "RESCUE_PREPARE_TO_LAND",
-    [RESCUE_WAIT_FOR_LANDING_DISTANCE] = "RESCUE_WAIT_FOR_LANDING_DISTANCE",
+    [RESCUE_WAIT_FOR_LANDING_COURSE] = "RESCUE_WAIT_FOR_LANDING_COURSE",
     [RESCUE_LAND] = "RESCUE_LAND",
     [RESCUE_DISARM_ON_IMPACT] = "RESCUE_DISARM_ON_IMPACT",
     [RESCUE_ABORT] = "RESCUE_ABORT",
@@ -172,6 +172,17 @@ rescueState_s rescueState;
 
 float g_gpsRescueGetVelocityPIDSum(bool newGpsData);
 
+// UTILITY FUNCTIONS
+
+static float normalizeCourseErrorDecidegrees(float targetDecidegrees, float currentDecidegrees) {
+    float error = (targetDecidegrees - currentDecidegrees) / 10.0f;
+    error = fmodf(error + 180.0f, 360.0f) - 180.0f;
+    if (error < -180.0f) {
+        error += 360.0f;
+    }
+    return error * 10.0f;
+}
+
 ///////////////////////
 
 void gpsRescueInit(void)
@@ -239,15 +250,18 @@ static void g_setReturnAltitude(void)
     }
 }
 
+void g_initialiseSimpleIntentValues (void);
+static void g_rescueControlRollAndPitch(bool newGpsData);
+
 static void g_initializeIntent(void) {
     g_initialiseSimpleIntentValues();
     g_setDescentDistanceFromConfig();
     g_setReturnAltitude();
+    
+    rescueState.intent.targetAltitudeCm = rescueState.intent.returnAltitudeCm;
 }
 
-static void g_rescueControlRollAndPitch(bool newGpsData);
-
-static void g_initializeGPSRescue() {
+static void g_initializeGPSRescue(void) {
     // assert that we are in RESCUE_INITIALIZE phase
 
     g_rescueControlRollAndPitch(false); // <- Initialise func's internal variables
@@ -290,15 +304,16 @@ static void g_rescueControlRollAndPitch(bool newGpsData)
     static float previousCourseError = 0.0f;
     static float calculatedRollDegrees = 0.0f;
     static float calculatedPitchDegrees = 0.0f;
-    static float calculatedPitchDegreesPrevious = 0.0f;
-    timeUs_t lastPitchJumpTime = 0;
+
+    bool doCleanExit = false;
 
     switch (rescueState.phase) {
     case RESCUE_IDLE:
         // values to be returned when no rescue is active
         gpsRescueAngle[AI_PITCH] = 0.0f;
         gpsRescueAngle[AI_ROLL] = 0.0f;
-        return;
+        doCleanExit = true;
+        break;
     case RESCUE_INITIALIZE:
         // Initialize internal variables each time GPS Rescue is started
         altI = 0.0f;
@@ -342,12 +357,12 @@ static void g_rescueControlRollAndPitch(bool newGpsData)
     // smooth
     altD = pt2FilterApply(&throttleDLpf, altD);
 
-    calculatedPitchDegreesPrevious = calculatedPitchDegrees;
     calculatedPitchDegrees = altP + altI - altD;
 
-    float pitchLimitUp = scaleRangef(previousVelocityError, 0.0f, 3.0f, -20.0f, 0.0f); // negative == up
-    pitchLimitUp = constrainf(pitchLimitUp, -30.0f, -10.0f);
-    calculatedPitchDegrees = constrainf(calculatedPitchDegrees, pitchLimitUp, 45.0f);
+    // anti-stall for low powered huge crafts
+    // float pitchLimitUp = scaleRangef(previousVelocityError, 0.0f, 3.0f, -20.0f, 0.0f); // negative == up
+    // pitchLimitUp = constrainf(pitchLimitUp, -30.0f, -10.0f);
+    // calculatedPitchDegrees = constrainf(calculatedPitchDegrees, pitchLimitUp, 45.0f);
 
     //THROTTLED_PRINT_MS(500, ">>>> calculatedPitchDegrees: %f, pitchLimitUp: %f", (double)calculatedPitchDegrees, (double)pitchLimitUp);
 
@@ -373,12 +388,22 @@ static void g_rescueControlRollAndPitch(bool newGpsData)
         calculatedRollDegrees = constrainf(calculatedRollDegrees, -gpsRescueConfig()->maxRescueAngle, gpsRescueConfig()->maxRescueAngle);
 
         previousCourseError = courseErrorDegrees;
+        
+        // THROTTLED_PRINT_MS(1000, "dist: %f, ctarget: %f, course: %f, cerr: %f", 
+        //     (double)rescueState.sensor.distanceToHomeM, 
+        //     (double)rescueState.intent.targetCourseDecidegrees / 10.0,  
+        //     (double)gpsSol.groundCourse / 10.0, 
+        //     (double)courseErrorDegrees
+        // );
     }
 
     const float pitchDegreesFromRoll = ABS((float)gpsRescueConfig()->ap_wing_roll_pitch_mix * calculatedRollDegrees);
     calculatedPitchDegrees -= pitchDegreesFromRoll; // pull up the nose to counteract a roll-induced pitch down
     calculatedPitchDegrees = constrainf(calculatedPitchDegrees, -gpsRescueConfig()->maxRescueAngle, gpsRescueConfig()->maxRescueAngle);
 
+    if (doCleanExit) {
+        return;
+    }
     gpsRescueAngle[AI_ROLL] = calculatedRollDegrees * 100.0f;
     gpsRescueAngle[AI_PITCH] = calculatedPitchDegrees * 100.0f;
 }
@@ -645,14 +670,14 @@ void disarmOnImpact(void)
     //DEBUG_SET(DEBUG_WING_RTH, 3, lrintf(rescueState.intent.disarmThreshold * 100.0f));
     if (acc.accMagnitude > rescueState.intent.disarmThreshold) {
         forceDisarm(DISARM_REASON_CRASH_PROTECTION);
-        rescueStop();
+        rescueState.phase = RESCUE_ABORT;
     }
 }
 
 void g_initialiseSimpleIntentValues (void)
 {
     rescueState.intent.secondsFailing = 0; // reset the sanity check timer
-    rescueState.intent.targetVelocityCmS = rescueState.sensor.velocityToHomeCmS; // avoid snap from D at the start
+    rescueState.intent.targetVelocityCmS = gpsRescueConfig()->groundSpeedCmS + 20.0f; // avoid snap from D at the start
     rescueState.intent.rollAngleLimitDeg = 0.0f; // no roll until flying home
     rescueState.intent.velocityPidCutoffModifier = 1.0f; // normal velocity lowpass filter cutoff
     rescueState.intent.pitchAngleLimitDeg = 0.0f; // force pitch adjustment to zero - level mode will level out
@@ -693,79 +718,112 @@ static bool g_isBelowLandingAltitude(void)
     return rescueState.sensor.currentAltitudeCm / 100.0f < gpsRescueConfig()->ap_wing_landing_alt;
 }
 
-static float normalizeCourseErrorDecidegrees(float targetDecidegrees, float currentDecidegrees) {
-    float error = (targetDecidegrees - currentDecidegrees) / 10.0f;
-    error = fmodf(error + 180.0f, 360.0f) - 180.0f;
-    if (error < -180.0f) {
-        error += 360.0f;
-    }
-    return error;
-}
-
 static void g_startRescueApproach(void)
 {
-    rescueState.phase = RESCUE_APPROACH_MANEUVRE;
+    rescueState.phase = RESCUE_FLY_AWAY_BEFORE_APPROACH;
 
     // turn away from home before starting to land; TODO: choose a course that is the same as the initial takeoff course
     rescueState.intent.targetCourseDecidegrees = 3600.0f - rescueState.sensor.directionToHome;
     rescueState.intent.targetAltitudeCm = gpsRescueConfig()->ap_wing_landing_alt * 100.0f;
 }
 
+static float g_loiterCourseEdgeDistanceM(void)
+{
+    return gpsRescueConfig()->descentDistanceM + 50.0f;
+}
+
+static bool g_calculateTargetCourseForLoiter(void)
+{
+    float offsetDegrees = scaleRangef(
+        rescueState.sensor.distanceToHomeM, 
+        gpsRescueConfig()->descentDistanceM, g_loiterCourseEdgeDistanceM(),
+        90.0f, 0.0f
+    );
+    offsetDegrees = constrainf(offsetDegrees, 0.0f, 90.0f);
+    rescueState.intent.targetCourseDecidegrees = rescueState.sensor.directionToHome - offsetDegrees * 10.0f;
+
+    // THROTTLED_PRINT("course offset: %f", (double)(offsetDegrees));
+    return offsetDegrees > 1.0f;
+}
+
 void g_updateGPSRescue_processState(void)
 {
     switch (rescueState.phase) {
-    case RESCUE_IDLE:
+    case RESCUE_IDLE: {
         g_updateMaxAltutude();
         break;
+    }
         // sanity checks are bypassed in IDLE mode; instead, failure state is always initialised to HEALTHY
         // target altitude is always set to current altitude.
 
-    case RESCUE_INITIALIZE:
+    case RESCUE_INITIALIZE: {
         g_initializeGPSRescue();
         break;
+    }
 
-    case RESCUE_FLY_HOME:
-        if (rescueState.sensor.distanceToHomeM <= gpsRescueConfig()->descentDistanceM) {
+    case RESCUE_FLY_HOME: {
+        bool isClose = g_calculateTargetCourseForLoiter();
+        if (isClose) {
             g_handleDescentDistanceReached();
         }
-        break;
 
-    case RESCUE_DESCEND_TO_LOITER:
+        // TODO: check if we are getting closer to home
+        // if not, we should probably crash land
+        break;
+    }
+
+    case RESCUE_DESCEND_TO_LOITER: {
         g_performDescentWithRateCmS(gpsRescueConfig()->descendRate);
+        
+        g_calculateTargetCourseForLoiter();
 
         bool reachedLoiterAltitude = rescueState.sensor.currentAltitudeCm / 100.0f < gpsRescueConfig()->ap_wing_loiter_alt;
         if (reachedLoiterAltitude) {
             rescueState.loiterActivatedTime = millis();
             rescueState.phase = RESCUE_LOITER;
-            desiredAltitudeCm = gpsRescueConfig()->ap_wing_loiter_alt * 100.0f;
+            desiredAltitudeCm = fmin(gpsRescueConfig()->ap_wing_loiter_alt * 100.0f, rescueState.intent.returnAltitudeCm);
         }
         break;
+    }
 
-    case RESCUE_LOITER:
+    case RESCUE_LOITER: {
+        g_calculateTargetCourseForLoiter();
+
         bool loiterTimeLimitReached = (millis() - rescueState.loiterActivatedTime >= ((timeMs_t)gpsRescueConfig()->ap_wing_loiter_seconds) * 1000);
         if (loiterTimeLimitReached) {
-            rescueState.phase = RESCUE_DESCEND_TO_LAND;
-        }
-        break;
-
-    case RESCUE_DESCEND_TO_LAND:
-        g_performDescentWithRateCmS(gpsRescueConfig()->descendRate);
-        if (g_isBelowLandingAltitude()) {
             g_startRescueApproach();
         }
         break;
+    }
 
-    case RESCUE_APPROACH_MANEUVRE:
-        const float turnAroundBufferM = 25.0f; // 25m buffer for turning around
+    // NOT USED
+    case RESCUE_DESCEND_TO_LAND: {
+        g_calculateTargetCourseForLoiter();
+
+        g_performDescentWithRateCmS(gpsRescueConfig()->descendRate);
+        if (g_isBelowLandingAltitude()) {
+            PRINT("GPS RESCUE: Descend to land phase, below landing altitude, starting approach manoeuvre");
+            g_startRescueApproach();
+        }
+        break;
+    }
+
+    case RESCUE_FLY_AWAY_BEFORE_APPROACH: {
+        const float turnAroundBufferM = 20.0f;
         const float sufficientDistanceToHomeM = gpsRescueConfig()->ap_wing_landing_approach_dist + turnAroundBufferM;
-        bool isFarEnoughFromHome = rescueState.sensor.distanceToHomeM > gpsRescueConfig()->ap_wing_landing_approach_dist;
+        bool isFarEnoughFromHome = rescueState.sensor.distanceToHomeM > sufficientDistanceToHomeM;
         if (isFarEnoughFromHome) {
+            PRINT("isFarEnoughFromHome, %f > %f", 
+                (double)rescueState.sensor.distanceToHomeM, 
+                (double)sufficientDistanceToHomeM
+            );
             rescueState.waitForCourseAwayActivatedTime = millis();
             rescueState.phase = RESCUE_WAIT_FOR_COURSE_AWAY;
         }
         break;
+    }
 
-    case RESCUE_WAIT_FOR_COURSE_AWAY:
+    case RESCUE_WAIT_FOR_COURSE_AWAY: {
         const float courseErrorDegrees = normalizeCourseErrorDecidegrees(
             rescueState.intent.targetCourseDecidegrees,
             gpsSol.groundCourse
@@ -776,42 +834,52 @@ void g_updateGPSRescue_processState(void)
 
         if (courseIsOK || waitedTooLong) {
             rescueState.waitForCourseHomeActivatedTime = millis();
-            rescueState.phase = RESCUE_WAIT_FOR_LANDING_DISTANCE;
+            rescueState.phase = RESCUE_WAIT_FOR_LANDING_COURSE;
+            // rescueState.intent.targetAltitudeCm = gpsRescueConfig()->ap_wing_landing_alt * 100.0f;
         }
         break;
+    };
 
-    case RESCUE_WAIT_FOR_LANDING_DISTANCE:
+    case RESCUE_WAIT_FOR_LANDING_COURSE: {
         // this needs to be kept up to date while turning around
         rescueState.intent.targetCourseDecidegrees = rescueState.sensor.directionToHome;
+        // rescueState.intent.targetAltitudeCm = gpsRescueConfig()->ap_wing_landing_alt * 100.0f;
 
         const float courseErrorDegrees = normalizeCourseErrorDecidegrees(
             rescueState.intent.targetCourseDecidegrees,
             gpsSol.groundCourse
         ) / 10.0f;
         
-        const bool courseIsOK = ABS(courseErrorDegrees) < 20.0f;
+        const bool courseIsOK = ABS(courseErrorDegrees) < 30.0f;
         const bool waitedTooLong = millis() - rescueState.waitForCourseHomeActivatedTime >= 120 * 1000;
         const bool isCloseToHome = rescueState.sensor.distanceToHomeM <= gpsRescueConfig()->ap_wing_landing_approach_dist;
 
-        if (isCloseToHome) {
-            if (courseIsOK) {
+        if (courseIsOK) {
+            // if (courseIsOK) {
                 rescueState.phase = RESCUE_LAND;
                 rescueState.landActivatedTime = millis();
-            } else {
-                // retry approach manoeuvre again
-                g_startRescueApproach();
-            }
+            // } else {
+            //     // retry approach manoeuvre again
+            //     PRINT("GPS RESCUE: Wait for landing distance phase, course is not OK, reapproaching home");
+            //     g_startRescueApproach();
+            // }
         } else if (waitedTooLong) {
             // we are unable to get close to landing distance in time, so we will land where we are
             // this is a bad situation because it means we just can't move towards home fast enough
             rescueState.phase = RESCUE_LAND;
             rescueState.landActivatedTime = millis();
+            // rescueState.intent.returnAltitudeCm = rescueState.sensor.currentAltitudeCm;
+        } else if (isCloseToHome) {
+            // retry approach manoeuvre again
+            PRINT("GPS RESCUE: Wait for landing distance phase, course is not OK, reapproaching home");
+            g_startRescueApproach();
         } else {
             // do nothing, wait for distance to home to be close enough
         }
         break;
+    };
 
-    case RESCUE_LAND:
+    case RESCUE_LAND: {
         const float currentAltitudeCm = rescueState.sensor.currentAltitudeCm;
         const float currentSpeedCmS = rescueState.sensor.groundSpeedCmS;
         const float distanceToHomeCm = rescueState.sensor.distanceToHomeM * 100.0f;
@@ -824,47 +892,75 @@ void g_updateGPSRescue_processState(void)
         // keep home direction up to date while landing
         rescueState.intent.targetCourseDecidegrees = rescueState.sensor.directionToHome;
 
+        const float descnedStartDistanceM = gpsRescueConfig()->ap_wing_landing_approach_dist;
+        const float descendEndDistanceM = 5.0f;
+        float descentProgress = scaleRangef(
+            distanceToHomeCm / 100.0f, 
+            descnedStartDistanceM, descendEndDistanceM, 
+            0.0f, 1.0f
+        );
+        descentProgress = constrainf(descentProgress, 0.0f, 1.0f);
+        descentProgress = powf(descentProgress, 1.0f/4.0f);
+
         // make sure speed is lowered during landing
-        const float touchDownSpeedCmS = 40.0f / 3.6f * 100.0f; // 40km/h in cm/s
+        const float touchDownSpeedCmS = 0.0f / 3.6f * 100.0f; // 40km/h in cm/s
         const float targetSpeedCmS = scaleRangef(
-            distanceToHomeCm, 
-            15.0f,              gpsRescueConfig()->ap_wing_landing_approach_dist, 
-            touchDownSpeedCmS,  gpsRescueConfig()->groundSpeedCmS
+            descentProgress,
+            0.0f, 1.0f,
+            gpsRescueConfig()->groundSpeedCmS, touchDownSpeedCmS
         );
         rescueState.intent.targetVelocityCmS = constrainf(targetSpeedCmS, touchDownSpeedCmS, gpsRescueConfig()->groundSpeedCmS);
+
+        float targetAltCM = scaleRangef(
+            descentProgress,
+            0.0f, 1.0f,
+            gpsRescueConfig()->ap_wing_landing_alt * 100.0f, 100.0f
+        );
+        float targetAlt = constrainf(targetAltCM, 0.0f, gpsRescueConfig()->ap_wing_loiter_alt * 100.0f);
+        rescueState.intent.targetAltitudeCm = targetAlt;
+
+        const float altError = ABS(currentAltitudeCm - rescueState.intent.targetAltitudeCm);
+
+        THROTTLED_PRINT("%f, dst: %f, targetVelocity: %f, targetAlt: %f, altErr: %f",
+            (double)descentProgress,
+            (double)distanceToHomeCm / 100.0,
+             (double)(rescueState.intent.targetVelocityCmS / 100.0f) * 3.6,
+            (double)(rescueState.intent.targetAltitudeCm / 100.0f),
+            (double)(altError / 100.0f)
+            );
         
         // TODO: check if we are moving away from home
 
-        const bool isLow = currentAltitudeCm < 3.0f;
-        const bool isCloseToHome = distanceToHomeCm / 100.0f < 30.0f;
-        const bool timeToHomeIsLow = timeToHomeSeconds < 15.0f;
-
-        if (currentAltitudeCm < 5.0f 
-            || distanceToHomeCm / 100.0f < 30.0f 
-            || timeToHomeSeconds < 15.0f
-        ) {
+        if (currentAltitudeCm / 100.0f < 5.0f) {
+            // THROTTLED_PRINT("GPS RESCUE: will disarm on impact...");
             disarmOnImpact();
         }
         
-        if (currentAltitudeCm < 2.0f 
-            || distanceToHomeCm / 100.0f < 15.0f 
-            || timeToHomeSeconds < 5.0f
-        ) {
+        if (currentAltitudeCm / 100.0f < 2.5f) {
+            THROTTLED_PRINT("GPS RESCUE: forceDisarm!!!");
             forceDisarm(DISARM_REASON_GPS_RESCUE);
             rescueStop();
         }
-        break;
 
-    case RESCUE_ABORT:
+        // if (currentAltitudeCm - rescueState.intent.targetAltitudeCm > 1000.0f) {
+        //     THROTTLED_PRINT("GPS RESCUE: HUGE ALT ERROR, reapproaching home again...");
+        //     g_startRescueApproach();
+        // }
+        break;
+    };
+
+    case RESCUE_ABORT: {
         // setArmingDisabled(ARMING_DISABLED_ARM_SWITCH);
         // disarm(DISARM_REASON_FAILSAFE);
         // rescueState.intent.secondsFailing = 0; // reset sanity timers so we can re-arm
         rescueStop();
         break;
+    }
 
-    case RESCUE_DISARM_ON_IMPACT:
+    case RESCUE_DISARM_ON_IMPACT: {
         disarmOnImpact();
         break;
+    }
 
     default:
         break;
@@ -894,17 +990,19 @@ void gpsRescueUpdate(void)
 
     rescueState.isAvailable = checkGPSRescueIsAvailable();
     
-    THROTTLED_PRINT("distance: %f, current: %f, return: %f, desired: %f",
-                    (double)rescueState.sensor.distanceToHomeM,
-                    (double)rescueState.sensor.currentAltitudeCm / 100.0,
-                    (double)rescueState.intent.returnAltitudeCm / 100.0,
-                    (double)desiredAltitudeCm / 100.0);
+    // THROTTLED_PRINT("distance: %f, current: %f, return: %f, desired: %f",
+    //                 (double)rescueState.sensor.distanceToHomeM,
+    //                 (double)rescueState.sensor.currentAltitudeCm / 100.0,
+    //                 (double)rescueState.intent.returnAltitudeCm / 100.0,
+    //                 (double)desiredAltitudeCm / 100.0);
 
     g_updateGPSRescue_processState();
     g_rescueControlRollAndPitch(newGpsData);
     
     float velocityPIDSum = g_gpsRescueGetVelocityPIDSum(newGpsData);
-    setAutopilotThrottle(gpsRescueGetThrottle(velocityPIDSum));
+    setAutopilotThrottle(gpsRescueGetThrottle(velocityPIDSum) + 0.3f);
+    // UNUSED(velocityPIDSum);
+    // setAutopilotThrottle(1.0f);
     
     performSanityChecks();
 }
@@ -973,7 +1071,7 @@ float g_gpsRescueGetVelocityPIDSum(bool newGpsData)
 float gpsRescueGetThrottle(float velocityPIDSum)
 {
     float commandedThrottle = velocityPIDSum;
-    THROTTLED_PRINT("velocityPIDSum: %f", (double)velocityPIDSum);
+    // THROTTLED_PRINT("velocityPIDSum: %f", (double)velocityPIDSum);
     //DEBUG_SET(DEBUG_WING_RTH, 1, lrintf(commandedThrottle * 100.0f));
 
     // less voltage - more throttle
@@ -985,37 +1083,15 @@ float gpsRescueGetThrottle(float velocityPIDSum)
     THROTTLED_PRINT_MS(30000, "batteryThrottleFactor: %f", (double)(1.0f/batteryThrottleFactor));
     commandedThrottle = commandedThrottle / batteryThrottleFactor;
 
-    DEBUG_SET(DEBUG_WING_RTH, 2, lrintf(commandedThrottle * 100.0f));
-
     commandedThrottle = constrainf(commandedThrottle, 0.0f, 1.0f);
 
-    DEBUG_SET(DEBUG_WING_RTH, 3, lrintf(commandedThrottle * 100.0f));
-
-    // Nose down - less throttle, nose up - more throttle depending on pitch angle and thrust to weight ratio
-    const float twr = pidRuntime.tpaSpeed.twr;
-    DEBUG_SET(DEBUG_WING_RTH, 4, lrintf(twr * 100.0f));
-    DEBUG_SET(DEBUG_WING_RTH, 5, lrintf(getSinPitchAngle() * 100.0f));
-
-    THROTTLED_PRINT_MS(30000, "twr: %f", (double)twr);
-
-    float underSqrt = (commandedThrottle * commandedThrottle * twr - getSinPitchAngle()) / twr;
-
-    DEBUG_SET(DEBUG_WING_RTH, 6, lrintf(underSqrt * 100.0f));
-
-    if (underSqrt < 0.0f) {
-        underSqrt = 0.0f;
-    }
-    commandedThrottle = sqrtf(underSqrt);
-    commandedThrottle = constrainf(commandedThrottle, 0.0f, 1.0f);
-    DEBUG_SET(DEBUG_WING_RTH, 7, lrintf(commandedThrottle * 100.0f));
-
-    if (rescueState.phase == RESCUE_LAND || rescueState.phase == RESCUE_DISARM_ON_IMPACT || rescueState.phase == RESCUE_WAIT_FOR_LANDING_DISTANCE) {
-        commandedThrottle = 0.0f;
-    }
-
-    DEBUG_SET(DEBUG_WING_RTH, 0, lrintf(commandedThrottle * 100.0f));
-
-    THROTTLED_PRINT_MS(500, "throttle: %f", (double)commandedThrottle);
+    THROTTLED_PRINT_MS(1000, "throttle: %f, vel: %f, targetVel: %f, targetAlt: %f, currentAlt: %f",
+        (double)commandedThrottle,
+        (double)(rescueState.sensor.groundSpeedCmS / 100.0f) * 3.6,
+        (double)(rescueState.intent.targetVelocityCmS / 100.0f) * 3.6,
+        (double)(rescueState.intent.targetAltitudeCm / 100.0f),
+        (double)(rescueState.sensor.currentAltitudeCm / 100.0f)
+        );
     return commandedThrottle;
 }
 
