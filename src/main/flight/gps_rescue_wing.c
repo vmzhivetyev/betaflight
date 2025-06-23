@@ -106,6 +106,7 @@ typedef struct {
     float returnAltitudeCm;
     float descentDistanceM;
     float takeoffCourse;
+    float homeCourseAtActivation;
     bool takeoffCourseValid;
     
     float targetAltitudeCm;
@@ -687,7 +688,8 @@ static void g_startRescueApproach(void)
     if (rescueState.intent.takeoffCourseValid) {
         rescueState.intent.targetCourseDecidegrees = rescueState.intent.takeoffCourse;
     } else {
-        rescueState.intent.targetCourseDecidegrees = rescueState.sensor.directionToHome + 1800.0f;
+        // assume takeoff course is just back from home course
+        rescueState.intent.targetCourseDecidegrees = rescueState.intent.homeCourseAtActivation + 1800.0f;
     }
     rescueState.intent.targetAltitudeCm = gpsRescueConfig()->ap_wing_landing_alt * 100.0f;
 }
