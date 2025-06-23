@@ -950,9 +950,9 @@ void gpsRescueUpdate(void)
 
     if (!FLIGHT_MODE(GPS_RESCUE_MODE)) {
         rescueStop(); // sets phase to RESCUE_IDLE; does nothing else.  RESCUE_IDLE tasks still run.
-    } else if (FLIGHT_MODE(GPS_RESCUE_MODE) && rescueState.phase == RESCUE_IDLE) {
+    } else if (rescueState.phase == RESCUE_IDLE && ARMING_FLAG(ARMED)) {
         // executed only once
-        PRINT("ENTERING GPS RESCUE MODE FROM RESCUE_IDLE");
+        PRINT("STARTING GPS RESCUE MODE FROM RESCUE_IDLE");
         
         rescueStart(); // sets phase to rescue_initialise if we enter GPS Rescue mode while idle
         performSanityChecks(); // Initialises sanity check values when a Rescue starts
