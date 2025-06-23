@@ -93,6 +93,8 @@
     } \
 } while(0)
 
+#include "../platform/SIMULATOR/log_map.h"
+
 #else
 
 #define PRINT(x)
