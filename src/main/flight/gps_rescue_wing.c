@@ -106,6 +106,7 @@ typedef struct {
     float returnAltitudeCm;
     float descentDistanceM;
     float takeoffCourse;
+    gpsLocation_t takeoffNeutralPoint;
     float homeCourseAtActivation;
     bool takeoffCourseValid;
     
@@ -127,19 +128,23 @@ typedef struct {
 
 typedef struct {
     float currentAltitudeCm;
+    uint16_t groundSpeedCmS;
+    float velocityToHomeCmS;
+    float errorAngle;
+    float absErrorAngle;
+
     float distanceToHomeCm;
     float distanceToHomeM;
-    uint16_t groundSpeedCmS;
+    float distanceToNeutralPointCm;
     int16_t directionToHome;
+    int16_t directionToNeutralPoint;
+
     bool healthy;
-    float errorAngle;
     float gpsDataIntervalSeconds;
     float altitudeDataIntervalSeconds;
     float gpsRescueTaskIntervalSeconds;
-    float velocityToHomeCmS;
     float alitutudeStepCm;
     float maxPitchStep;
-    float absErrorAngle;
     float imuYawCogGain;
 } rescueSensorData_s;
 
@@ -544,6 +549,30 @@ static void sensorUpdate(bool newGPSData)
     rescueState.sensor.healthy = gpsIsHealthy();
 
     rescueState.sensor.directionToHome = GPS_directionToHome; // extern value from gps.c using current position relative to home
+    rescueState.sensor.distanceToHomeCm = GPS_distanceToHomeCm;
+    rescueState.sensor.distanceToHomeM = rescueState.sensor.distanceToHomeCm / 100.0f;
+
+    LOG_UPDATE_100MS("home_distance", "%+6.1f", (double)rescueState.sensor.distanceToHomeM);
+
+    LOG_UPDATE_100MS("velocity_to_home", "%+6.1f", (double)rescueState.sensor.velocityToHomeCmS / 100.0 * 3.6);
+
+    if (rescueState.intent.takeoffCourseValid) {
+        uint32_t distCm;
+        int32_t dirDegrees;
+        GPS_distance_cm_bearing(
+            &gpsSol.llh, 
+            &rescueState.intent.takeoffNeutralPoint, 
+            false,
+            &distCm,
+            &dirDegrees
+        );
+        rescueState.sensor.distanceToNeutralPointCm = distCm;
+        rescueState.sensor.directionToNeutralPoint = dirDegrees / 10; // deg to decidegrees
+    } else {
+        rescueState.sensor.distanceToNeutralPointCm = rescueState.sensor.distanceToHomeCm;
+        rescueState.sensor.directionToNeutralPoint = rescueState.sensor.directionToHome;
+    }
+
     rescueState.sensor.errorAngle = (attitude.values.yaw - rescueState.sensor.directionToHome) / 10.0f;
     // both attitude and direction are in degrees * 10, errorAngle is degrees
     if (rescueState.sensor.errorAngle <= -180) {
@@ -561,10 +590,6 @@ static void sensorUpdate(bool newGPSData)
         // GPS ground speed, velocity and distance to home will be held at last good values if no new packets
     }
 
-    // THROTTLED_PRINT("GPS_distanceToHomeCm: %i", GPS_distanceToHomeCm);
-
-    rescueState.sensor.distanceToHomeCm = GPS_distanceToHomeCm;
-    rescueState.sensor.distanceToHomeM = rescueState.sensor.distanceToHomeCm / 100.0f;
     rescueState.sensor.groundSpeedCmS = gpsSol.groundSpeed; // cm/s
 
     rescueState.sensor.gpsDataIntervalSeconds = getGpsDataIntervalSeconds();
@@ -707,7 +732,7 @@ static bool g_calculateTargetCourseForLoiter(void)
         90.0f, 0.0f
     );
     offsetDegrees = constrainf(offsetDegrees, 0.0f, 90.0f);
-    rescueState.intent.targetCourseDecidegrees = rescueState.sensor.directionToHome - offsetDegrees * 10.0f;
+    rescueState.intent.targetCourseDecidegrees = rescueState.sensor.directionToNeutralPoint - offsetDegrees * 10.0f;
 
     // THROTTLED_PRINT("course offset: %f", (double)(offsetDegrees));
     return offsetDegrees > 1.0f;
@@ -726,39 +751,46 @@ static float g_calculateBestDescentRateCmS(float targetAltitudeCm, float idealTi
 
 static void g_rememberTakeoffCourse(void)
 {
-    static bool previousWeHaveDistance = false;
-    static bool initialized = false;
+    static bool previousWeHaveDistance = true; // prevent logging on first run
     
-    const bool weHaveDistance = rescueState.sensor.distanceToHomeM > 40.0f;
-    
-    // Skip edge detection on first call
-    if (!initialized) {
-        previousWeHaveDistance = weHaveDistance;
-        initialized = true;
+    const float idealDistanceM = 60.0f; // distance from home to trigger takeoff course recording
+    const bool weHaveDistance = rescueState.sensor.distanceToHomeM > idealDistanceM;
+    const bool weAreTooFar = rescueState.sensor.distanceToHomeM > idealDistanceM * 2.0f;
+
+    LOG_UPDATE_100MS("weHaveDistance", weHaveDistance ? "true" : "false");
+    LOG_UPDATE_100MS("weAreTooFar", weAreTooFar ? "true" : "false");
+    if (weAreTooFar) {
         return;
     }
-
     
+    if (!previousWeHaveDistance) {
+        LOG_UPDATE_100MS("takeoff_zone_speed", "%f", (double)(rescueState.sensor.velocityToHomeCmS / 100.0f * 3.6f));
+    }
+        
     const bool didJustExitTakeoffZone = weHaveDistance && !previousWeHaveDistance;
     previousWeHaveDistance = weHaveDistance;
 
-    static bool dflag = false;
-    dflag = dflag || didJustExitTakeoffZone;
-    LOG_UPDATE_100MS("exit_zone", dflag ? "exit happened" : "nope");
-
+    // If we have a takeoff course, don't overwrite it
     if (rescueState.intent.takeoffCourseValid) {
         return;
     }
 
+    if (!didJustExitTakeoffZone) {
+        return; // we are still in the takeoff zone, no need to record the course
+    }
+    
+    // one-off event -- exiting zone.
+
     const float minSpeedCmS = 20.0f * 100.0f / 3.6f; // 20km/h in cm/s
     const bool weHaveSpeed = -rescueState.sensor.velocityToHomeCmS > minSpeedCmS;
-    LOG_UPDATE_100MS("exit_speed", weHaveSpeed ? "exit happened" : "nope");
 
-    if (weHaveSpeed && didJustExitTakeoffZone) {
-        float takeoffCourse = gpsSol.groundCourse;
-        rescueState.intent.takeoffCourse = takeoffCourse;
+    if (weHaveSpeed) {
+        rescueState.intent.takeoffCourse = gpsSol.groundCourse;
+        rescueState.intent.takeoffNeutralPoint = gpsSol.llh;
         rescueState.intent.takeoffCourseValid = true;
-        LOG_UPDATE_100MS("takeoff_course", "course:%+6.1f", (double)(rescueState.intent.takeoffCourse / 10.0f));
+        LOG_UPDATE_100MS("exit_data", "course:%+6.1f", (double)(rescueState.intent.takeoffCourse / 10.0f));
+    } else {
+        LOG_UPDATE_100MS("exit_data", "too slow %f", (double)(-rescueState.sensor.velocityToHomeCmS / 100.0f * 3.6f));
     }
 }
 
