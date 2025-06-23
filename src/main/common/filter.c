@@ -72,6 +72,12 @@ void pt1FilterUpdateCutoff(pt1Filter_t *filter, float k)
     filter->k = k;
 }
 
+void pt1FilterUpdateCutoffWithDTSeconds(pt1Filter_t *filter, float f_cut, float dT)
+{
+    const float gain = pt1FilterGain(f_cut, dT);
+    pt1FilterUpdateCutoff(filter, gain);
+}
+
 FAST_CODE float pt1FilterApply(pt1Filter_t *filter, float input)
 {
     filter->state = filter->state + filter->k * (input - filter->state);

@@ -67,12 +67,15 @@ PG_RESET_TEMPLATE(gpsRescueConfig_t, gpsRescueConfig,
     .ap_wing_cog_i = 15,
     .ap_wing_cog_d = 20,
 
+    .ap_wing_throttle_d_cutoff_decihz = 30,
+
     .ap_wing_roll_pitch_mix = 0,
     .ap_wing_roll_yaw_mix = 0,
 
     .ap_wing_loiter_alt = 60,
     .ap_wing_loiter_seconds = 60,
     .ap_wing_landing_alt = 12,
+    .ap_wing_landing_speed = 40,
     .ap_wing_landing_approach_dist = 130,
 );
 

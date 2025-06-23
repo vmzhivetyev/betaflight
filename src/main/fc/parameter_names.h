@@ -265,7 +265,9 @@
 #define PARAM_NAME_GPS_RESCUE_WING_LOITER_ALT "ap_wing_loiter_alt"
 #define PARAM_NAME_GPS_RESCUE_WING_LOITER_SECONDS "ap_wing_loiter_seconds"
 #define PARAM_NAME_GPS_RESCUE_WING_LANDING_ALT "ap_wing_landing_alt"
+#define PARAM_NAME_GPS_RESCUE_WING_LANDING_SPEED "ap_wing_landing_speed"
 #define PARAM_NAME_GPS_RESCUE_WING_LANDING_APPROACH_DIST "ap_wing_landing_approach_dist"
+#define PARAM_NAME_GPS_RESCUE_WING_THROTTLE_D_CUTOFF "ap_wing_throttle_d_cutoff_decihz"
 
 
 #ifdef USE_MAG

@@ -1180,10 +1180,13 @@ const clivalue_t valueTable[] = {
 
     { PARAM_NAME_GPS_RESCUE_WING_ROLL_PITCH_MIX,      VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 255 }, PG_GPS_RESCUE, offsetof(gpsRescueConfig_t, ap_wing_roll_pitch_mix) },
     { PARAM_NAME_GPS_RESCUE_WING_ROLL_YAW_MIX,        VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 255 }, PG_GPS_RESCUE, offsetof(gpsRescueConfig_t, ap_wing_roll_yaw_mix) },
+    
+    { PARAM_NAME_GPS_RESCUE_WING_THROTTLE_D_CUTOFF,  VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 1, 255 }, PG_GPS_RESCUE, offsetof(gpsRescueConfig_t, ap_wing_throttle_d_cutoff_decihz) },
 
     { PARAM_NAME_GPS_RESCUE_WING_LOITER_ALT,      VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 255 }, PG_GPS_RESCUE, offsetof(gpsRescueConfig_t, ap_wing_loiter_alt) },
     { PARAM_NAME_GPS_RESCUE_WING_LOITER_SECONDS,        VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 1000 }, PG_GPS_RESCUE, offsetof(gpsRescueConfig_t, ap_wing_loiter_seconds) },
     { PARAM_NAME_GPS_RESCUE_WING_LANDING_ALT,        VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 255 }, PG_GPS_RESCUE, offsetof(gpsRescueConfig_t, ap_wing_landing_alt) },
+    { PARAM_NAME_GPS_RESCUE_WING_LANDING_SPEED,      VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 255 }, PG_GPS_RESCUE, offsetof(gpsRescueConfig_t, ap_wing_landing_speed) },
     { PARAM_NAME_GPS_RESCUE_WING_LANDING_APPROACH_DIST,        VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 1000 }, PG_GPS_RESCUE, offsetof(gpsRescueConfig_t, ap_wing_landing_approach_dist) },
 #endif // USE_WING
 

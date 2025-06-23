@@ -101,6 +101,7 @@ float pt1FilterGain(float f_cut, float dT);
 float pt1FilterGainFromDelay(float delay, float dT);
 void pt1FilterInit(pt1Filter_t *filter, float k);
 void pt1FilterUpdateCutoff(pt1Filter_t *filter, float k);
+void pt1FilterUpdateCutoffWithDTSeconds(pt1Filter_t *filter, float f_cut, float dT);
 float pt1FilterApply(pt1Filter_t *filter, float input);
 
 float pt2FilterGain(float f_cut, float dT);
