@@ -351,6 +351,13 @@ static float calcWingAcceleration(float throttle, float pitchAngleRadians)
     const float drag = tpa->speed * tpa->speed * tpa->dragMassRatio;
     const float gravity = G_ACCELERATION * sin_approx(pitchAngleRadians);
 
+    LOG_UPDATE_100MS("tpa_twr", "%f", (double)pidRuntime.tpaSpeed.twr);
+    LOG_UPDATE_100MS("tpa_maxSpeed", "%f", (double)pidRuntime.tpaSpeed.maxSpeed);
+    LOG_UPDATE_100MS("tpa_speed", "%+6.1f", (double)pidRuntime.tpaSpeed.speed * 3.6);
+    LOG_UPDATE_100MS("tpa_speed_thrust", "%+6.1f", (double)thrust);
+    LOG_UPDATE_100MS("tpa_speed_drag", "%+6.1f", (double)-drag);
+    LOG_UPDATE_100MS("tpa_speed_gravity", "%+6.1f", (double)gravity);
+
     return thrust - drag + gravity;
 }
 
@@ -364,12 +371,19 @@ static float calcWingTpaArgument(void)
     DEBUG_SET(DEBUG_TPA, 2, lrintf(attitude.values.pitch)); // decidegrees
     DEBUG_SET(DEBUG_TPA, 3, lrintf(t * 1000.0f)); // calculated throttle in the range of 0 - 1000
 
+    LOG_UPDATE_100MS("roll", "%+6.1f", (double)attitude.values.roll / 10.0);
+    LOG_UPDATE_100MS("pitch", "%+6.1f", (double)attitude.values.pitch / 10.0);
+
     // pitchRadians is always -90 to 90 degrees. The bigger the ABS(pitch) the less portion of pitchOffset is needed.
     // If ABS(roll) > 90 degrees - flying inverted, then negative portion of pitchOffset is needed.
     // If ABS(roll) ~ 90 degrees - flying sideways, no pitchOffset is applied.
     const float correctedPitchAnge = pitchRadians + cos_approx(pitchRadians) * cos_approx(rollRadians) * pidRuntime.tpaSpeed.pitchOffset;
 
+    LOG_UPDATE_100MS("tpa_speed_pitch_m", "%+6.1f", (double)correctedPitchAnge);
+
     const float a = calcWingAcceleration(t, correctedPitchAnge);
+    
+    LOG_UPDATE_100MS("tpa_speed_acc", "%+6.1f", (double)a);
 
     pidRuntime.tpaSpeed.speed += a * pidRuntime.dT;
     pidRuntime.tpaSpeed.speed = MAX(0.0f, pidRuntime.tpaSpeed.speed);

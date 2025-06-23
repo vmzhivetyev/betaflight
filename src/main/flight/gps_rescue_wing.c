@@ -1125,11 +1125,13 @@ float g_gpsRescueGetVelocityPIDSum(bool newGpsData)
         velocityPIDSum = constrainf(velocityPIDSum, -1.0f, 1.0f);
 
         LOG_UPDATE_DOUBLE_100MS("vel_pidsum", (double)velocityPIDSum);
-        LOG_UPDATE_100MS("velocity", "tar:%+6.1f cur:%+6.1f err: %+6.1f", 
-                 (double)(rescueState.intent.targetVelocityCmS / 100.0f) * 3.6, 
+        LOG_UPDATE_100MS("speed", "%+6.1f -> %+6.1f   err: %+6.1f", 
                  (double)(currentSpeed / 100.0f) * 3.6,
+                 (double)(rescueState.intent.targetVelocityCmS / 100.0f) * 3.6, 
                  (double)(velocityError / 100.0f) * 3.6);
-                 
+
+        LOG_UPDATE_100MS("est speed", "%+6.1f", (double)pidRuntime.tpaSpeed.speed * 3.6);
+
         LOG_UPDATE_DOUBLE_100MS("cutoff_hz", (double)cutoffHz);
 
         LOG_UPDATE_100MS("throttle_pid", "p:%+6.3f i:%+6.3f d:%+6.3f sum:%+6.3f", 
