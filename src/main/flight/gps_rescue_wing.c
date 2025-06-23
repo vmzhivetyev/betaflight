@@ -364,7 +364,7 @@ static void g_rescueControlRollAndPitch(bool newGpsData)
     // pitchLimitUp = constrainf(pitchLimitUp, -30.0f, -10.0f);
     // calculatedPitchDegrees = constrainf(calculatedPitchDegrees, pitchLimitUp, 45.0f);
 
-    //THROTTLED_PRINT_MS(500, ">>>> calculatedPitchDegrees: %f, pitchLimitUp: %f", (double)calculatedPitchDegrees, (double)pitchLimitUp);
+    // THROTTLED_PRINT_MS(100, "pitch tar: %f cur: %f", (double)desiredAltitudeCm / 100.0, (double)rescueState.sensor.currentAltitudeCm / 100.0);
 
     if (newGpsData) {
         // course PID
@@ -701,6 +701,16 @@ static bool g_calculateTargetCourseForLoiter(void)
     return offsetDegrees > 1.0f;
 }
 
+static float g_calculateBestDescentRateCmS(float targetAltitudeCm, float idealTimeSeconds)
+{
+    const float descentDistanceM = ABS(rescueState.sensor.currentAltitudeCm / 100.0f - targetAltitudeCm);
+    const float descentRateCmSIdeal = descentDistanceM / idealTimeSeconds * 100.0f; // cm/s
+    const float descentRateCmSFinal = fmaxf(
+        gpsRescueConfig()->descendRate, 
+        descentRateCmSIdeal
+    );
+    return descentRateCmSFinal;
+}
 void g_updateGPSRescue_processState(void)
 {
     switch (rescueState.phase) {
@@ -728,7 +738,12 @@ void g_updateGPSRescue_processState(void)
     }
 
     case RESCUE_DESCEND_TO_LOITER: {
-        g_performDescentWithRateCmS(gpsRescueConfig()->descendRate);
+        const float descentRateCmS = g_calculateBestDescentRateCmS(
+            gpsRescueConfig()->ap_wing_loiter_alt * 100.0f,
+            20.0f
+        );
+        g_performDescentWithRateCmS(descentRateCmS);
+        rescueState.intent.targetAltitudeCm = fmaxf(gpsRescueConfig()->ap_wing_loiter_alt * 100.0f, rescueState.intent.targetAltitudeCm);
         
         g_calculateTargetCourseForLoiter();
 
@@ -755,8 +770,15 @@ void g_updateGPSRescue_processState(void)
     case RESCUE_DESCEND_TO_LAND: {
         g_calculateTargetCourseForLoiter();
 
-        g_performDescentWithRateCmS(gpsRescueConfig()->descendRate);
-        if (g_isBelowLandingAltitude()) {
+        const float descentRateCmS = g_calculateBestDescentRateCmS(
+            gpsRescueConfig()->ap_wing_landing_approach_dist * 100.0f,
+            20.0f
+        );
+        g_performDescentWithRateCmS(descentRateCmS);
+        rescueState.intent.targetAltitudeCm = fmaxf(gpsRescueConfig()->ap_wing_landing_approach_dist * 100.0f, rescueState.intent.targetAltitudeCm);
+
+        const bool isBelowLandingAltitude = rescueState.sensor.currentAltitudeCm / 100.0f < gpsRescueConfig()->ap_wing_landing_alt;
+        if (isBelowLandingAltitude) {
             PRINT("GPS RESCUE: Descend to land phase, below landing altitude, starting approach manoeuvre");
             g_startRescueApproach();
         }
@@ -849,7 +871,7 @@ void g_updateGPSRescue_processState(void)
 
         // calculate descent progress
         const float descnedStartDistanceM = gpsRescueConfig()->ap_wing_landing_approach_dist;
-        const float descendEndDistanceM = 5.0f;
+        const float descendEndDistanceM = 15.0f;
         float descentProgress = scaleRangef(
             distanceToHomeCm / 100.0f, 
             descnedStartDistanceM, descendEndDistanceM, 
@@ -871,9 +893,9 @@ void g_updateGPSRescue_processState(void)
         float targetAltCM = scaleRangef(
             descentProgress,
             0.0f, 1.0f,
-            gpsRescueConfig()->ap_wing_landing_alt * 100.0f, 100.0f
+            gpsRescueConfig()->ap_wing_landing_alt * 100.0f, 50.0f
         );
-        float targetAlt = constrainf(targetAltCM, 0.0f, gpsRescueConfig()->ap_wing_loiter_alt * 100.0f);
+        float targetAlt = constrainf(targetAltCM, 0.0f, gpsRescueConfig()->ap_wing_landing_alt * 100.0f);
         rescueState.intent.targetAltitudeCm = targetAlt;
 
         // print debug info
