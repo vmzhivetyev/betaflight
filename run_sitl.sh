@@ -16,5 +16,5 @@ while true; do
     kill $WS_PID
     wait $WS_PID 2>/dev/null
     echo ">>> SITL and websockify stopped, restarting..."
-    sleep 1
+    sleep 2
 done
