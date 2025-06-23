@@ -11,7 +11,7 @@ extern "C" {
 
 // Configuration constants
 #define MAX_LOG_ENTRIES 32
-#define MAX_LOG_KEY_LEN 16
+#define MAX_LOG_KEY_LEN 25
 #define MAX_LOG_VALUE_LEN 80
 
 // Core functions

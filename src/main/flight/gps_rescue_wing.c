@@ -105,6 +105,8 @@ typedef struct {
     float maxAltitudeCm;
     float returnAltitudeCm;
     float descentDistanceM;
+    float takeoffCourse;
+    bool takeoffCourseValid;
     
     float targetAltitudeCm;
     float targetCourseDecidegrees;
@@ -202,6 +204,9 @@ void gpsRescueInit(void)
     cutoffHz *= 4.0f;
     gain = pt3FilterGain(cutoffHz, rescueState.sensor.gpsRescueTaskIntervalSeconds);
     pt3FilterInit(&velocityUpsampleLpf, gain);
+
+    rescueState.intent.takeoffCourse = 0.0f;
+    rescueState.intent.takeoffCourseValid = false;
 }
 
 static void rescueStart(void)
@@ -677,8 +682,12 @@ static void g_startRescueApproach(void)
 {
     rescueState.phase = RESCUE_FLY_AWAY_BEFORE_APPROACH;
 
-    // turn away from home before starting to land; TODO: choose a course that is the same as the initial takeoff course
-    rescueState.intent.targetCourseDecidegrees = 3600.0f - rescueState.sensor.directionToHome;
+    // turn away from home before starting to land;
+    if (rescueState.intent.takeoffCourseValid) {
+        rescueState.intent.targetCourseDecidegrees = rescueState.intent.takeoffCourse;
+    } else {
+        rescueState.intent.targetCourseDecidegrees = rescueState.sensor.directionToHome + 1800.0f;
+    }
     rescueState.intent.targetAltitudeCm = gpsRescueConfig()->ap_wing_landing_alt * 100.0f;
 }
 
@@ -711,11 +720,51 @@ static float g_calculateBestDescentRateCmS(float targetAltitudeCm, float idealTi
     );
     return descentRateCmSFinal;
 }
+
+static void g_rememberTakeoffCourse(void)
+{
+    static bool previousWeHaveDistance = false;
+    static bool initialized = false;
+    
+    const bool weHaveDistance = rescueState.sensor.distanceToHomeM > 40.0f;
+    
+    // Skip edge detection on first call
+    if (!initialized) {
+        previousWeHaveDistance = weHaveDistance;
+        initialized = true;
+        return;
+    }
+
+    
+    const bool didJustExitTakeoffZone = weHaveDistance && !previousWeHaveDistance;
+    previousWeHaveDistance = weHaveDistance;
+
+    static bool dflag = false;
+    dflag = dflag || didJustExitTakeoffZone;
+    LOG_UPDATE_100MS("exit_zone", dflag ? "exit happened" : "nope");
+
+    if (rescueState.intent.takeoffCourseValid) {
+        return;
+    }
+
+    const float minSpeedCmS = 20.0f * 100.0f / 3.6f; // 20km/h in cm/s
+    const bool weHaveSpeed = -rescueState.sensor.velocityToHomeCmS > minSpeedCmS;
+    LOG_UPDATE_100MS("exit_speed", weHaveSpeed ? "exit happened" : "nope");
+
+    if (weHaveSpeed && didJustExitTakeoffZone) {
+        float takeoffCourse = gpsSol.groundCourse;
+        rescueState.intent.takeoffCourse = takeoffCourse;
+        rescueState.intent.takeoffCourseValid = true;
+        LOG_UPDATE_100MS("takeoff_course", "course:%+6.1f", (double)(rescueState.intent.takeoffCourse / 10.0f));
+    }
+}
+
 void g_updateGPSRescue_processState(void)
 {
     switch (rescueState.phase) {
     case RESCUE_IDLE: {
         g_updateMaxAltutude();
+        g_rememberTakeoffCourse();
         break;
     }
         // sanity checks are bypassed in IDLE mode; instead, failure state is always initialised to HEALTHY
