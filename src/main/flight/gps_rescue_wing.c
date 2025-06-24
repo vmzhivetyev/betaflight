@@ -977,7 +977,7 @@ void g_updateGPSRescue_processState(void)
         float targetAltCM = scaleRangef(
             descentProgress,
             0.0f, 1.0f,
-            gpsRescueConfig()->ap_wing_landing_alt * 100.0f, 50.0f
+            gpsRescueConfig()->ap_wing_landing_alt * 100.0f, 0.0f
         );
         float targetAlt = constrainf(targetAltCM, 0.0f, gpsRescueConfig()->ap_wing_landing_alt * 100.0f);
         rescueState.intent.targetAltitudeCm = targetAlt;
@@ -1073,6 +1073,30 @@ float gpsRescueGetImuYawCogGain(void)
     return rescueState.sensor.imuYawCogGain;
 }
 
+// float g_antiStallThrottleBoost(void)
+// {
+//     if (rescueState.phase == RESCUE_LAND) {
+//         return 0.0f;
+//     }
+
+//     if (gpsRescueConfig()->ap_wing_stall_speed == 0) {
+//         return 0.0f;
+//     }
+
+//     const float currentSpeedKmH = pidRuntime.tpaSpeed.speed * 3.6f; // m/s to km/h
+//     const float stallSpeedKmH = gpsRescueConfig()->ap_wing_stall_speed;
+//     const float stallSpeedBufferKmH = 10.0f;
+//     const float breakingPointKmH = stallSpeedBufferKmH + stallSpeedKmH;
+//     const float breakingPointDistanceKmH = fmaxf(breakingPointKmH - currentSpeedKmH, 0.0f); // > 0 when we are below breakingPointKmH
+//     const float stallSpeedBoost = scaleRangef(
+//         breakingPointDistanceKmH,
+//         0.0f, stallSpeedBufferKmH,
+//         0.0f, currentPidProfile->tpa_curve_stall_throttle / 100.0f * 2.0f
+//     );
+//     LOG_UPDATE_DOUBLE_100MS("stall_throttle_boost", (double)stallSpeedBoost);
+//     return stallSpeedBoost;
+// }
+
 // Returns throttle value offset.
 float g_gpsRescueGetVelocityPIDSum(bool newGpsData)
 {
@@ -1081,10 +1105,17 @@ float g_gpsRescueGetVelocityPIDSum(bool newGpsData)
     if (newGpsData) {
         const float sampleIntervalNormaliseFactor = rescueState.sensor.gpsDataIntervalSeconds * 10.0f;
 
-        const float currentSpeed = rescueState.sensor.groundSpeedCmS;
+        const float estimatedSpeedCmS = pidRuntime.tpaSpeed.speed * 100.0f; // m/s to cm/s
+        const float gpsSpeed = rescueState.sensor.groundSpeedCmS;
+        
+        float trackedSpeedCmS = gpsSpeed;
+        if (rescueState.phase != RESCUE_LAND) {
+            // Prevents stall during flight AND prevents very low ground speed when flying against wind.
+            trackedSpeedCmS = fminf(estimatedSpeedCmS, gpsSpeed);
+        }
         // TODO: check against "velocityTowardsTargetCourse" instead of absolute ground speed.
 
-        const float velocityError = rescueState.intent.targetVelocityCmS - currentSpeed;
+        const float velocityError = rescueState.intent.targetVelocityCmS - trackedSpeedCmS;
         // velocityError is in cm per second, positive means too slow.
         // NB positive pitch setpoint means nose down.
         // target velocity can be very negative leading to large error before the start, with overshoot
@@ -1122,11 +1153,17 @@ float g_gpsRescueGetVelocityPIDSum(bool newGpsData)
         // velocityD = pt1FilterApply(&velocityDLpf, velocityD);
 
         velocityPIDSum = velocityP + velocityI + velocityD;
+        // velocityPIDSum += g_antiStallThrottleBoost();
         velocityPIDSum = constrainf(velocityPIDSum, -1.0f, 1.0f);
 
         LOG_UPDATE_DOUBLE_100MS("vel_pidsum", (double)velocityPIDSum);
-        LOG_UPDATE_100MS("speed", "%+6.1f -> %+6.1f   err: %+6.1f", 
-                 (double)(currentSpeed / 100.0f) * 3.6,
+        LOG_UPDATE_100MS("speed", "gps: %+6.1f, air: %+6.1f", 
+                 (double)(gpsSpeed / 100.0f) * 3.6,
+                 (double)(estimatedSpeedCmS / 100.0f) * 3.6
+                );
+
+        LOG_UPDATE_100MS("tracked speed", "%+6.1f -> %+6.1f   err: %+6.1f", 
+                 (double)(trackedSpeedCmS / 100.0f) * 3.6,
                  (double)(rescueState.intent.targetVelocityCmS / 100.0f) * 3.6, 
                  (double)(velocityError / 100.0f) * 3.6);
 

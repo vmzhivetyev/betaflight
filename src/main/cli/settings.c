@@ -1188,6 +1188,8 @@ const clivalue_t valueTable[] = {
     { PARAM_NAME_GPS_RESCUE_WING_LANDING_ALT,        VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 255 }, PG_GPS_RESCUE, offsetof(gpsRescueConfig_t, ap_wing_landing_alt) },
     { PARAM_NAME_GPS_RESCUE_WING_LANDING_SPEED,      VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 255 }, PG_GPS_RESCUE, offsetof(gpsRescueConfig_t, ap_wing_landing_speed) },
     { PARAM_NAME_GPS_RESCUE_WING_LANDING_APPROACH_DIST,        VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 1000 }, PG_GPS_RESCUE, offsetof(gpsRescueConfig_t, ap_wing_landing_approach_dist) },
+
+    { PARAM_NAME_GPS_RESCUE_WING_STALL_SPEED,      VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 255 }, PG_GPS_RESCUE, offsetof(gpsRescueConfig_t, ap_wing_stall_speed) },
 #endif // USE_WING
 
 #ifdef USE_MAG

@@ -77,6 +77,7 @@ PG_RESET_TEMPLATE(gpsRescueConfig_t, gpsRescueConfig,
     .ap_wing_landing_alt = 12,
     .ap_wing_landing_speed = 40,
     .ap_wing_landing_approach_dist = 130,
+    .ap_wing_stall_speed = 30,
 );
 
 #endif // USE_GPS_RESCUE

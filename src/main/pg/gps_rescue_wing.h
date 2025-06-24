@@ -60,6 +60,8 @@ typedef struct gpsRescue_s {
     uint8_t ap_wing_landing_alt;
     uint8_t ap_wing_landing_speed; // km/h
     uint16_t ap_wing_landing_approach_dist;
+    
+    uint8_t ap_wing_stall_speed; // km/h, used for speed control
 } gpsRescueConfig_t;
 
 PG_DECLARE(gpsRescueConfig_t, gpsRescueConfig);
