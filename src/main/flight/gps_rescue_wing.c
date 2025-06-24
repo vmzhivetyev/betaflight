@@ -1027,8 +1027,8 @@ void g_updateGPSRescue_processState(void)
 void gpsRescueUpdate(void)
 // runs at gpsRescueTaskIntervalSeconds, and runs whether or not rescue is active
 {
+    LOG_UPDATE_100MS("rescue phase", RESCUE_PHASE_STR(rescueState.phase));
     LOG_DISPLAY_100MS();
-    PRINT_ON_CHANGE(rescueState.phase, "rescue state changed to: %s", RESCUE_PHASE_STR(rescueState.phase));
     
     bool newGpsData = g_updateGPSData();
 

@@ -14,6 +14,8 @@ extern "C" {
 #define MAX_LOG_KEY_LEN 25
 #define MAX_LOG_VALUE_LEN 80
 
+uint32_t millis(void);
+
 // Core functions
 void logInit(void);
 void logUpdate(const char* key, const char* format, ...);
