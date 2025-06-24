@@ -27,6 +27,19 @@ void moveToTop(void) {
     printf("\033[H");
 }
 
+// Comparison function for qsort
+int compareEntries(const void* a, const void* b) {
+    const LogEntry* entryA = (const LogEntry*)a;
+    const LogEntry* entryB = (const LogEntry*)b;
+    
+    // Invalid entries go to the end
+    if (!entryA->valid && !entryB->valid) return 0;
+    if (!entryA->valid) return 1;
+    if (!entryB->valid) return -1;
+    
+    return strcmp(entryA->key, entryB->key);
+}
+
 // Find or create entry by key
 LogEntry* findOrCreateEntry(const char* key) {
     // First, try to find existing entry
@@ -70,13 +83,20 @@ void logUpdateInt(const char* key, int value) {
     logUpdate(key, "%+8d", value);
 }
 
-// Display all log entries in consistent order
+// Display all log entries sorted by key
 void logDisplay(void) {
     moveToTop();
     
+    // Create a copy of entries for sorting
+    LogEntry sortedEntries[MAX_LOG_ENTRIES];
+    memcpy(sortedEntries, logMap.entries, sizeof(logMap.entries));
+    
+    // Sort the entries by key
+    qsort(sortedEntries, logMap.count, sizeof(LogEntry), compareEntries);
+    
     // Define column widths
-    #define KEY_WIDTH 15
-    #define VALUE_WIDTH 85  // Matches MAX_LOG_VALUE_LEN from header
+    #define KEY_WIDTH MAX_LOG_KEY_LEN
+    #define VALUE_WIDTH MAX_LOG_VALUE_LEN
     
     // Display header with correct border width
     printf("┌");
@@ -93,17 +113,19 @@ void logDisplay(void) {
     for(int i = 0; i < VALUE_WIDTH + 2; i++) printf("─");
     printf("┤\n");
     
-    // Display entries in the order they were first added
+    // Display sorted entries
+    int validCount = 0;
     for (int i = 0; i < logMap.count; i++) {
-        if (logMap.entries[i].valid) {
+        if (sortedEntries[i].valid) {
             // Truncate value if it's too long
             char truncated_value[VALUE_WIDTH + 1];
-            strncpy(truncated_value, logMap.entries[i].value, VALUE_WIDTH);
+            strncpy(truncated_value, sortedEntries[i].value, VALUE_WIDTH);
             truncated_value[VALUE_WIDTH] = '\0';
             
             printf("│ %-*s │ %-*s │\n", 
-                   KEY_WIDTH, logMap.entries[i].key,
+                   KEY_WIDTH, sortedEntries[i].key,
                    VALUE_WIDTH, truncated_value);
+            validCount++;
         }
     }
     
@@ -115,14 +137,13 @@ void logDisplay(void) {
     
     // Fill remaining lines to prevent flicker
     int total_width = KEY_WIDTH + VALUE_WIDTH + 7; // 7 = borders + padding
-    for (int i = logMap.count; i < MAX_LOG_ENTRIES; i++) {
+    for (int i = validCount; i < MAX_LOG_ENTRIES; i++) {
         for(int j = 0; j < total_width; j++) printf(" ");
         printf("\n");
     }
     
     fflush(stdout);
 }
-
 
 // Initialize the log system (call once at startup)
 void logInit(void) {

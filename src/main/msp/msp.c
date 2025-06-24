@@ -1548,7 +1548,7 @@ case MSP_NAME:
         sbufWriteU16(dst, autopilotConfig()->ap_throttle_min);
         sbufWriteU16(dst, autopilotConfig()->ap_throttle_max);
         sbufWriteU16(dst, autopilotConfig()->ap_hover_throttle);
-        sbufWriteU8(dst,  gpsRescueConfig()->sanityChecks);
+        sbufWriteU8(dst,  gpsRescueConfig()->sanityChecksMode);
         sbufWriteU8(dst,  gpsRescueConfig()->minSats);
 
         // Added in API version 1.43
@@ -2935,7 +2935,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         autopilotConfigMutable()->ap_throttle_min = sbufReadU16(src);
         autopilotConfigMutable()->ap_throttle_max = sbufReadU16(src);
         autopilotConfigMutable()->ap_hover_throttle = sbufReadU16(src);
-        gpsRescueConfigMutable()->sanityChecks = sbufReadU8(src);
+        gpsRescueConfigMutable()->sanityChecksMode = sbufReadU8(src);
         gpsRescueConfigMutable()->minSats = sbufReadU8(src);
         if (sbufBytesRemaining(src) >= 6) {
             // Added in API version 1.43

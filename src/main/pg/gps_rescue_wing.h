@@ -31,7 +31,7 @@ typedef struct gpsRescue_s {
     uint8_t  yawP;
     uint8_t  minSats;
     uint16_t minStartDistM; // meters
-    uint8_t  sanityChecks;
+    uint8_t  sanityChecksMode;
     uint8_t  allowArmingWithoutFix;
     uint8_t  useMag;
     uint8_t  altitudeMode;
@@ -60,7 +60,7 @@ typedef struct gpsRescue_s {
     uint8_t ap_wing_landing_alt;
     uint8_t ap_wing_landing_speed; // km/h
     uint16_t ap_wing_landing_approach_dist;
-    
+
     uint8_t ap_wing_stall_speed; // km/h, used for speed control
 } gpsRescueConfig_t;
 

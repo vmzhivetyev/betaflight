@@ -363,7 +363,7 @@ static void performSanityChecks(void)
         // Default to 20s semi-controlled descent with impact detection, then abort
         rescueState.phase = RESCUE_DO_NOTHING;
 
-        switch(gpsRescueConfig()->sanityChecks) {
+        switch(gpsRescueConfig()->sanityChecksMode) {
         case RESCUE_SANITY_ON:
             rescueState.phase = RESCUE_ABORT;
             break;

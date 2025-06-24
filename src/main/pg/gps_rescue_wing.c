@@ -48,7 +48,7 @@ PG_RESET_TEMPLATE(gpsRescueConfig_t, gpsRescueConfig,
     .disarmThreshold = 30,
 
     .allowArmingWithoutFix = false,
-    .sanityChecks = RESCUE_SANITY_FS_ONLY,
+    .sanityChecksMode = RESCUE_SANITY_FS_ONLY,
     .minSats = 8,
 
     .velP = 8,

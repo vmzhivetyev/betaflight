@@ -67,8 +67,13 @@ typedef enum {
     RESCUE_WAIT_FOR_LANDING_COURSE, // 9
     RESCUE_LAND, // 10
     RESCUE_DISARM_ON_IMPACT,
+    RESCUE_EMERGENCY_LANDING,
     RESCUE_ABORT,
 } rescuePhase_e;
+
+#define ENUM_VALUE_STR(stringsMap, value) \
+    ((value) < (sizeof(stringsMap)/sizeof(stringsMap[0])) && stringsMap[value] ? \
+     stringsMap[value] : "UNKNOWN")
 
 static const char* rescuePhaseStrings[] = {
     [RESCUE_IDLE] = "RESCUE_IDLE",
@@ -83,12 +88,11 @@ static const char* rescuePhaseStrings[] = {
     [RESCUE_WAIT_FOR_LANDING_COURSE] = "RESCUE_WAIT_FOR_LANDING_COURSE",
     [RESCUE_LAND] = "RESCUE_LAND",
     [RESCUE_DISARM_ON_IMPACT] = "RESCUE_DISARM_ON_IMPACT",
+    [RESCUE_EMERGENCY_LANDING] = "RESCUE_EMERGENCY_LANDING",
     [RESCUE_ABORT] = "RESCUE_ABORT",
 };
 
-#define RESCUE_PHASE_STR(phase) \
-    ((phase) < (sizeof(rescuePhaseStrings)/sizeof(rescuePhaseStrings[0])) && rescuePhaseStrings[phase] ? \
-     rescuePhaseStrings[phase] : "UNKNOWN_RESCUE_PHASE")
+#define RESCUE_PHASE_STR(phase) ENUM_VALUE_STR(rescuePhaseStrings, phase)
 
 typedef enum {
     RESCUE_HEALTHY,
@@ -100,6 +104,19 @@ typedef enum {
     RESCUE_TOO_CLOSE,
     RESCUE_NO_HOME_POINT
 } rescueFailureState_e;
+
+static const char* rescueFailureStrings[] = {
+    [RESCUE_HEALTHY] = "RESCUE_HEALTHY",
+    [RESCUE_FLYAWAY] = "RESCUE_FLYAWAY",
+    [RESCUE_GPSLOST] = "RESCUE_GPSLOST",
+    [RESCUE_LOWSATS] = "RESCUE_LOWSATS",
+    [RESCUE_CRASH_FLIP_DETECTED] = "RESCUE_CRASH_FLIP_DETECTED",
+    [RESCUE_STALLED] = "RESCUE_STALLED",
+    [RESCUE_TOO_CLOSE] = "RESCUE_TOO_CLOSE",
+    [RESCUE_NO_HOME_POINT] = "RESCUE_NO_HOME_POINT",
+};
+
+#define RESCUE_FAILURE_STR(failure) ENUM_VALUE_STR(rescueFailureStrings, failure)
 
 typedef struct {
     float maxAltitudeCm;
@@ -149,6 +166,10 @@ typedef struct {
 } rescueSensorData_s;
 
 typedef struct {
+    uint16_t secondsLowSats;
+} rescueSanityState_s;
+
+typedef struct {
     rescuePhase_e phase;
     rescueFailureState_e failure;
     rescueSensorData_s sensor;
@@ -173,6 +194,7 @@ static float previousVelocityError = 0.0f;
 static float velocityI = 0.0f;
 
 rescueState_s rescueState;
+rescueSanityState_s sanityState;
 
 #define desiredAltitudeCm rescueState.intent.targetAltitudeCm
 
@@ -341,6 +363,9 @@ static void g_rescueControlRollAndPitch(bool newGpsData)
         gpsRescueAngle[AI_PITCH] = 0.0f;
         gpsRescueAngle[AI_ROLL] = 0.0f;
         return;
+    case RESCUE_EMERGENCY_LANDING:
+        gpsRescueAngle[AI_PITCH] = -10.0f;
+        gpsRescueAngle[AI_ROLL] = 45.0f;
      default:
         break;
     }
@@ -415,10 +440,10 @@ static void g_rescueControlRollAndPitch(bool newGpsData)
     calculatedPitchDegrees -= pitchDegreesFromRoll; // pull up the nose to counteract a roll-induced pitch down
     calculatedPitchDegrees = constrainf(calculatedPitchDegrees, -gpsRescueConfig()->maxRescueAngle, gpsRescueConfig()->maxRescueAngle);
     
-    LOG_UPDATE_100MS("altitude_pid", "p:%+6.3f i:%+6.3f d:%+6.3f sumRaw:%+6.3f, sumClamped:%+6.3f", 
+    LOG_UPDATE_100MS("d. altitude_pid", "p:%+6.3f i:%+6.3f d:%+6.3f sumRaw:%+6.3f, sumClamped:%+6.3f", 
                     (double)altP, (double)altI, (double)altD, (double)calculatedPitchDegreesRaw, (double)calculatedPitchDegrees);
 
-    LOG_UPDATE_100MS("altitude", "tar:%+6.1f cur:%+6.1f err:%+6.1f", 
+    LOG_UPDATE_100MS("d. altitude", "tar:%+6.1f cur:%+6.1f err:%+6.1f", 
                     (double)desiredAltitudeCm / 100.0, 
                     (double)rescueState.sensor.currentAltitudeCm / 100.0,
                     (double)altitudeError);
@@ -430,33 +455,34 @@ static void g_rescueControlRollAndPitch(bool newGpsData)
     gpsRescueAngle[AI_PITCH] = calculatedPitchDegrees * 100.0f;
 }
 
-static void performSanityChecks(void)
+static void g_sanity1hz_checkSatsCount(void)
 {
-    static timeUs_t previousTimeUs = 0; // Last time Stalled/LowSat was checked
-    static int8_t secondsLowSats = 0; // Minimum sat detection
-    static int8_t secondsDoingNothing; // Limit on doing nothing
-    const timeUs_t currentTimeUs = micros();
-
-    if (rescueState.phase == RESCUE_IDLE) {
-        rescueState.failure = RESCUE_HEALTHY;
-        return;
-    } else if (rescueState.phase == RESCUE_INITIALIZE) {
-        // Initialize these variables each time a GPS Rescue is started
-        previousTimeUs = currentTimeUs;
-        secondsLowSats = 0;
-        secondsDoingNothing = 0;
+    if (!STATE(GPS_FIX) || (gpsSol.numSat < GPS_MIN_SAT_COUNT)) {
+        sanityState.secondsLowSats += 1;
+        sanityState.secondsLowSats = MIN(sanityState.secondsLowSats, UINT16_MAX - 1);
+    } else {
+        sanityState.secondsLowSats = 0;
     }
 
-    // Handle events that set a failure mode to other than healthy.
-    // Disarm via Abort when sanity on, or for hard Rx loss in FS_ONLY mode
-    // Otherwise allow 20s of semi-controlled descent with impact disarm detection
+    if (sanityState.secondsLowSats > 10) {
+        rescueState.failure = RESCUE_LOWSATS;
+    }
+    
+    // if (!rescueState.sensor.healthy) {
+    //     rescueState.failure = RESCUE_GPSLOST;
+    // }
+}
+
+static void performSanityChecks(void)
+{
+    if (rescueState.phase == RESCUE_IDLE) {
+        return;
+    }
+
     const bool hardFailsafe = !isRxReceivingSignal();
 
     if (rescueState.failure != RESCUE_HEALTHY) {
-        // Default to 20s semi-controlled descent with impact detection, then abort
-        rescueState.phase = RESCUE_DISARM_ON_IMPACT;
-
-        switch(gpsRescueConfig()->sanityChecks) {
+        switch(gpsRescueConfig()->sanityChecksMode) {
         case RESCUE_SANITY_ON:
             rescueState.phase = RESCUE_ABORT;
             break;
@@ -465,68 +491,25 @@ static void performSanityChecks(void)
                 rescueState.phase = RESCUE_ABORT;
             }
             break;
+        case RESCUE_SANITY_OFF:
         default:
-            // even with sanity checks off,
-            // override when Allow Arming without Fix is enabled without GPS_FIX_HOME and no Control link available.
-            if (gpsRescueConfig()->allowArmingWithoutFix && !STATE(GPS_FIX_HOME) && hardFailsafe) {
-                rescueState.phase = RESCUE_ABORT;
-            }
+            return;
+            // if (gpsRescueConfig()->allowArmingWithoutFix && !STATE(GPS_FIX_HOME) && hardFailsafe) {
+            //     rescueState.phase = RESCUE_ABORT;
+            // }
         }
     }
-
-    // Crash detection is enabled in all rescues.  If triggered, immediately disarm.
-    if (crashRecoveryModeActive()) {
-        setArmingDisabled(ARMING_DISABLED_ARM_SWITCH);
-        disarm(DISARM_REASON_CRASH_PROTECTION);
-        rescueStop();
-    }
-
-    // Check if GPS comms are healthy
-    // ToDo - check if we have an altitude reading; if we have Baro, we can use Landing mode for controlled descent without GPS
-    if (!rescueState.sensor.healthy) {
-        rescueState.failure = RESCUE_GPSLOST;
-    }
-
-    //  Things that should run at a low refresh rate (such as flyaway detection, etc) will be checked at 1Hz
+    
+    //  Things that should run at a low refresh rate
+    static timeUs_t previousTimeUs = 0;
+    const timeUs_t currentTimeUs = micros();
     const timeDelta_t dTime = cmpTimeUs(currentTimeUs, previousTimeUs);
     if (dTime < 1000000) { //1hz
         return;
     }
     previousTimeUs = currentTimeUs;
 
-    // checks that we are getting closer to home.
-    // if the quad is stuck, or if GPS data packets stop, there will be no change in distance to home
-    // we can't use rescueState.sensor.currentVelocity because it will be held at the last good value if GPS data updates stop
-    if (rescueState.phase == RESCUE_FLY_HOME) {
-        // TODO: verify we are getting closer
-        // need to keep in mind that wing not nessessary walways getting closer. For example it can be circling around the home point
-        // or it can do a slow turn after GPS rescue was triggered
-    }
-
-    secondsLowSats += (!STATE(GPS_FIX) || (gpsSol.numSat < GPS_MIN_SAT_COUNT)) ? 1 : -1;
-    secondsLowSats = constrain(secondsLowSats, 0, 10);
-
-    if (secondsLowSats == 10) {
-        rescueState.failure = RESCUE_LOWSATS;
-    }
-
-    // These conditions ignore sanity mode settings, and apply in all rescues, to handle getting stuck in a climb or descend
-
-    switch (rescueState.phase) {
-    case RESCUE_DISARM_ON_IMPACT:
-        secondsDoingNothing = MIN(secondsDoingNothing + 1, 20);
-        if (secondsDoingNothing >= 20) {
-            rescueState.phase = RESCUE_ABORT;
-            // time-limited semi-controlled fall with impact detection
-        }
-        break;
-    default:
-        // do nothing
-        break;
-    }
-
-    DEBUG_SET(DEBUG_RTH, 2, (rescueState.failure * 10 + rescueState.phase));
-    DEBUG_SET(DEBUG_RTH, 3, (rescueState.intent.secondsFailing * 100 + secondsLowSats));
+    g_sanity1hz_checkSatsCount();
 }
 
 static void sensorUpdate(bool newGPSData)
@@ -1028,6 +1011,7 @@ void gpsRescueUpdate(void)
 // runs at gpsRescueTaskIntervalSeconds, and runs whether or not rescue is active
 {
     LOG_UPDATE_100MS("rescue phase", RESCUE_PHASE_STR(rescueState.phase));
+    LOG_UPDATE_100MS("rescue fialure", RESCUE_FAILURE_STR(rescueState.failure));
     LOG_DISPLAY_100MS();
     
     bool newGpsData = g_updateGPSData();
@@ -1157,21 +1141,17 @@ float g_gpsRescueGetVelocityPIDSum(bool newGpsData)
         velocityPIDSum = constrainf(velocityPIDSum, -1.0f, 1.0f);
 
         LOG_UPDATE_DOUBLE_100MS("vel_pidsum", (double)velocityPIDSum);
-        LOG_UPDATE_100MS("speed", "gps: %+6.1f, air: %+6.1f", 
+        LOG_UPDATE_100MS("d. speed", "gps: %+6.1f     air: %+6.1f     km/h", 
                  (double)(gpsSpeed / 100.0f) * 3.6,
                  (double)(estimatedSpeedCmS / 100.0f) * 3.6
                 );
 
-        LOG_UPDATE_100MS("tracked speed", "%+6.1f -> %+6.1f   err: %+6.1f", 
+        LOG_UPDATE_100MS("d. speed tracked", "%+6.1f -> %+6.1f   err: %+6.1f  km/h", 
                  (double)(trackedSpeedCmS / 100.0f) * 3.6,
                  (double)(rescueState.intent.targetVelocityCmS / 100.0f) * 3.6, 
                  (double)(velocityError / 100.0f) * 3.6);
 
-        LOG_UPDATE_100MS("est speed", "%+6.1f", (double)pidRuntime.tpaSpeed.speed * 3.6);
-
-        LOG_UPDATE_DOUBLE_100MS("cutoff_hz", (double)cutoffHz);
-
-        LOG_UPDATE_100MS("throttle_pid", "p:%+6.3f i:%+6.3f d:%+6.3f sum:%+6.3f", 
+        LOG_UPDATE_100MS("d. throttle_pid", "p:%+6.3f i:%+6.3f d:%+6.3f sum:%+6.3f", 
                         (double)velocityP, (double)velocityI, (double)velocityD, (double)velocityPIDSum);
     }
 
