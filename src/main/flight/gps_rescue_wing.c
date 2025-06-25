@@ -199,11 +199,13 @@ rescueSanityState_s sanityState;
 
 // FORWARD DECLARATIONS
 
-float g_gpsRescueGetVelocityPIDSum(bool newGpsData);
+fileprivate float g_gpsRescueGetVelocityPIDSum(float dT);
+fileprivate void g_rescueControlRollAndPitch(float dT);
+fileprivate void g_initialiseSimpleIntentValues (void);
 
 // UTILITY FUNCTIONS
 
-static float normalizeCourseErrorDecidegrees(float targetDecidegrees, float currentDecidegrees) {
+fileprivate float normalizeCourseErrorDecidegrees(float targetDecidegrees, float currentDecidegrees) {
     float error = (targetDecidegrees - currentDecidegrees) / 10.0f;
     error = fmodf(error + 180.0f, 360.0f) - 180.0f;
     if (error < -180.0f) {
@@ -238,17 +240,17 @@ void gpsRescueInit(void)
     rescueState.sensor.imuYawCogGain = 1.0f; // idk what this is
 }
 
-static void rescueStart(void)
+fileprivate void rescueStart(void)
 {
     rescueState.phase = RESCUE_INITIALIZE;
 }
 
-static void rescueStop(void)
+fileprivate void rescueStop(void)
 {
     rescueState.phase = RESCUE_IDLE;
 }
 
-static void g_updateMaxAltutude(void)
+fileprivate void g_updateMaxAltutude(void)
 {
     // Hold maxAltitude at zero while disarmed, but if set_home_point_once is true, hold maxAlt until power cycled
     if (!ARMING_FLAG(ARMED) && !gpsConfig()->gps_set_home_point_once) {
@@ -258,12 +260,12 @@ static void g_updateMaxAltutude(void)
     }
 }
 
-static void g_setDescentDistanceFromConfig(void)
+fileprivate void g_setDescentDistanceFromConfig(void)
 {
     rescueState.intent.descentDistanceM = gpsRescueConfig()->descentDistanceM;
 }
 
-static void g_setReturnAltitude(void)
+fileprivate void g_setReturnAltitude(void)
 {
     const float initialClimbCm = gpsRescueConfig()->initialClimbM * 100.0f;
 
@@ -284,10 +286,7 @@ static void g_setReturnAltitude(void)
     }
 }
 
-void g_initialiseSimpleIntentValues (void);
-static void g_rescueControlRollAndPitch(bool newGpsData);
-
-static void g_initializeIntent(void) {
+fileprivate void g_initializeIntent(void) {
     g_initialiseSimpleIntentValues();
     g_setDescentDistanceFromConfig();
     g_setReturnAltitude();
@@ -295,10 +294,10 @@ static void g_initializeIntent(void) {
     rescueState.intent.targetAltitudeCm = rescueState.intent.returnAltitudeCm;
 }
 
-static void g_initializeGPSRescue(void) {
+fileprivate void g_initializeGPSRescue(void) {
     // assert that we are in RESCUE_INITIALIZE phase
 
-    g_rescueControlRollAndPitch(false); // <- Initialise func's internal variables
+    g_rescueControlRollAndPitch(1); // <- Initialise func's internal variables
 
     if (!STATE(GPS_FIX_HOME)) { // we didn't get a home point on arming
         rescueState.failure = RESCUE_NO_HOME_POINT;
@@ -328,7 +327,7 @@ static void g_initializeGPSRescue(void) {
     }
 }
 
-float g_calculateAltitudePID(float resolvedCurrentAltitudeCm, float dT)
+fileprivate float g_calculateAltitudePID(float resolvedCurrentAltitudeCm, float dT)
 {
     static float altI = 0.0f;
     static float previousAltitudeError = 0.0f;
@@ -358,10 +357,10 @@ float g_calculateAltitudePID(float resolvedCurrentAltitudeCm, float dT)
     previousAltitudeError = altitudeErrorM;
     float pidSum = altP + altI - altD;
 
-    LOG_UPDATE_100MS("d. altitude_pid", "p:%+6.3f i:%+6.3f d:%+6.3f sumRaw:%+6.3f, sumClamped:%+6.3f", 
+    LOG_UPDATE("d. altitude_pid", "p:%+6.3f i:%+6.3f d:%+6.3f sumRaw:%+6.3f, sumClamped:%+6.3f", 
                     (double)altP, (double)altI, (double)altD, (double)pidSum);
 
-    LOG_UPDATE_100MS("d. altitude", "tar:%+6.1f cur:%+6.1f err:%+6.1f", 
+    LOG_UPDATE("d. altitude", "tar:%+6.1f cur:%+6.1f err:%+6.1f", 
                     (double)desiredAltitudeCm / 100.0, 
                     (double)rescueState.sensor.currentAltitudeCm / 100.0,
                     (double)altitudeErrorM);
@@ -369,7 +368,7 @@ float g_calculateAltitudePID(float resolvedCurrentAltitudeCm, float dT)
     return pidSum;
 }
 
-float g_calculateCoursePID(float resolvedCurrentCourseDecidegrees, float dT)
+fileprivate float g_calculateCoursePID(float resolvedCurrentCourseDecidegrees, float dT)
 {
     static float courseI = 0.0f;
     static float previousCourseError = 0.0f;
@@ -411,7 +410,7 @@ float g_calculateCoursePID(float resolvedCurrentCourseDecidegrees, float dT)
     return pidSum;
 }
 
-static bool g_setHardcodedRollPitchIfNeeded(void)
+fileprivate bool g_setHardcodedRollPitchIfNeeded(void)
 {
     switch (rescueState.phase) {
     case RESCUE_IDLE:
@@ -434,7 +433,7 @@ static bool g_setHardcodedRollPitchIfNeeded(void)
     }
 }
 
-static void g_rescueControlRollAndPitch(bool dT)
+fileprivate void g_rescueControlRollAndPitch(float dT)
 {
     // prepare data
     float currentCourse = gpsSol.groundCourse;
@@ -464,7 +463,7 @@ static void g_rescueControlRollAndPitch(bool dT)
     gpsRescueAngle[AI_PITCH] = pitchDegrees * 100.0f;
 }
 
-static void g_sanity1hz_checkSatsCount(void)
+fileprivate void g_sanity1hz_checkSatsCount(void)
 {
     if (!STATE(GPS_FIX) || (gpsSol.numSat < GPS_MIN_SAT_COUNT)) {
         sanityState.secondsLowSats += 1;
@@ -484,28 +483,13 @@ static void g_sanity1hz_checkSatsCount(void)
     // }
 }
 
-static void g_reactToFailure(void)
-{
-    const bool hardFailsafe = !isRxReceivingSignal();
-
-    if (rescueState.failure) {
-        
-    }
-}
-
-static void g_performSanityChecks(void)
-{
-    if (rescueState.phase == RESCUE_IDLE) {
-        return;
-    }
-
-    g_reactToFailure();
-    
-    //  Things that should run at a low refresh rate
+fileprivate void g_performSanityChecks(void)
+{    
+    // 1Hz checks
     static timeUs_t previousTimeUs = 0;
     const timeUs_t currentTimeUs = micros();
     const timeDelta_t dTime = cmpTimeUs(currentTimeUs, previousTimeUs);
-    if (dTime < 1000000) { //1hz
+    if (dTime < 1000000) { // 1 second
         return;
     }
     previousTimeUs = currentTimeUs;
@@ -513,7 +497,7 @@ static void g_performSanityChecks(void)
     g_sanity1hz_checkSatsCount();
 }
 
-static void sensorUpdate(bool newGPSData)
+fileprivate void sensorUpdate(bool newGPSData)
 {
     static float prevDistanceToHomeCm = 0.0f;
     const timeUs_t currentTimeUs = micros();
@@ -536,9 +520,9 @@ static void sensorUpdate(bool newGPSData)
     rescueState.sensor.distanceToHomeCm = GPS_distanceToHomeCm;
     rescueState.sensor.distanceToHomeM = rescueState.sensor.distanceToHomeCm / 100.0f;
 
-    LOG_UPDATE_100MS("home_distance", "%+6.1f", (double)rescueState.sensor.distanceToHomeM);
+    LOG_UPDATE("home_distance", "%+6.1f", (double)rescueState.sensor.distanceToHomeM);
 
-    LOG_UPDATE_100MS("velocity_to_home", "%+6.1f", (double)rescueState.sensor.velocityToHomeCmS / 100.0 * 3.6);
+    LOG_UPDATE("velocity_to_home", "%+6.1f", (double)rescueState.sensor.velocityToHomeCmS / 100.0 * 3.6);
 
     if (rescueState.intent.takeoffCourseValid) {
         uint32_t distCm;
@@ -674,7 +658,7 @@ static bool g_isLoiterNeeded(void)
         && gpsRescueConfig()->ap_wing_loiter_seconds > 0;
 }
 
-static void g_handleDescentDistanceReached(void)
+fileprivate void g_handleDescentDistanceReached(void)
 {
     rescueState.intent.targetAltitudeCm = rescueState.sensor.currentAltitudeCm;
     if (g_isLoiterNeeded()) {
@@ -685,12 +669,12 @@ static void g_handleDescentDistanceReached(void)
     // TODO: something else from intent needs changing here?
 }
 
-static void g_performDescentWithRateCmS(float rate)
+fileprivate void g_performDescentWithRateCmS(float rate)
 {
     desiredAltitudeCm -= rate * rescueState.sensor.gpsRescueTaskIntervalSeconds;
 }
 
-static void g_startRescueApproach(void)
+fileprivate void g_startRescueApproach(void)
 {
     rescueState.phase = RESCUE_FLY_AWAY_BEFORE_APPROACH;
 
@@ -734,7 +718,7 @@ static float g_calculateBestDescentRateCmS(float targetAltitudeCm, float idealTi
     return descentRateCmSFinal;
 }
 
-static void g_rememberTakeoffCourse(void)
+fileprivate void g_rememberTakeoffCourse(void)
 {
     static bool previousWeHaveDistance = true; // prevent logging on first run
     
@@ -742,14 +726,14 @@ static void g_rememberTakeoffCourse(void)
     const bool weHaveDistance = rescueState.sensor.distanceToHomeM > idealDistanceM;
     const bool weAreTooFar = rescueState.sensor.distanceToHomeM > idealDistanceM * 2.0f;
 
-    LOG_UPDATE_100MS("weHaveDistance", weHaveDistance ? "true" : "false");
-    LOG_UPDATE_100MS("weAreTooFar", weAreTooFar ? "true" : "false");
+    LOG_UPDATE("weHaveDistance", weHaveDistance ? "true" : "false");
+    LOG_UPDATE("weAreTooFar", weAreTooFar ? "true" : "false");
     if (weAreTooFar) {
         return;
     }
     
     if (!previousWeHaveDistance) {
-        LOG_UPDATE_100MS("takeoff_zone_speed", "%f", (double)(rescueState.sensor.velocityToHomeCmS / 100.0f * 3.6f));
+        LOG_UPDATE("takeoff_zone_speed", "%f", (double)(rescueState.sensor.velocityToHomeCmS / 100.0f * 3.6f));
     }
         
     const bool didJustExitTakeoffZone = weHaveDistance && !previousWeHaveDistance;
@@ -773,9 +757,9 @@ static void g_rememberTakeoffCourse(void)
         rescueState.intent.takeoffCourse = gpsSol.groundCourse;
         rescueState.intent.takeoffNeutralPoint = gpsSol.llh;
         rescueState.intent.takeoffCourseValid = true;
-        LOG_UPDATE_100MS("exit_data", "course:%+6.1f", (double)(rescueState.intent.takeoffCourse / 10.0f));
+        LOG_UPDATE("exit_data", "course:%+6.1f", (double)(rescueState.intent.takeoffCourse / 10.0f));
     } else {
-        LOG_UPDATE_100MS("exit_data", "too slow %f", (double)(-rescueState.sensor.velocityToHomeCmS / 100.0f * 3.6f));
+        LOG_UPDATE("exit_data", "too slow %f", (double)(-rescueState.sensor.velocityToHomeCmS / 100.0f * 3.6f));
     }
 }
 
@@ -968,8 +952,7 @@ void g_updateGPSRescue_processState(void)
         rescueState.intent.targetAltitudeCm = targetAlt;
 
         // print debug info
-        LOG_UPDATE_100MS("landing_progress", "%f", (double)descentProgress);
-        LOG_UPDATE_100MS("distanceToHomeM", "%f", (double)rescueState.sensor.distanceToHomeM);
+        LOG_UPDATE("landing_progress", "%f", (double)descentProgress);
         
         // TODO: check if we are moving away from home
 
@@ -1009,7 +992,7 @@ void g_updateGPSRescue_processState(void)
     }
 }
 
-static void g_throttledUpdateLoop(bool newGpsData)
+fileprivate void g_throttledUpdateLoop(bool newGpsData)
 {
     static timeMs_t lastTime = 0;
 
@@ -1021,12 +1004,14 @@ static void g_throttledUpdateLoop(bool newGpsData)
     const float dT = (millis() - lastTime) / 1000.0f;
 
     // don't update too often
-    if (dT >= rescueState.sensor.gpsDataIntervalSeconds 
+    if (dT >= 1.0f / 20.0f
         || newGpsData
         || rescueState.phase == RESCUE_INITIALIZE
     ) {
-        g_rescueControlRollAndPitch(newGpsData);
-        float velocityPIDSum = g_gpsRescueGetVelocityPIDSum(newGpsData);
+        lastTime = millis();
+        LOG_UPDATE("gps loop dT", "%f", (double)dT);
+        g_rescueControlRollAndPitch(dT);
+        float velocityPIDSum = g_gpsRescueGetVelocityPIDSum(dT);
         setAutopilotThrottle(gpsRescueGetThrottle(velocityPIDSum));
     }
 }
@@ -1034,8 +1019,8 @@ static void g_throttledUpdateLoop(bool newGpsData)
 void gpsRescueUpdate(void)
 // runs at gpsRescueTaskIntervalSeconds, and runs whether or not rescue is active
 {
-    LOG_UPDATE_100MS("rescue phase", RESCUE_PHASE_STR(rescueState.phase));
-    LOG_UPDATE_100MS("rescue fialure", RESCUE_FAILURE_STR(rescueState.failure));
+    LOG_UPDATE("rescue phase", RESCUE_PHASE_STR(rescueState.phase));
+    LOG_UPDATE("rescue fialure", RESCUE_FAILURE_STR(rescueState.failure));
     LOG_DISPLAY_100MS();
     
     bool newGpsData = g_updateGPSData();
@@ -1104,36 +1089,21 @@ float g_calculateVelocityPID(float resolvedCurrentVelocityCmS, float dT)
     // velocityPIDSum += g_antiStallThrottleBoost();
     velocityPIDSum = constrainf(velocityPIDSum, -1.0f, 1.0f);
 
-    LOG_UPDATE_DOUBLE_100MS("vel_pidsum", (double)velocityPIDSum);
-
-    LOG_UPDATE_100MS("d. speed tracked", "%+6.1f -> %+6.1f   err: %+6.1f  km/h", 
+    LOG_UPDATE("d. speed tracked", "%+6.1f -> %+6.1f   err: %+6.1f  km/h", 
                 (double)(resolvedCurrentVelocityCmS / 100.0f) * 3.6,
                 (double)(rescueState.intent.targetVelocityCmS / 100.0f) * 3.6, 
                 (double)(velocityError / 100.0f) * 3.6);
 
-    LOG_UPDATE_100MS("d. throttle_pid", "p:%+6.3f i:%+6.3f d:%+6.3f sum:%+6.3f", 
+    LOG_UPDATE("d. throttle_pid", "p:%+6.3f i:%+6.3f d:%+6.3f sum:%+6.3f", 
                     (double)velocityP, (double)velocityI, (double)velocityD, (double)velocityPIDSum);
 
     return velocityPIDSum;
 }
 
 // Returns throttle value offset.
-float g_gpsRescueGetVelocityPIDSum(bool newGpsData)
+float g_gpsRescueGetVelocityPIDSum(float dT)
 {
     static float velocityPIDSum = 0.0f;
-    static timeMs_t lastTime = 0;
-
-    if (lastTime == 0) {
-        lastTime = millis();
-        return velocityPIDSum;
-    }
-
-    const float dT = (millis() - lastTime) / 1000.0f;
-
-    // don't update too often
-    if (dT < rescueState.sensor.gpsDataIntervalSeconds / 2.0f && !newGpsData) {
-        return velocityPIDSum;
-    }
 
     const float airSpeedCmS = pidRuntime.tpaSpeed.speed * 100.0f;
     const float gpsSpeed = rescueState.sensor.groundSpeedCmS;
@@ -1151,7 +1121,7 @@ float g_gpsRescueGetVelocityPIDSum(bool newGpsData)
 
     velocityPIDSum = g_calculateVelocityPID(trackedSpeedCmS, dT);
     
-    LOG_UPDATE_100MS("d. speed", "gps: %+6.1f     air: %+6.1f     km/h", 
+    LOG_UPDATE("d. speed", "gps: %+6.1f     air: %+6.1f     km/h", 
         isGpsBad ? -1 : (double)(gpsSpeed / 100.0f) * 3.6,
         (double)(airSpeedCmS / 100.0f) * 3.6
     );

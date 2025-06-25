@@ -64,6 +64,9 @@
 #define USE_TIMER
 
 // === VMZ CUSTOM ===
+
+#define fileprivate static
+
 #ifdef SITL
 #define USE_WING
 #define USE_GPS

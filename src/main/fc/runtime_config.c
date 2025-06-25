@@ -106,7 +106,7 @@ void debug_log_armingDisableFlags(void) {
         buffer[len] = '\0';
     }
 
-    LOG_UPDATE_100MS("arming disable", buffer);
+    LOG_UPDATE("arming disable", buffer);
 }
 
 void setArmingDisabled(armingDisableFlags_e flag)

@@ -49,7 +49,7 @@ void setBadGPS(void)
 
 void setVirtualGPS(double latitude, double longitude, double altiutude, double speed, double speed3D, double course)
 {
-    LOG_UPDATE_100MS("AUX5", "%f", (double)rcData[AUX5]);
+    LOG_UPDATE("AUX5", "%f", (double)rcData[AUX5]);
 
     if (rcData[AUX5] < 1010.0f) {
         setBadGPS();

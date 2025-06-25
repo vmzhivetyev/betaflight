@@ -170,7 +170,7 @@ void batteryUpdateVoltage(timeUs_t currentTimeUs)
             voltageMeter.displayFiltered = 4.0f * voltCell; // fake voltage for SITL
             voltageMeter.unfiltered = voltageMeter.displayFiltered;
 
-            LOG_UPDATE_100MS("vcell", "%3.2f V", (double)voltCell);
+            LOG_UPDATE("vcell", "%3.2f V", (double)voltCell);
 
             #if defined(USE_BATTERY_VOLTAGE_SAG_COMPENSATION)
                 voltageMeter.sagFiltered = 1616;
