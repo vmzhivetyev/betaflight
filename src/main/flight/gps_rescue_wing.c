@@ -167,6 +167,7 @@ typedef struct {
 
 typedef struct {
     uint16_t secondsLowSats;
+    bool isGPSHealthy;
 } rescueSanityState_s;
 
 typedef struct {
@@ -463,6 +464,8 @@ static void g_sanity1hz_checkSatsCount(void)
     } else {
         sanityState.secondsLowSats = 0;
     }
+
+    sanityState.isGPSHealthy = sanityState.secondsLowSats < 10;
 
     if (sanityState.secondsLowSats > 10) {
         rescueState.failure = RESCUE_LOWSATS;
@@ -1081,79 +1084,84 @@ float gpsRescueGetImuYawCogGain(void)
 //     return stallSpeedBoost;
 // }
 
+float g_calculateVelocityPID(float resolvedCurrentVelocityCmS, float dT)
+{
+    const float velocityError = rescueState.intent.targetVelocityCmS - resolvedCurrentVelocityCmS;
+    // velocityError is in cm per second, positive means too slow.
+    // NB positive pitch setpoint means nose down.
+    // target velocity can be very negative leading to large error before the start, with overshoot
+
+    // P component
+    const float velocityP = velocityError * gpsRescueConfig()->velP * 0.001f;
+
+    // I component
+    velocityI += 0.001f * gpsRescueConfig()->velI * velocityError * dT; // * rescueState.intent.velocityItermRelax;
+
+    const float velocityILimit = 0.25f; // TODO: ???
+    velocityI = constrainf(velocityI, -velocityILimit, velocityILimit);
+
+    // D component
+    float velocityD = ((velocityError - previousVelocityError) / (dT * 10.0f));
+    previousVelocityError = velocityError;
+    velocityD *= gpsRescueConfig()->velD * 0.001f;
+    pt1FilterUpdateCutoffWithDTSeconds(&velocityDLpf, rescueState.intent.velocityDLpfCutoff, dT);
+    velocityD = pt1FilterApply(&velocityDLpf, velocityD);
+
+    float velocityPIDSum = velocityP + velocityI + velocityD;
+    // velocityPIDSum += g_antiStallThrottleBoost();
+    velocityPIDSum = constrainf(velocityPIDSum, -1.0f, 1.0f);
+
+    LOG_UPDATE_DOUBLE_100MS("vel_pidsum", (double)velocityPIDSum);
+
+    LOG_UPDATE_100MS("d. speed tracked", "%+6.1f -> %+6.1f   err: %+6.1f  km/h", 
+                (double)(resolvedCurrentVelocityCmS / 100.0f) * 3.6,
+                (double)(rescueState.intent.targetVelocityCmS / 100.0f) * 3.6, 
+                (double)(velocityError / 100.0f) * 3.6);
+
+    LOG_UPDATE_100MS("d. throttle_pid", "p:%+6.3f i:%+6.3f d:%+6.3f sum:%+6.3f", 
+                    (double)velocityP, (double)velocityI, (double)velocityD, (double)velocityPIDSum);
+
+    return velocityPIDSum;
+}
+
 // Returns throttle value offset.
 float g_gpsRescueGetVelocityPIDSum(bool newGpsData)
 {
     static float velocityPIDSum = 0.0f;
+    static timeMs_t lastTime = 0;
 
-    if (newGpsData) {
-        const float sampleIntervalNormaliseFactor = rescueState.sensor.gpsDataIntervalSeconds * 10.0f;
-
-        const float estimatedSpeedCmS = pidRuntime.tpaSpeed.speed * 100.0f; // m/s to cm/s
-        const float gpsSpeed = rescueState.sensor.groundSpeedCmS;
-        
-        float trackedSpeedCmS = gpsSpeed;
-        if (rescueState.phase != RESCUE_LAND) {
-            // Prevents stall during flight AND prevents very low ground speed when flying against wind.
-            trackedSpeedCmS = fminf(estimatedSpeedCmS, gpsSpeed);
-        }
-        // TODO: check against "velocityTowardsTargetCourse" instead of absolute ground speed.
-
-        const float velocityError = rescueState.intent.targetVelocityCmS - trackedSpeedCmS;
-        // velocityError is in cm per second, positive means too slow.
-        // NB positive pitch setpoint means nose down.
-        // target velocity can be very negative leading to large error before the start, with overshoot
-
-        // P component
-        const float velocityP = velocityError * gpsRescueConfig()->velP * 0.001f;
-
-        // I component
-        velocityI += 0.0001f * gpsRescueConfig()->velI * velocityError * sampleIntervalNormaliseFactor; // * rescueState.intent.velocityItermRelax;
-        // velocityItermRelax is a time-based factor, 0->1 with time constant of 1s from when we start to fly home
-        // avoids excess iTerm accumulation during the initial acceleration phase and during descent.
-
-        // velocityI *= rescueState.intent.velocityItermAttenuator;
-        // used to minimise iTerm windup during IMU error states and iTerm overshoot in the descent phase
-        // also, if we over-fly the home point, we need to re-accumulate iTerm from zero, not the previously accumulated value
-
-        const float velocityILimit = 0.25f; // TODO: ???
-        velocityI = constrainf(velocityI, -velocityILimit, velocityILimit);
-
-        // D component
-        float velocityD = ((velocityError - previousVelocityError) / sampleIntervalNormaliseFactor);
-        previousVelocityError = velocityError;
-        velocityD *= gpsRescueConfig()->velD * 0.001f;
-        DEBUG_SET(DEBUG_GPS_RESCUE_VELOCITY, 5, lrintf(velocityD)); // velocity D before lowpass smoothing
-        velocityD = pt1FilterApply(&velocityDLpf, velocityD);
-
-        // note that this cutoff is increased up to 2x as we get closer to landing point in descend()
-        const float cutoffHz = rescueState.intent.velocityDLpfCutoff; // * rescueState.intent.velocityPidCutoffModifier;
-        pt1FilterUpdateCutoffWithDTSeconds(
-            &velocityDLpf,
-            cutoffHz,
-            rescueState.sensor.gpsDataIntervalSeconds
-        );
-
-        // velocityD = pt1FilterApply(&velocityDLpf, velocityD);
-
-        velocityPIDSum = velocityP + velocityI + velocityD;
-        // velocityPIDSum += g_antiStallThrottleBoost();
-        velocityPIDSum = constrainf(velocityPIDSum, -1.0f, 1.0f);
-
-        LOG_UPDATE_DOUBLE_100MS("vel_pidsum", (double)velocityPIDSum);
-        LOG_UPDATE_100MS("d. speed", "gps: %+6.1f     air: %+6.1f     km/h", 
-                 (double)(gpsSpeed / 100.0f) * 3.6,
-                 (double)(estimatedSpeedCmS / 100.0f) * 3.6
-                );
-
-        LOG_UPDATE_100MS("d. speed tracked", "%+6.1f -> %+6.1f   err: %+6.1f  km/h", 
-                 (double)(trackedSpeedCmS / 100.0f) * 3.6,
-                 (double)(rescueState.intent.targetVelocityCmS / 100.0f) * 3.6, 
-                 (double)(velocityError / 100.0f) * 3.6);
-
-        LOG_UPDATE_100MS("d. throttle_pid", "p:%+6.3f i:%+6.3f d:%+6.3f sum:%+6.3f", 
-                        (double)velocityP, (double)velocityI, (double)velocityD, (double)velocityPIDSum);
+    if (lastTime == 0) {
+        lastTime = millis();
+        return velocityPIDSum;
     }
+
+    const float dT = (millis() - lastTime) / 1000.0f;
+
+    // don't update too often
+    if (dT < rescueState.sensor.gpsDataIntervalSeconds / 2.0f && !newGpsData) {
+        return velocityPIDSum;
+    }
+
+    const float airSpeedCmS = pidRuntime.tpaSpeed.speed * 100.0f;
+    const float gpsSpeed = rescueState.sensor.groundSpeedCmS;
+    const bool isGpsBad = !sanityState.isGPSHealthy;
+    
+    // during landing we ignore air speed, otherwise we will overspeed with wind.
+    const bool isGpsPrioritised = !isGpsBad && rescueState.phase == RESCUE_LAND;
+
+    float trackedSpeedCmS = isGpsPrioritised ? 
+        gpsSpeed : 
+        // Prevents stall during flight AND prevents very low ground speed when flying against wind.
+        fminf(airSpeedCmS, gpsSpeed);
+
+    // TODO: check against "velocityTowardsTargetCourse" instead of absolute ground speed.
+
+    velocityPIDSum = g_calculateVelocityPID(trackedSpeedCmS, dT);
+    
+    LOG_UPDATE_100MS("d. speed", "gps: %+6.1f     air: %+6.1f     km/h", 
+        isGpsBad ? -1 : (double)(gpsSpeed / 100.0f) * 3.6,
+        (double)(airSpeedCmS / 100.0f) * 3.6
+    );
 
     return velocityPIDSum;
 }
