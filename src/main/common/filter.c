@@ -149,10 +149,22 @@ float pt3FilterGainFromDelay(float delay, float dT)
 
 void pt3FilterInit(pt3Filter_t *filter, float k)
 {
-    filter->state = 0.0f;
-    filter->state1 = 0.0f;
-    filter->state2 = 0.0f;
+    pt3FilterInitValue(filter, k, 0.0f);
+}
+
+void pt3FilterInitValue(pt3Filter_t *filter, float k, float value)
+{
+    filter->state = value;
+    filter->state1 = value;
+    filter->state2 = value;
     filter->k = k;
+}
+
+void pt3FilterSetValue(pt3Filter_t *filter, float value)
+{
+    filter->state = value;
+    filter->state1 = value;
+    filter->state2 = value;
 }
 
 void pt3FilterUpdateCutoff(pt3Filter_t *filter, float k)

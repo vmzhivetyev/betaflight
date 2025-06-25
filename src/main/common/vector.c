@@ -75,11 +75,13 @@ float vector2Cross(const vector2_t *a, const vector2_t *b)
     return a->x * b->y - a->y * b->x;
 }
 
+// magnitude squared
 float vector2NormSq(const vector2_t *v)
 {
     return vector2Dot(v, v);
 }
 
+// magnitude
 float vector2Norm(const vector2_t *v)
 {
     return sqrtf(vector2NormSq(v));

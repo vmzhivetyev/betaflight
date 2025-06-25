@@ -127,7 +127,8 @@ typedef struct {
     float homeCourseAtActivation;
     bool takeoffCourseValid;
     
-    float targetAltitudeCm;
+    float smoothTargetAltitudeCm;
+    float _targetAltitudeCm;
     float targetCourseDecidegrees;
     float targetVelocityCmS;
 
@@ -182,6 +183,11 @@ typedef struct {
     timeMs_t landActivatedTime;
 } rescueState_s;
 
+typedef struct {
+    vector2_t velocity;
+    float magnitude;
+} windState_s;
+
 #define GPS_RESCUE_MAX_ANGULAR_ITERM     1500    // max iterm value for pitch in degrees * 100
 #define GPS_RESCUE_ALLOWED_YAW_RANGE   30.0f  // yaw error must be less than this to enter fly home phase, and to pitch during descend()
 
@@ -191,9 +197,11 @@ bool        magForceDisable = true;
 static pt2Filter_t altitudeDLpf;
 static pt1Filter_t velocityDLpf;
 static pt3Filter_t velocityUpsampleLpf;
+static pt3Filter_t targetAltitudeLpf;
 
 rescueState_s rescueState;
 rescueSanityState_s sanityState;
+windState_s windState;
 
 #define desiredAltitudeCm rescueState.intent.targetAltitudeCm
 
@@ -238,6 +246,10 @@ void gpsRescueInit(void)
     rescueState.intent.takeoffCourseValid = false;
 
     rescueState.sensor.imuYawCogGain = 1.0f; // idk what this is
+
+    windState.velocity.x = 0.0f;
+    windState.velocity.y = 0.0f;
+    windState.magnitude = 0.0f;
 }
 
 fileprivate void rescueStart(void)
@@ -291,7 +303,10 @@ fileprivate void g_initializeIntent(void) {
     g_setDescentDistanceFromConfig();
     g_setReturnAltitude();
     
-    rescueState.intent.targetAltitudeCm = rescueState.intent.returnAltitudeCm;
+    rescueState.intent._targetAltitudeCm = rescueState.intent.returnAltitudeCm;
+
+    const float gain = pt3FilterGain(0.25f, 1.0f/20.0f);
+    pt3FilterInitValue(&targetAltitudeLpf, gain, rescueState.sensor.currentAltitudeCm);
 }
 
 fileprivate void g_initializeGPSRescue(void) {
@@ -327,6 +342,50 @@ fileprivate void g_initializeGPSRescue(void) {
     }
 }
 
+// ============== RESCUE RUNTIME ===============
+
+void updateWind(float gpsCourseDegrees, float gpsSpeed, float estimatedForwardAirSpeed, float dT) {
+    const float smoothing = 1.0f;
+        
+    // Convert GPS course from degrees to radians
+    float gpsCourseRad = gpsCourseDegrees * M_PIf / 180.0f;
+    
+    // Calculate GPS velocity vector (ground speed)
+    float groundVelocityX = gpsSpeed * cosf(gpsCourseRad);
+    float groundVelocityY = gpsSpeed * sinf(gpsCourseRad);
+    
+    // Get aircraft attitude angles
+    float sinPitch = getSinPitchAngle();
+    float cosTilt = getCosTiltAngle();
+    
+    // Calculate horizontal component of airspeed considering aircraft attitude
+    // cosTilt accounts for roll, sinPitch accounts for pitch
+    float horizontalAirspeed = estimatedForwardAirSpeed * cosTilt * cosf(asinf(sinPitch));
+    
+    // Assume aircraft is pointing in GPS course direction for airspeed vector
+    // (This is a simplification - in reality you'd need aircraft heading)
+    float airVelocityX = horizontalAirspeed * cosf(gpsCourseRad);
+    float airVelocityY = horizontalAirspeed * sinf(gpsCourseRad);
+    
+    // Wind vector = Ground velocity - Air velocity
+    float instantWindEstimateX = groundVelocityX - airVelocityX;
+    float instantWindEstimateY = groundVelocityY - airVelocityY;
+    
+    // Apply smoothing filter to reduce noise
+    float alpha = dT / (smoothing + dT);
+    windState.velocity.x = windState.velocity.x * (1.0f - alpha) + instantWindEstimateX * alpha;
+    windState.velocity.y = windState.velocity.y * (1.0f - alpha) + instantWindEstimateY * alpha;
+    
+    // Calculate wind magnitude
+    windState.magnitude = vector2Norm(&windState.velocity);
+
+    LOG_UPDATE("wind", "%f m/s   ( %3.1f , %3.1f )", 
+        (double)windState.magnitude, 
+        (double)windState.velocity.x, 
+        (double)windState.velocity.y
+    );
+}
+
 fileprivate float g_calculateAltitudePID(float resolvedCurrentAltitudeCm, float dT)
 {
     static float altI = 0.0f;
@@ -337,7 +396,7 @@ fileprivate float g_calculateAltitudePID(float resolvedCurrentAltitudeCm, float 
         previousAltitudeError = 0.0f;
     }
 
-    const float altitudeErrorM = (resolvedCurrentAltitudeCm - desiredAltitudeCm) / 100.0f;
+    const float altitudeErrorM = (resolvedCurrentAltitudeCm - rescueState.intent.smoothTargetAltitudeCm) / 100.0f;
 
     // P
     const float altP = 0.1f * gpsRescueConfig()->ap_wing_alt_p * altitudeErrorM;
@@ -360,8 +419,9 @@ fileprivate float g_calculateAltitudePID(float resolvedCurrentAltitudeCm, float 
     LOG_UPDATE("d. altitude_pid", "p:%+6.3f i:%+6.3f d:%+6.3f sumRaw:%+6.3f, sumClamped:%+6.3f", 
                     (double)altP, (double)altI, (double)altD, (double)pidSum);
 
-    LOG_UPDATE("d. altitude", "tar:%+6.1f cur:%+6.1f err:%+6.1f", 
-                    (double)desiredAltitudeCm / 100.0, 
+    LOG_UPDATE("d. altitude", "%+6.1f <- %6.1f <- %+6.1f err:%+6.1f", 
+                    (double)rescueState.intent._targetAltitudeCm / 100.0,
+                    (double)rescueState.intent.smoothTargetAltitudeCm / 100.0, 
                     (double)rescueState.sensor.currentAltitudeCm / 100.0,
                     (double)altitudeErrorM);
 
@@ -558,6 +618,13 @@ fileprivate void sensorUpdate(bool newGPSData)
         // GPS ground speed, velocity and distance to home will be held at last good values if no new packets
     }
 
+    updateWind(
+        gpsSol.groundCourse, 
+        gpsSol.groundSpeed / 100,
+        pidRuntime.tpaSpeed.speed, // m/s
+        rescueState.sensor.gpsDataIntervalSeconds
+    );
+
     rescueState.sensor.groundSpeedCmS = gpsSol.groundSpeed; // cm/s
 
     rescueState.sensor.gpsDataIntervalSeconds = getGpsDataIntervalSeconds();
@@ -660,7 +727,7 @@ static bool g_isLoiterNeeded(void)
 
 fileprivate void g_handleDescentDistanceReached(void)
 {
-    rescueState.intent.targetAltitudeCm = rescueState.sensor.currentAltitudeCm;
+    rescueState.intent._targetAltitudeCm = rescueState.sensor.currentAltitudeCm;
     if (g_isLoiterNeeded()) {
         rescueState.phase = RESCUE_DESCEND_TO_LOITER;
     } else {
@@ -671,7 +738,7 @@ fileprivate void g_handleDescentDistanceReached(void)
 
 fileprivate void g_performDescentWithRateCmS(float rate)
 {
-    desiredAltitudeCm -= rate * rescueState.sensor.gpsRescueTaskIntervalSeconds;
+    rescueState.intent._targetAltitudeCm -= rate * rescueState.sensor.gpsRescueTaskIntervalSeconds;
 }
 
 fileprivate void g_startRescueApproach(void)
@@ -685,7 +752,7 @@ fileprivate void g_startRescueApproach(void)
         // assume takeoff course is just back from home course
         rescueState.intent.targetCourseDecidegrees = rescueState.intent.homeCourseAtActivation + 1800.0f;
     }
-    rescueState.intent.targetAltitudeCm = gpsRescueConfig()->ap_wing_landing_alt * 100.0f;
+    rescueState.intent._targetAltitudeCm = gpsRescueConfig()->ap_wing_landing_alt * 100.0f;
 }
 
 static float g_loiterCourseEdgeDistanceM(void)
@@ -796,7 +863,7 @@ void g_updateGPSRescue_processState(void)
             20.0f
         );
         g_performDescentWithRateCmS(descentRateCmS);
-        rescueState.intent.targetAltitudeCm = fmaxf(gpsRescueConfig()->ap_wing_loiter_alt * 100.0f, rescueState.intent.targetAltitudeCm);
+        rescueState.intent._targetAltitudeCm = fmaxf(gpsRescueConfig()->ap_wing_loiter_alt * 100.0f, rescueState.intent._targetAltitudeCm);
         
         g_calculateTargetCourseForLoiter();
 
@@ -804,7 +871,7 @@ void g_updateGPSRescue_processState(void)
         if (reachedLoiterAltitude) {
             rescueState.loiterActivatedTime = millis();
             rescueState.phase = RESCUE_LOITER;
-            desiredAltitudeCm = fmin(gpsRescueConfig()->ap_wing_loiter_alt * 100.0f, rescueState.intent.returnAltitudeCm);
+            rescueState.intent._targetAltitudeCm = fmin(gpsRescueConfig()->ap_wing_loiter_alt * 100.0f, rescueState.intent.returnAltitudeCm);
         }
         break;
     }
@@ -828,7 +895,7 @@ void g_updateGPSRescue_processState(void)
             20.0f
         );
         g_performDescentWithRateCmS(descentRateCmS);
-        rescueState.intent.targetAltitudeCm = fmaxf(gpsRescueConfig()->ap_wing_landing_approach_dist * 100.0f, rescueState.intent.targetAltitudeCm);
+        rescueState.intent._targetAltitudeCm = fmaxf(gpsRescueConfig()->ap_wing_landing_approach_dist * 100.0f, rescueState.intent._targetAltitudeCm);
 
         const bool isBelowLandingAltitude = rescueState.sensor.currentAltitudeCm / 100.0f < gpsRescueConfig()->ap_wing_landing_alt;
         if (isBelowLandingAltitude) {
@@ -949,7 +1016,11 @@ void g_updateGPSRescue_processState(void)
             gpsRescueConfig()->ap_wing_landing_alt * 100.0f, 0.0f
         );
         float targetAlt = constrainf(targetAltCM, 0.0f, gpsRescueConfig()->ap_wing_landing_alt * 100.0f);
-        rescueState.intent.targetAltitudeCm = targetAlt;
+        rescueState.intent._targetAltitudeCm = targetAlt;
+        if (descentProgress > 0.3f) {
+            // bypass smoothing
+            pt3FilterSetValue(&targetAltitudeLpf, targetAlt);
+        }
 
         // print debug info
         LOG_UPDATE("landing_progress", "%f", (double)descentProgress);
@@ -992,6 +1063,11 @@ void g_updateGPSRescue_processState(void)
     }
 }
 
+fileprivate void g_updateSmoothTargetAltitude(void)
+{
+    rescueState.intent.smoothTargetAltitudeCm = pt3FilterApply(&targetAltitudeLpf, rescueState.intent._targetAltitudeCm);
+}
+
 fileprivate void g_throttledUpdateLoop(bool newGpsData)
 {
     static timeMs_t lastTime = 0;
@@ -1013,6 +1089,7 @@ fileprivate void g_throttledUpdateLoop(bool newGpsData)
         g_rescueControlRollAndPitch(dT);
         float velocityPIDSum = g_gpsRescueGetVelocityPIDSum(dT);
         setAutopilotThrottle(gpsRescueGetThrottle(velocityPIDSum));
+        g_updateSmoothTargetAltitude();
     }
 }
 
