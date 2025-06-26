@@ -1048,10 +1048,13 @@ void g_updateGPSRescue_processState(void)
             disarmOnImpact();
         }
         
-        if (currentAltitudeCm / 100.0f < 2.5f) {
+        if (currentAltitudeM < 2.5f && rescueState.sensor.distanceToHomeM < 20.0f) {
             THROTTLED_PRINT("GPS RESCUE: forceDisarm!!!");
             forceDisarm(DISARM_REASON_GPS_RESCUE);
             rescueStop();
+            // TODO: after disarm continue bringing target altitude down at a steady rate
+            // because we are still HEALTHY but in IDLE
+            // q: add special WAIT_FOR_DISARM state?
         }
 
         // if (currentAltitudeCm - rescueState.intent.targetAltitudeCm > 1000.0f) {
