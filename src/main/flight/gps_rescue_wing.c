@@ -233,7 +233,7 @@ void gpsRescueInit(void)
     rescueState.sensor.gpsRescueTaskIntervalSeconds = HZ_TO_INTERVAL(TASK_GPS_RESCUE_RATE_HZ);
 
     float cutoffHz, gain;
-    cutoffHz = positionConfig()->altitude_d_lpf / 100.0f;
+    cutoffHz = 5.0f;
     gain = pt2FilterGain(cutoffHz, rescueState.sensor.gpsRescueTaskIntervalSeconds);
     pt2FilterInit(&altitudeDLpf, gain);
 
@@ -414,10 +414,16 @@ fileprivate float g_calculateAltitudePID(float resolvedCurrentAltitudeCm, float 
         altI = 0.0f;
     }
 
+    float landingMultiplier = 1.0f + rescueState.landingProgress * 0.5f;
+
     // D
     float altD = (previousAltitudeError - altitudeErrorM) / dT;
     altD *= 0.1f * gpsRescueConfig()->ap_wing_alt_d;
     altD = pt2FilterApply(&altitudeDLpf, altD);
+
+    if (rescueState.phase == RESCUE_LAND) {
+        altD *= landingMultiplier;
+    }
 
     previousAltitudeError = altitudeErrorM;
     float pidSum = altP + altI - altD;
