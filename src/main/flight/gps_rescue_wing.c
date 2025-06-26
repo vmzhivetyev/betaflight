@@ -971,18 +971,13 @@ void g_updateGPSRescue_processState(void)
         const bool waitedTooLong = millis() - rescueState.waitForCourseHomeActivatedTime >= 120 * 1000;
         const bool isCloseToHome = rescueState.sensor.distanceToHomeM <= gpsRescueConfig()->ap_wing_landing_approach_dist;
 
-        if (courseIsOK) {
-            // if (courseIsOK) {
-                rescueState.phase = RESCUE_LAND;
-                rescueState.landActivatedTime = millis();
-            // } else {
-            //     // retry approach manoeuvre again
-            //     PRINT("GPS RESCUE: Wait for landing distance phase, course is not OK, reapproaching home");
-            //     g_startRescueApproach();
-            // }
+        if (courseIsOK && !isCloseToHome) {
+            rescueState.phase = RESCUE_LAND;
+            rescueState.landActivatedTime = millis();
         } else if (waitedTooLong) {
             // we are unable to get close to landing distance in time, so we will land where we are
             // this is a bad situation because it means we just can't move towards home fast enough
+            // TODO: Switch to crash land mode instead of normal land
             rescueState.phase = RESCUE_LAND;
             rescueState.landActivatedTime = millis();
             // rescueState.intent.returnAltitudeCm = rescueState.sensor.currentAltitudeCm;
