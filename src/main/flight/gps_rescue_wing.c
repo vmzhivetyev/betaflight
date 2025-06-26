@@ -934,28 +934,30 @@ void g_updateGPSRescue_processState(void)
             (double)sufficientDistanceToHomeM
         );
         if (isFarEnoughFromHome) {
-            rescueState.waitForCourseAwayActivatedTime = millis();
-            rescueState.phase = RESCUE_WAIT_FOR_COURSE_AWAY;
+            // rescueState.waitForCourseAwayActivatedTime = millis();
+            // rescueState.phase = RESCUE_WAIT_FOR_COURSE_AWAY;
+            rescueState.waitForCourseHomeActivatedTime = millis();
+            rescueState.phase = RESCUE_WAIT_FOR_LANDING_COURSE;
         }
         break;
     }
 
-    case RESCUE_WAIT_FOR_COURSE_AWAY: {
-        const float courseErrorDegrees = normalizeCourseErrorDecidegrees(
-            rescueState.intent.targetCourseDecidegrees,
-            gpsSol.groundCourse
-        ) / 10.0f;
+    // case RESCUE_WAIT_FOR_COURSE_AWAY: {
+    //     const float courseErrorDegrees = normalizeCourseErrorDecidegrees(
+    //         rescueState.intent.targetCourseDecidegrees,
+    //         gpsSol.groundCourse
+    //     ) / 10.0f;
         
-        const bool courseIsOK = ABS(courseErrorDegrees) < 20.0f;
-        const bool waitedTooLong = millis() - rescueState.waitForCourseAwayActivatedTime >= 60 * 1000; // 1 minute
+    //     const bool courseIsOK = ABS(courseErrorDegrees) < 20.0f;
+    //     const bool waitedTooLong = millis() - rescueState.waitForCourseAwayActivatedTime >= 60 * 1000; // 1 minute
 
-        if (courseIsOK || waitedTooLong) {
-            rescueState.waitForCourseHomeActivatedTime = millis();
-            rescueState.phase = RESCUE_WAIT_FOR_LANDING_COURSE;
-            // rescueState.intent.targetAltitudeCm = gpsRescueConfig()->ap_wing_landing_alt * 100.0f;
-        }
-        break;
-    };
+    //     if (courseIsOK || waitedTooLong) {
+    //         rescueState.waitForCourseHomeActivatedTime = millis();
+    //         rescueState.phase = RESCUE_WAIT_FOR_LANDING_COURSE;
+    //         // rescueState.intent.targetAltitudeCm = gpsRescueConfig()->ap_wing_landing_alt * 100.0f;
+    //     }
+    //     break;
+    // };
 
     case RESCUE_WAIT_FOR_LANDING_COURSE: {
         // this needs to be kept up to date while turning around
