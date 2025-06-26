@@ -924,8 +924,9 @@ void g_updateGPSRescue_processState(void)
         break;
     }
 
-    case RESCUE_FLY_AWAY_BEFORE_APPROACH: {
-        const float turnAroundBufferM = 20.0f;
+    case RESCUE_FLY_AWAY_BEFORE_APPROACH: { // flying blindly into takeoffCourse
+        // TODO: live update target course leading to some distant point in the takeoff direction from home.
+        const float turnAroundBufferM = 40.0f * 45.0f / gpsRescueConfig()->maxRescueAngle; // less angle - more space needed
         const float sufficientDistanceToHomeM = gpsRescueConfig()->ap_wing_landing_approach_dist + turnAroundBufferM;
         bool isFarEnoughFromHome = rescueState.sensor.distanceToHomeM > sufficientDistanceToHomeM;
         LOG_UPDATE("isFarEnoughFromHome", "%s   -   %f > %f", 
