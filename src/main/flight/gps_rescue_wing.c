@@ -1033,10 +1033,6 @@ void g_updateGPSRescue_processState(void)
         );
         float targetAlt = constrainf(targetAltCM, 0.0f, gpsRescueConfig()->ap_wing_landing_alt * 100.0f);
         rescueState.intent._targetAltitudeCm = targetAlt;
-        if (descentProgress > 0.3f) {
-            // bypass smoothing
-            pt3FilterSetValue(&targetAltitudeLpf, targetAlt);
-        }
 
         // print debug info
         LOG_UPDATE("landing_progress", "%f", (double)landingProgress);
