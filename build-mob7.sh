@@ -26,3 +26,5 @@ make CRAZYBEEF4SX1280 \
     -DUSE_TELEMETRY_CRSF \
     -DUSE_VTX \
   "
+
+cp ./obj/betaflight_4.6.0_STM32F411_CRAZYBEEF4SX1280.hex ~/Downloads/.
