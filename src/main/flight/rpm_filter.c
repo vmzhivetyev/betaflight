@@ -145,8 +145,22 @@ FAST_CODE_NOINLINE void rpmFilterUpdate(void)
             // attenuate notches per harmonics group
             weight *= rpmFilter.weights[harmonicIndex];
 
+            // higher freq => lower Q
+            const float maxQ = 5.0f;
+            const float minQ = rpmFilter.q;
+            float currentQ = harmonicIndex == 0 ? 
+                scaleRangef(frequencyHz, rpmFilter.minHz, 350.0f, maxQ, minQ) :
+                minQ * (harmonicIndex + 1);
+
+            currentQ = constrainf(currentQ, minQ, maxQ);
+            
             // update notch
-            biquadFilterUpdate(template, frequencyHz, correctedLooptime, rpmFilter.q, FILTER_NOTCH, weight);
+            biquadFilterUpdate(template, frequencyHz, correctedLooptime, currentQ, FILTER_NOTCH, weight);
+
+            if (motorIndex == 1 && harmonicIndex == 0) {
+                DEBUG_SET(DEBUG_GYRO_SAMPLE, 4, lrintf(frequencyHz * 100));
+                DEBUG_SET(DEBUG_GYRO_SAMPLE, 5, lrintf(currentQ * 100));
+            }
 
             // copy notch properties to corresponding notches on PITCH and YAW
             for (int axis = 1; axis < XYZ_AXIS_COUNT; axis++) {
