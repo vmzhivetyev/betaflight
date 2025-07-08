@@ -557,6 +557,15 @@ static int8_t cmsx_tpa_low_rate;
 static uint16_t cmsx_tpa_low_breakpoint;
 static uint8_t cmsx_tpa_low_always;
 
+#ifdef USE_DYN_IDLE
+static uint8_t  cmsx_dyn_idle_min_rpm;
+static uint8_t  cmsx_dyn_idle_p_gain;
+static uint8_t  cmsx_dyn_idle_i_gain;
+static uint8_t  cmsx_dyn_idle_d_gain;
+static uint8_t  cmsx_dyn_idle_max_increase;
+static uint8_t  cmsx_dyn_idle_per_motor;
+#endif
+
 static const void *cmsx_profileOtherOnEnter(displayPort_t *pDisp)
 {
     UNUSED(pDisp);
@@ -613,6 +622,16 @@ static const void *cmsx_profileOtherOnEnter(displayPort_t *pDisp)
     cmsx_tpa_low_breakpoint = pidProfile->tpa_low_breakpoint;
     cmsx_tpa_low_always = pidProfile->tpa_low_always;
     cmsx_landing_disarm_threshold = pidProfile->landing_disarm_threshold;
+    
+#ifdef USE_DYN_IDLE
+    cmsx_dyn_idle_min_rpm = pidProfile->dyn_idle_min_rpm;
+    cmsx_dyn_idle_p_gain = pidProfile->dyn_idle_p_gain;
+    cmsx_dyn_idle_i_gain = pidProfile->dyn_idle_i_gain;
+    cmsx_dyn_idle_d_gain = pidProfile->dyn_idle_d_gain;
+    cmsx_dyn_idle_max_increase = pidProfile->dyn_idle_max_increase;
+    cmsx_dyn_idle_per_motor = pidProfile->dyn_idle_per_motor;
+#endif
+
     return NULL;
 }
 
@@ -672,6 +691,15 @@ static const void *cmsx_profileOtherOnExit(displayPort_t *pDisp, const OSD_Entry
     pidProfile->tpa_low_breakpoint = cmsx_tpa_low_breakpoint;
     pidProfile->tpa_low_always = cmsx_tpa_low_always;
     pidProfile->landing_disarm_threshold = cmsx_landing_disarm_threshold;
+
+#ifdef USE_DYN_IDLE
+    pidProfile->dyn_idle_min_rpm = cmsx_dyn_idle_min_rpm;
+    pidProfile->dyn_idle_p_gain = cmsx_dyn_idle_p_gain;
+    pidProfile->dyn_idle_i_gain = cmsx_dyn_idle_i_gain;
+    pidProfile->dyn_idle_d_gain = cmsx_dyn_idle_d_gain;
+    pidProfile->dyn_idle_max_increase = cmsx_dyn_idle_max_increase;
+    pidProfile->dyn_idle_per_motor = cmsx_dyn_idle_per_motor;
+#endif
 
     initEscEndpoints();
     return NULL;
@@ -736,6 +764,15 @@ static const OSD_Entry cmsx_menuProfileOtherEntries[] = {
     { "TPA LOW BRKPT", OME_UINT16, NULL, &(OSD_UINT16_t){ &cmsx_tpa_low_breakpoint, 1000, 2000, 10} },
     { "TPA LOW ALWYS", OME_Bool,   NULL, &cmsx_tpa_low_always },
     { "EZDISARM THR",  OME_UINT8,  NULL, &(OSD_UINT8_t) { &cmsx_landing_disarm_threshold, 0, 150, 1} },
+
+#ifdef USE_DYN_IDLE
+    { "DYN IDL MIN RPM", OME_UINT8,  NULL, &(OSD_UINT8_t) { &cmsx_dyn_idle_min_rpm,      0,    200,   1  }    },
+    { "DYN IDL P GAIN",  OME_UINT8,  NULL, &(OSD_UINT8_t) { &cmsx_dyn_idle_p_gain,       1,    250,   1  }    },
+    { "DYN IDL I GAIN",  OME_UINT8,  NULL, &(OSD_UINT8_t) { &cmsx_dyn_idle_i_gain,       1,    250,   1  }    },
+    { "DYN IDL D GAIN",  OME_UINT8,  NULL, &(OSD_UINT8_t) { &cmsx_dyn_idle_d_gain,       0,    250,   1  }    },
+    { "DYN IDL MAX INC", OME_UINT8,  NULL, &(OSD_UINT8_t) { &cmsx_dyn_idle_max_increase, 10,   255,   1  }    },
+    { "DYN IDL PER MTR", OME_TAB,    NULL, &(OSD_TAB_t)   { &cmsx_dyn_idle_per_motor,    1,    lookupTableOffOn } },
+#endif
 
     { "BACK", OME_Back, NULL, NULL },
     { NULL, OME_END, NULL, NULL}
