@@ -1558,6 +1558,7 @@ const clivalue_t valueTable[] = {
     { "osd_esc_rpm_alarm",          VAR_INT16  | MASTER_VALUE, .config.minmax = { ESC_RPM_ALARM_OFF, INT16_MAX }, PG_OSD_CONFIG, offsetof(osdConfig_t, esc_rpm_alarm) },
     { "osd_esc_current_alarm",      VAR_INT16  | MASTER_VALUE, .config.minmax = { ESC_CURRENT_ALARM_OFF, INT16_MAX }, PG_OSD_CONFIG, offsetof(osdConfig_t, esc_current_alarm) },
     { "osd_esc_stress_alarm",       VAR_UINT8  | MASTER_VALUE, .config.minmax = { 0, DSHOT_TELEMETRY_STATUS_MAX_STRESS_LVL_VALUE }, PG_OSD_CONFIG, offsetof(osdConfig_t, esc_stress_alarm) },
+    { "osd_pid_slow_alarm",         VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 50 }, PG_OSD_CONFIG, offsetof(osdConfig_t, osd_pid_slow_alarm) },
 #ifdef USE_ADC_INTERNAL
     { "osd_core_temp_alarm",        VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, UINT8_MAX }, PG_OSD_CONFIG, offsetof(osdConfig_t, core_temp_alarm) },
 #endif
