@@ -20,8 +20,25 @@
 
 #include "platform.h"
 
+
+// #define GYRO_NOISE_INJECTION_ENABLED
+#include "gyro_noise.h"
+
 static FAST_CODE void GYRO_FILTER_FUNCTION_NAME(void)
 {
+    static bool noiseInitialized = false;
+    if (!noiseInitialized) {
+        gyroNoiseInit(12345); // Use fixed seed for reproducible results
+        
+        // Configure noise parameters
+        gyroNoiseConfig_t config = GYRO_NOISE_CONFIG_DEFAULT();
+        config.amplitude = rpmFilterConfig()->rpm_filter_q * 0.1f;
+        config.enabledTypes = GYRO_NOISE_WHITE | GYRO_NOISE_PINK | GYRO_NOISE_BROWN;
+        gyroNoiseSetConfig(&config);
+        
+        noiseInitialized = true;
+    }
+    
     for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
         // DEBUG_GYRO_RAW records the raw value read from the sensor (not zero offset, not scaled)
         GYRO_FILTER_DEBUG_SET(DEBUG_GYRO_RAW, axis, gyro.rawSensorDev->gyroADCRaw[axis]);
@@ -42,6 +59,8 @@ static FAST_CODE void GYRO_FILTER_FUNCTION_NAME(void)
             gyro.sampleSum[axis] = 0;
         }
 
+        gyroADCf = GYRO_NOISE_INJECT(axis, gyroADCf);
+        
         // DEBUG_GYRO_SAMPLE(1) Record the post-downsample value for the selected debug axis
         GYRO_FILTER_AXIS_DEBUG_SET(axis, DEBUG_GYRO_SAMPLE, 1, lrintf(gyroADCf));
 
