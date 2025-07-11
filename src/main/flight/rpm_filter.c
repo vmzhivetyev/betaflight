@@ -51,7 +51,7 @@ typedef struct rpmFilter_s {
     float weights[RPM_FILTER_HARMONICS_MAX];
     float minHz;
     float fadeRangeHz;
-    float q;
+    float minQ;
 
     timeUs_t actualApplyDeltaTimeUs;
     biquadFilter_t notch[XYZ_AXIS_COUNT][MAX_SUPPORTED_MOTORS][RPM_FILTER_HARMONICS_MAX];
@@ -86,7 +86,7 @@ void rpmFilterInit(const rpmFilterConfig_t *config, const timeUs_t expectedLoopt
     rpmFilter.numHarmonics = config->rpm_filter_harmonics;
     rpmFilter.minHz = config->rpm_filter_min_hz;
     rpmFilter.fadeRangeHz = config->rpm_filter_fade_range_hz;
-    rpmFilter.q = config->rpm_filter_q / 100.0f;
+    rpmFilter.minQ = config->rpm_filter_q / 100.0f;
     rpmFilter.actualApplyDeltaTimeUs = expectedLooptimeUs;
 
     for (int n = 0; n < RPM_FILTER_HARMONICS_MAX; n++) {
@@ -96,7 +96,7 @@ void rpmFilterInit(const rpmFilterConfig_t *config, const timeUs_t expectedLoopt
     for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
         for (int motor = 0; motor < getMotorCount(); motor++) {
             for (int i = 0; i < rpmFilter.numHarmonics; i++) {
-                biquadFilterInit(&rpmFilter.notch[axis][motor][i], rpmFilter.minHz * i, expectedLooptimeUs, rpmFilter.q, FILTER_NOTCH, 0.0f);
+                biquadFilterInit(&rpmFilter.notch[axis][motor][i], rpmFilter.minHz * i, expectedLooptimeUs, rpmFilter.minQ, FILTER_NOTCH, 0.0f);
             }
         }
     }
@@ -146,7 +146,7 @@ FAST_CODE_NOINLINE void rpmFilterUpdate(void)
 
             // higher freq => lower Q
             const float maxQ = 5.0f;
-            const float minQ = rpmFilter.q;
+            const float minQ = rpmFilter.minQ;
             float currentQ = harmonicIndex == 0 ? 
                 scaleRangef(frequencyHz, rpmFilter.minHz, 350.0f, maxQ, minQ) :
                 minQ * (harmonicIndex + 1);
