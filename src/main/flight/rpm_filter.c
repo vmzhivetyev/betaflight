@@ -120,8 +120,10 @@ FAST_CODE_NOINLINE void rpmFilterUpdate(void)
         return;
     }
 
-    const float applyIntervalUs = rpmFilter.actualApplyDeltaTimeUs; // updated in rpmFilterApply calls.
+    float applyIntervalUs = rpmFilter.actualApplyDeltaTimeUs; // updated in rpmFilterApply calls.
     const float rpmFilterMaxHz = 0.48f * 1e6f / applyIntervalUs; // don't go quite to nyquist to avoid oscillations
+
+    DEBUG_SET(DEBUG_GYRO_SAMPLE, 7, applyIntervalUs);
 
     // update RPM notches
     for (int i = 0; i < notchUpdatesPerIteration; i++) {
@@ -159,7 +161,6 @@ FAST_CODE_NOINLINE void rpmFilterUpdate(void)
             if (motorIndex == 1 && harmonicIndex == 0) {
                 DEBUG_SET(DEBUG_GYRO_SAMPLE, 4, lrintf(frequencyHz * 10));
                 DEBUG_SET(DEBUG_GYRO_SAMPLE, 5, lrintf(currentQ * 100));
-                DEBUG_SET(DEBUG_GYRO_SAMPLE, 7, applyIntervalUs);
             }
 
             // copy notch properties to corresponding notches on PITCH and YAW
