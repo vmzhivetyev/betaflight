@@ -1,31 +1,25 @@
 #!/bin/bash
 
-# Enable strict error handling
-set -eux
+set -eu
+source build-common.sh
 
-# Uncomment to clean build artifacts
-# make clean
+TARGET="CRAZYBEEF4SX1280"
 
-# Generate dynamic release name with git info and timestamp
-RELEASE_NAME="$(git show --pretty=format:"%h" --no-patch) at $(git rev-parse --abbrev-ref HEAD) built $(date '+%Y-%m-%d %H:%M:%S')"
-echo "Building release: $RELEASE_NAME"
+DEFINES=(
+  "CLOUD_BUILD"
+  "USE_DSHOT"
+  "USE_GPS"
+  "USE_GPS_PLUS_CODES"
+  "USE_LED_STRIP"
+  "USE_PINIO"
+  "USE_ALTITUDE_HOLD"
+  "USE_POSITION_HOLD"
+  "USE_OSD"
+  "USE_OSD_SD"
+  "USE_VTX"
+  "USE_WING"
+)
 
-make CRAZYBEEF4SX1280 \
-  EXTRA_FLAGS=" \
-    -D'BUILD_KEY=$(git show --pretty=format:"%h" --no-patch)' \
-    -D'RELEASE_NAME=$RELEASE_NAME' \
-    -DCLOUD_BUILD \
-    -DUSE_DSHOT \
-    -DUSE_GPS \
-    -DUSE_GPS_PLUS_CODES \
-    -DUSE_LED_STRIP \
-    -DUSE_PINIO \
-    -DUSE_ALTITUDE_HOLD \
-    -DUSE_POSITION_HOLD \
-    -DUSE_OSD \
-    -DUSE_OSD_SD \
-    -DUSE_VTX \
-    -DUSE_WING \
-  "
+build_target "$TARGET" "${DEFINES[@]}"
 
-cp ./obj/betaflight_4.6.0_STM32F411_CRAZYBEEF4SX1280.hex ~/Downloads/.
+copy_hex_to_downloads "$TARGET"

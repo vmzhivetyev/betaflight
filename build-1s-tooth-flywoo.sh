@@ -1,28 +1,24 @@
 #!/bin/bash
 
-# Enable strict error handling
-set -eux
+set -eu
+source build-common.sh
 
-# Uncomment to clean build artifacts
-# make clean
+TARGET="FLYWOOF405S_AIO"
 
-# Generate dynamic release name with git info and timestamp
-RELEASE_NAME="$(git show --pretty=format:"%h" --no-patch) at $(git rev-parse --abbrev-ref HEAD) built $(date '+%Y-%m-%d %H:%M:%S')"
-echo "Building release: $RELEASE_NAME"
+DEFINES=(
+  "CLOUD_BUILD"
+  "USE_DSHOT"
+  "USE_LED_STRIP"
+  "USE_PINIO"
+  "USE_OSD"
+  "USE_OSD_SD"
+  "USE_SERIALRX"
+  "USE_SERIALRX_CRSF"
+  "USE_TELEMETRY"
+  "USE_TELEMETRY_CRSF"
+  "USE_VTX"
+)
 
-make FLYWOOF405S_AIO \
-  EXTRA_FLAGS=" \
-    -D'BUILD_KEY=$(git show --pretty=format:"%h" --no-patch)' \
-    -D'RELEASE_NAME=$RELEASE_NAME' \
-    -DCLOUD_BUILD \
-    -DUSE_DSHOT \
-    -DUSE_LED_STRIP \
-    -DUSE_PINIO \
-    -DUSE_OSD \
-    -DUSE_OSD_SD \
-    -DUSE_SERIALRX \
-    -DUSE_SERIALRX_CRSF \
-    -DUSE_TELEMETRY \
-    -DUSE_TELEMETRY_CRSF \
-    -DUSE_VTX \
-  "
+build_target "$TARGET" "${DEFINES[@]}"
+
+copy_hex_to_downloads "$TARGET"
