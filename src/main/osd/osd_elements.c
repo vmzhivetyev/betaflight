@@ -1278,22 +1278,6 @@ static void osdElementGpsSpeed(osdElementParms_t *element)
     }
 }
 
-#ifdef USE_WING
-static void osdElementWingEstimatedSpeed(osdElementParms_t *element)
-{
-    int32_t speed = lrintf(pidRuntime.tpaSpeed.speed * 100.0f); // m/s to cm/s
-    tfp_sprintf(element->buff, "%c%3d%c", SYM_SPEED, osdGetSpeedToSelectedUnit(speed), osdGetSpeedToSelectedUnitSymbol());
-
-    int32_t stall_speed_warn = osdConfig()->osd_speed_stall_warn * 27.7777f; // km/h to cm/s
-    int32_t stall_speed_crit = osdConfig()->osd_speed_stall_crit * 27.7777f; // km/h to cm/s
-    if (speed < stall_speed_crit) {
-        element->attr = DISPLAYPORT_SEVERITY_CRITICAL;
-    } else if (speed < stall_speed_warn) {
-        element->attr = DISPLAYPORT_SEVERITY_WARNING;
-    }
-}
-#endif
-
 static void osdElementEfficiency(osdElementParms_t *element)
 {
     int efficiency = 0;
@@ -1311,6 +1295,22 @@ static void osdElementEfficiency(osdElementParms_t *element)
     }
 }
 #endif // USE_GPS
+
+#ifdef USE_WING
+static void osdElementWingEstimatedSpeed(osdElementParms_t *element)
+{
+    int32_t speed = lrintf(pidRuntime.tpaSpeed.speed * 100.0f); // m/s to cm/s
+    tfp_sprintf(element->buff, "%c%3d%c", SYM_SPEED, osdGetSpeedToSelectedUnit(speed), osdGetSpeedToSelectedUnitSymbol());
+
+    int32_t stall_speed_warn = osdConfig()->osd_speed_stall_warn * 27.7777f; // km/h to cm/s
+    int32_t stall_speed_crit = osdConfig()->osd_speed_stall_crit * 27.7777f; // km/h to cm/s
+    if (speed < stall_speed_crit) {
+        element->attr = DISPLAYPORT_SEVERITY_CRITICAL;
+    } else if (speed < stall_speed_warn) {
+        element->attr = DISPLAYPORT_SEVERITY_WARNING;
+    }
+}
+#endif
 
 #ifdef USE_GPS_LAP_TIMER
 static void osdFormatLapTime(osdElementParms_t *element, uint32_t timeMs, uint8_t symbol)
