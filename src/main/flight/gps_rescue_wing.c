@@ -200,6 +200,7 @@ static pt1Filter_t velocityDLpf;
 static pt3Filter_t velocityUpsampleLpf;
 static pt3Filter_t targetAltitudeLpf;
 
+static pt3Filter_t rescueThrottleLpf;
 static pt3Filter_t rollDegreesLpf;
 static pt3Filter_t pitchDegreesLpf;
 
@@ -316,6 +317,9 @@ fileprivate void g_initializeIntent(void) {
     const float gainRoll = pt3FilterGain(0.5f, 1.0f/20.0f);
     pt3FilterInitValue(&rollDegreesLpf, gainRoll, 0.0f);
     pt3FilterInitValue(&pitchDegreesLpf, gainRoll, 0.0f);
+    
+    const float gainThrottle = pt3FilterGain(2.0f, 1.0f/20.0f);
+    pt3FilterInitValue(&rescueThrottleLpf, gainThrottle, 0.0f);
 
     rescueState.intent.smoothTargetAltitudeCm = rescueState.sensor.currentAltitudeCm;
     g_rescueControlRollAndPitch(1/20.0f);
@@ -1244,6 +1248,10 @@ float gpsRescueGetThrottle(float velocityPIDSum)
     commandedThrottle += 0.3f; // add a base throttle to make it fly before I term accumulation
 
     commandedThrottle = constrainf(commandedThrottle, 0.0f, 1.0f);
+
+    // float gain = pt3FilterGain(0.01f, dT);
+    // pt3FilterUpdateCutoff(&rescueThrottleLpf, gain);
+    commandedThrottle = pt3FilterApply(&rescueThrottleLpf, commandedThrottle);
 
     return commandedThrottle;
 }
