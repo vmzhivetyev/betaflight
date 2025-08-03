@@ -73,6 +73,7 @@ STATIC_ASSERT(ARRAYLEN(armingDisableFlagNames) == ARMING_DISABLE_FLAGS_COUNT, ar
 static armingDisableFlags_e armingDisableFlags = 0;
 
 void debug_log_armingDisableFlags(void) {
+#ifdef SIMULATOR_BUILD
     char buffer[250];
     int len = 0;
     
@@ -107,6 +108,7 @@ void debug_log_armingDisableFlags(void) {
     }
 
     LOG_UPDATE("arming disable", buffer);
+#endif // #ifdef SIMULATOR_BUILD
 }
 
 void setArmingDisabled(armingDisableFlags_e flag)

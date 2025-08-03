@@ -75,6 +75,18 @@ typedef enum {
     ((value) < (sizeof(stringsMap)/sizeof(stringsMap[0])) && stringsMap[value] ? \
      stringsMap[value] : "UNKNOWN")
 
+typedef enum {
+    RESCUE_HEALTHY,
+    RESCUE_FLYAWAY,
+    RESCUE_GPSLOST,
+    RESCUE_LOWSATS,
+    RESCUE_CRASH_FLIP_DETECTED,
+    RESCUE_STALLED,
+    RESCUE_TOO_CLOSE,
+    RESCUE_NO_HOME_POINT
+} rescueFailureState_e;
+
+#ifdef SITL
 static const char* rescuePhaseStrings[] = {
     [RESCUE_IDLE] = "RESCUE_IDLE",
     [RESCUE_INITIALIZE] = "RESCUE_INITIALIZE", 
@@ -94,17 +106,6 @@ static const char* rescuePhaseStrings[] = {
 
 #define RESCUE_PHASE_STR(phase) ENUM_VALUE_STR(rescuePhaseStrings, phase)
 
-typedef enum {
-    RESCUE_HEALTHY,
-    RESCUE_FLYAWAY,
-    RESCUE_GPSLOST,
-    RESCUE_LOWSATS,
-    RESCUE_CRASH_FLIP_DETECTED,
-    RESCUE_STALLED,
-    RESCUE_TOO_CLOSE,
-    RESCUE_NO_HOME_POINT
-} rescueFailureState_e;
-
 static const char* rescueFailureStrings[] = {
     [RESCUE_HEALTHY] = "RESCUE_HEALTHY",
     [RESCUE_FLYAWAY] = "RESCUE_FLYAWAY",
@@ -117,6 +118,7 @@ static const char* rescueFailureStrings[] = {
 };
 
 #define RESCUE_FAILURE_STR(failure) ENUM_VALUE_STR(rescueFailureStrings, failure)
+#endif
 
 typedef struct {
     float maxAltitudeCm;

@@ -100,7 +100,9 @@
 
 #else
 
-#define PRINT(x)
+#define LOG_DISPLAY_100MS()
+#define LOG_UPDATE(key, format, ...)
+#define PRINT(...)
 #define THROTTLED_PRINT_MS(interval_ms, format, ...)
 #define THROTTLED_PRINT(format, ...)
 #define PRINT_ON_CHANGE(value, format, ...)
