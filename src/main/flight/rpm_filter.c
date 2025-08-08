@@ -30,6 +30,7 @@
 #include "common/maths.h"
 
 #include "drivers/dshot.h"
+#include "drivers/time.h"
 
 #include "flight/mixer.h"
 #include "flight/pid.h"
@@ -49,11 +50,10 @@ typedef struct rpmFilter_s {
     int numHarmonics;
     float weights[RPM_FILTER_HARMONICS_MAX];
     float minHz;
-    float maxHz;
     float fadeRangeHz;
-    float q;
+    float minQ;
 
-    timeUs_t looptimeUs;
+    timeUs_t actualApplyDeltaTimeUs;
     biquadFilter_t notch[XYZ_AXIS_COUNT][MAX_SUPPORTED_MOTORS][RPM_FILTER_HARMONICS_MAX];
 
 } rpmFilter_t;
@@ -66,7 +66,7 @@ FAST_DATA_ZERO_INIT static int notchUpdatesPerIteration;
 FAST_DATA_ZERO_INIT static int motorIndex;
 FAST_DATA_ZERO_INIT static int harmonicIndex;
 
-void rpmFilterInit(const rpmFilterConfig_t *config, const timeUs_t looptimeUs)
+void rpmFilterInit(const rpmFilterConfig_t *config, const timeUs_t expectedLooptimeUs)
 {
     motorIndex = 0;
     harmonicIndex = 0;
@@ -85,10 +85,9 @@ void rpmFilterInit(const rpmFilterConfig_t *config, const timeUs_t looptimeUs)
     // if we get to this point, enable and init RPM filtering
     rpmFilter.numHarmonics = config->rpm_filter_harmonics;
     rpmFilter.minHz = config->rpm_filter_min_hz;
-    rpmFilter.maxHz = 0.48f * 1e6f / looptimeUs; // don't go quite to nyquist to avoid oscillations
     rpmFilter.fadeRangeHz = config->rpm_filter_fade_range_hz;
-    rpmFilter.q = config->rpm_filter_q / 100.0f;
-    rpmFilter.looptimeUs = looptimeUs;
+    rpmFilter.minQ = config->rpm_filter_q / 100.0f;
+    rpmFilter.actualApplyDeltaTimeUs = expectedLooptimeUs;
 
     for (int n = 0; n < RPM_FILTER_HARMONICS_MAX; n++) {
         rpmFilter.weights[n] = constrainf(config->rpm_filter_weights[n] / 100.0f, 0.0f, 1.0f);
@@ -97,12 +96,12 @@ void rpmFilterInit(const rpmFilterConfig_t *config, const timeUs_t looptimeUs)
     for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
         for (int motor = 0; motor < getMotorCount(); motor++) {
             for (int i = 0; i < rpmFilter.numHarmonics; i++) {
-                biquadFilterInit(&rpmFilter.notch[axis][motor][i], rpmFilter.minHz * i, rpmFilter.looptimeUs, rpmFilter.q, FILTER_NOTCH, 0.0f);
+                biquadFilterInit(&rpmFilter.notch[axis][motor][i], rpmFilter.minHz * i, expectedLooptimeUs, rpmFilter.minQ, FILTER_NOTCH, 0.0f);
             }
         }
     }
 
-    const float loopIterationsPerUpdate = RPM_FILTER_DURATION_S / (looptimeUs * 1e-6f);
+    const float loopIterationsPerUpdate = RPM_FILTER_DURATION_S / (expectedLooptimeUs * 1e-6f);
     const float numNotchesPerAxis = getMotorCount() * rpmFilter.numHarmonics;
     notchUpdatesPerIteration = ceilf(numNotchesPerAxis / loopIterationsPerUpdate); // round to ceiling
 }
@@ -121,8 +120,10 @@ FAST_CODE_NOINLINE void rpmFilterUpdate(void)
         return;
     }
 
-    const float dtCompensation = schedulerGetCycleTimeMultiplier();
-    const float correctedLooptime = rpmFilter.looptimeUs * dtCompensation;
+    float applyIntervalUs = rpmFilter.actualApplyDeltaTimeUs; // updated in rpmFilterApply calls.
+    const float rpmFilterMaxHz = 0.48f * 1e6f / applyIntervalUs; // don't go quite to nyquist to avoid oscillations
+
+    DEBUG_SET(DEBUG_GYRO_SAMPLE, 7, applyIntervalUs);
 
     // update RPM notches
     for (int i = 0; i < notchUpdatesPerIteration; i++) {
@@ -133,7 +134,7 @@ FAST_CODE_NOINLINE void rpmFilterUpdate(void)
             // select current notch on ROLL
             biquadFilter_t *template = &rpmFilter.notch[0][motorIndex][harmonicIndex];
 
-            const float frequencyHz = constrainf((harmonicIndex + 1) * getMotorFrequencyHz(motorIndex), rpmFilter.minHz, rpmFilter.maxHz);
+            const float frequencyHz = constrainf((harmonicIndex + 1) * getMotorFrequencyHz(motorIndex), rpmFilter.minHz, rpmFilterMaxHz);
             const float marginHz = frequencyHz - rpmFilter.minHz;
             float weight = 1.0f;
 
@@ -145,8 +146,22 @@ FAST_CODE_NOINLINE void rpmFilterUpdate(void)
             // attenuate notches per harmonics group
             weight *= rpmFilter.weights[harmonicIndex];
 
+            // higher freq => lower Q
+            const float maxQ = 5.0f;
+            const float minQ = rpmFilter.minQ;
+            float currentQ = harmonicIndex == 0 ? 
+                scaleRangef(frequencyHz, rpmFilter.minHz, 350.0f, maxQ, minQ) :
+                minQ * (harmonicIndex + 1);
+
+            currentQ = constrainf(currentQ, minQ, maxQ);
+            
             // update notch
-            biquadFilterUpdate(template, frequencyHz, correctedLooptime, rpmFilter.q, FILTER_NOTCH, weight);
+            biquadFilterUpdate(template, frequencyHz, applyIntervalUs, currentQ, FILTER_NOTCH, weight);
+
+            if (motorIndex == 1 && harmonicIndex == 0) {
+                DEBUG_SET(DEBUG_GYRO_SAMPLE, 4, lrintf(frequencyHz * 10));
+                DEBUG_SET(DEBUG_GYRO_SAMPLE, 5, lrintf(currentQ * 100));
+            }
 
             // copy notch properties to corresponding notches on PITCH and YAW
             for (int axis = 1; axis < XYZ_AXIS_COUNT; axis++) {
@@ -170,6 +185,20 @@ FAST_CODE_NOINLINE void rpmFilterUpdate(void)
 
 FAST_CODE float rpmFilterApply(const int axis, float value)
 {
+    // all axes are updated in sync so we only calculate loop time for one.
+    if (axis == 0) {
+        static int lastMicros = 0;
+        if (lastMicros == 0) {
+            lastMicros = micros();
+        } else {
+            const int currentMicros = micros();
+            const int actualLoopTimeUs = currentMicros - lastMicros;
+            DEBUG_SET(DEBUG_GYRO_SAMPLE, 6, actualLoopTimeUs);
+            rpmFilter.actualApplyDeltaTimeUs = actualLoopTimeUs;
+            lastMicros = currentMicros;
+        }
+    }
+    
     // Iterate over all notches on axis and apply each one to value.
     // Order of application doesn't matter because biquads are linear time-invariant filters.
     for (int i = 0; i < rpmFilter.numHarmonics; i++) {

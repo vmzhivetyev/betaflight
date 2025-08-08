@@ -209,6 +209,7 @@ COMMON_SRC = \
             sensors/boardalignment.c \
             sensors/compass.c \
             sensors/gyro.c \
+			sensors/gyro_noise.c \
             sensors/gyro_init.c \
             sensors/initialisation.c \
             blackbox/blackbox.c \

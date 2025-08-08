@@ -41,6 +41,7 @@
 #include "drivers/dshot.h"
 
 #include "fc/core.h"
+#include "fc/tasks.h"
 #include "fc/rc.h"
 #include "fc/rc_modes.h"
 #include "fc/runtime_config.h"
@@ -211,6 +212,21 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
         *displayAttr = DISPLAYPORT_SEVERITY_CRITICAL;
         *blinking = true;
         return;
+    }
+
+    if (osdConfig()->osd_pid_slow_alarm > 0) {
+        taskInfo_t pidTaskInfo;
+        getTaskInfo(TASK_PID, &pidTaskInfo);
+        
+        float actualFreq = 1000000.0f / (pidTaskInfo.averageDeltaTime10thUs / 10.0f);
+        float targetFreq = 1000000.0f / pidTaskInfo.desiredPeriodUs;
+        const float tolerance = osdConfig()->osd_pid_slow_alarm * 0.01f; // convert from % to multiplier
+        if (actualFreq < (targetFreq * (1.0f - tolerance))) {
+            tfp_sprintf(warningText, "PID LOOP %dHz", (int)actualFreq, (int)targetFreq);
+            *displayAttr = DISPLAYPORT_SEVERITY_CRITICAL;
+            *blinking = true;
+            return;
+        }
     }
 
     if (osdWarnGetState(OSD_WARNING_LOAD) && (getArmingDisableFlags() & ARMING_DISABLED_LOAD)) {

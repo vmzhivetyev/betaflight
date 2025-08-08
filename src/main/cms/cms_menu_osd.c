@@ -199,6 +199,7 @@ static CMS_Menu menuOsdActiveElems = {
 };
 
 static uint8_t osdConfig_esc_stress_alarm;
+static uint8_t osdConfig_pid_slow_alarm;
 static uint8_t osdConfig_rssi_alarm;
 static uint16_t osdConfig_link_quality_alarm;
 static int16_t osdConfig_rssi_dbm_alarm;
@@ -214,6 +215,7 @@ static const void *menuAlarmsOnEnter(displayPort_t *pDisp)
     UNUSED(pDisp);
 
     osdConfig_esc_stress_alarm = osdConfig()->esc_stress_alarm;
+    osdConfig_pid_slow_alarm = osdConfig()->osd_pid_slow_alarm;
     osdConfig_rssi_alarm = osdConfig()->rssi_alarm;
     osdConfig_link_quality_alarm = osdConfig()->link_quality_alarm;
     osdConfig_rssi_dbm_alarm = osdConfig()->rssi_dbm_alarm;
@@ -233,6 +235,7 @@ static const void *menuAlarmsOnExit(displayPort_t *pDisp, const OSD_Entry *self)
     UNUSED(self);
 
     osdConfigMutable()->esc_stress_alarm = osdConfig_esc_stress_alarm;
+    osdConfigMutable()->osd_pid_slow_alarm = osdConfig_pid_slow_alarm;
     osdConfigMutable()->rssi_alarm = osdConfig_rssi_alarm;
     osdConfigMutable()->link_quality_alarm = osdConfig_link_quality_alarm;
     osdConfigMutable()->rssi_dbm_alarm = osdConfig_rssi_dbm_alarm;
@@ -249,6 +252,7 @@ static const void *menuAlarmsOnExit(displayPort_t *pDisp, const OSD_Entry *self)
 const OSD_Entry menuAlarmsEntries[] =
 {
     {"--- ALARMS ---", OME_Label, NULL, NULL},
+    {"PID SLOW PCT", OME_UINT8, NULL, &(OSD_UINT8_t){&osdConfig_pid_slow_alarm, 0, 50, 1}},
     {"ESC STRESS",     OME_UINT8,  NULL, &(OSD_UINT8_t){&osdConfig_esc_stress_alarm, 0, DSHOT_TELEMETRY_STATUS_MAX_STRESS_LVL_VALUE, 1}},
     {"RSSI",     OME_UINT8,  NULL, &(OSD_UINT8_t){&osdConfig_rssi_alarm, 5, 90, 5}},
     {"LINK QUALITY", OME_UINT16,  NULL, &(OSD_UINT16_t){&osdConfig_link_quality_alarm, 5, 300, 5}},

@@ -4,12 +4,12 @@ set -eux
 RELEASE_NAME="$(git show --pretty=format:"%h" --no-patch) at $(git rev-parse --abbrev-ref HEAD) built $(date '+%Y-%m-%d %H:%M:%S')"
 echo "$RELEASE_NAME"
 
-make JHEF405PRO \
+make TAKERG4AIO \
     EXTRA_FLAGS=" \
         -D'BUILD_KEY=$(git show --pretty=format:"%h" --no-patch)' \
         -D'RELEASE_NAME=$RELEASE_NAME' \
         -DCLOUD_BUILD \
-        -DUSE_ALTHOLD_MODE \
+        -DUSE_ALTITUDE_HOLD \
         -DUSE_DSHOT \
         -DUSE_LED_STRIP \
         -DUSE_OSD_HD \
