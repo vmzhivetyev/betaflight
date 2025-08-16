@@ -33,6 +33,8 @@ make "$TARGET" \
     -DUSE_TELEMETRY_CRSF \
     -DUSE_VTX \
     -DUSE_TELEMETRY_SMARTPORT \
+    -DUSE_BLACKBOX \
+    -D'DEFAULT_BLACKBOX_DEVICE=BLACKBOX_DEVICE_SERIAL' \
   "
 
 # Find and copy the generated hex file
