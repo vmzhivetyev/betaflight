@@ -164,7 +164,20 @@ void batteryUpdateVoltage(timeUs_t currentTimeUs)
 
         default:
         case VOLTAGE_METER_NONE:
+#ifdef SITL
+            float thr = mixerGetThrottle();
+            float voltCell = scaleRangef(thr, 0.0f, 1.0f, 4.0f, 3.47f);
+            voltageMeter.displayFiltered = 4.0f * voltCell; // fake voltage for SITL
+            voltageMeter.unfiltered = voltageMeter.displayFiltered;
+
+            LOG_UPDATE("vcell", "%3.2f V", (double)voltCell);
+
+            #if defined(USE_BATTERY_VOLTAGE_SAG_COMPENSATION)
+                voltageMeter.sagFiltered = 1616;
+            #endif
+#else
             voltageMeterReset(&voltageMeter);
+#endif
             break;
     }
 

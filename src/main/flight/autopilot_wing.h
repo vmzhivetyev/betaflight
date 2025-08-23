@@ -32,6 +32,7 @@ void altitudeControl(float targetAltitudeCm, float taskIntervalS, float targetAl
 
 bool isBelowLandingAltitude(void);
 float getAutopilotThrottle(void);
+void setAutopilotThrottle(float newThrottle);
 bool isAutopilotInControl(void);
 
 #endif // USE_WING

@@ -336,6 +336,7 @@ typedef struct osdConfig_s {
     int16_t esc_rpm_alarm;
     int16_t esc_current_alarm;
     uint8_t esc_stress_alarm;
+    uint8_t osd_pid_slow_alarm;               // Percent drop in PID loop frequency that triggers alarm
     uint8_t core_temp_alarm;
     uint8_t ahInvert;                         // invert the artificial horizon
     uint8_t osdProfileIndex;

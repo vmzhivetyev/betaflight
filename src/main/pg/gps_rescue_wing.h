@@ -31,7 +31,7 @@ typedef struct gpsRescue_s {
     uint8_t  yawP;
     uint8_t  minSats;
     uint16_t minStartDistM; // meters
-    uint8_t  sanityChecks;
+    uint8_t  sanityChecksMode;
     uint8_t  allowArmingWithoutFix;
     uint8_t  useMag;
     uint8_t  altitudeMode;
@@ -50,6 +50,7 @@ typedef struct gpsRescue_s {
 
     uint8_t ap_wing_alt_p, ap_wing_alt_i, ap_wing_alt_d;
     uint8_t ap_wing_cog_p, ap_wing_cog_i, ap_wing_cog_d;
+    uint8_t ap_wing_throttle_d_cutoff_decihz;
 
     uint8_t ap_wing_roll_pitch_mix;
     uint8_t ap_wing_roll_yaw_mix;
@@ -57,9 +58,10 @@ typedef struct gpsRescue_s {
     uint8_t ap_wing_loiter_alt;
     uint16_t ap_wing_loiter_seconds;
     uint8_t ap_wing_landing_alt;
+    uint8_t ap_wing_landing_speed; // km/h
     uint16_t ap_wing_landing_approach_dist;
 
-    uint16_t throttle;
+    uint8_t ap_wing_stall_speed; // km/h, used for speed control
 } gpsRescueConfig_t;
 
 PG_DECLARE(gpsRescueConfig_t, gpsRescueConfig);

@@ -36,7 +36,7 @@ typedef struct gpsRescue_s {
     uint8_t  minSats;
     uint8_t  velP, velI, velD;
     uint16_t minStartDistM; // meters
-    uint8_t  sanityChecks;
+    uint8_t  sanityChecksMode;
     uint8_t  allowArmingWithoutFix;
     uint8_t  useMag;
     uint8_t  altitudeMode;

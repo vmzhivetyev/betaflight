@@ -72,16 +72,57 @@ STATIC_ASSERT(ARRAYLEN(armingDisableFlagNames) == ARMING_DISABLE_FLAGS_COUNT, ar
 
 static armingDisableFlags_e armingDisableFlags = 0;
 
+void debug_log_armingDisableFlags(void) {
+#ifdef SIMULATOR_BUILD
+    char buffer[250];
+    int len = 0;
+    
+    for (int i = 0; i < 32; i++) {
+        armingDisableFlags_e currentFlag = 1 << i;
+        bool isFlagSet = armingDisableFlags & currentFlag;
+        
+        if (isFlagSet) {
+            // Check buffer space before writing
+            int remainingSpace = sizeof(buffer) - len - 1; // -1 for null terminator
+            if (remainingSpace <= 1) {
+                break; // Not enough space for even a single character + null terminator
+            }
+            
+            int written = snprintf(buffer + len, remainingSpace, "%s ", getArmingDisableFlagName(currentFlag));
+            
+            // snprintf returns number of chars that would have been written
+            if (written > 0 && written < remainingSpace) {
+                len += written;
+            } else {
+                // Not enough space, truncate gracefully
+                break;
+            }
+        }
+    }
+    
+    // Remove trailing space if present
+    if (len > 0 && buffer[len - 1] == ' ') {
+        buffer[len - 1] = '\0';
+    } else {
+        buffer[len] = '\0';
+    }
+
+    LOG_UPDATE("arming disable", buffer);
+#endif // #ifdef SIMULATOR_BUILD
+}
+
 void setArmingDisabled(armingDisableFlags_e flag)
 {
     if (!ARMING_ALWAYS_ENABLED) {
         armingDisableFlags = armingDisableFlags | flag;
     }
+    debug_log_armingDisableFlags();
 }
 
 void unsetArmingDisabled(armingDisableFlags_e flag)
 {
     armingDisableFlags = armingDisableFlags & ~flag;
+    debug_log_armingDisableFlags();
 }
 
 bool isArmingDisabled(void)

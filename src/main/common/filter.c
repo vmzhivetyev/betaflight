@@ -72,6 +72,12 @@ void pt1FilterUpdateCutoff(pt1Filter_t *filter, float k)
     filter->k = k;
 }
 
+void pt1FilterUpdateCutoffWithDTSeconds(pt1Filter_t *filter, float f_cut, float dT)
+{
+    const float gain = pt1FilterGain(f_cut, dT);
+    pt1FilterUpdateCutoff(filter, gain);
+}
+
 FAST_CODE float pt1FilterApply(pt1Filter_t *filter, float input)
 {
     filter->state = filter->state + filter->k * (input - filter->state);
@@ -143,10 +149,22 @@ float pt3FilterGainFromDelay(float delay, float dT)
 
 void pt3FilterInit(pt3Filter_t *filter, float k)
 {
-    filter->state = 0.0f;
-    filter->state1 = 0.0f;
-    filter->state2 = 0.0f;
+    pt3FilterInitValue(filter, k, 0.0f);
+}
+
+void pt3FilterInitValue(pt3Filter_t *filter, float k, float value)
+{
+    filter->state = value;
+    filter->state1 = value;
+    filter->state2 = value;
     filter->k = k;
+}
+
+void pt3FilterSetValue(pt3Filter_t *filter, float value)
+{
+    filter->state = value;
+    filter->state1 = value;
+    filter->state2 = value;
 }
 
 void pt3FilterUpdateCutoff(pt3Filter_t *filter, float k)
@@ -186,12 +204,12 @@ void biquadFilterInit(biquadFilter_t *filter, float filterFreq, uint32_t refresh
     filter->y1 = filter->y2 = 0;
 }
 
-FAST_CODE void biquadFilterUpdate(biquadFilter_t *filter, float filterFreq, uint32_t refreshRate, float Q, biquadFilterType_e filterType, float weight)
+FAST_CODE void biquadFilterUpdate(biquadFilter_t *filter, float filterFreq, uint32_t applyIntervalUs, float Q, biquadFilterType_e filterType, float weight)
 {
     // setup variables
-    const float omega = 2.0f * M_PIf * filterFreq * refreshRate * 0.000001f;
-    const float sn = sin_approx(omega);
-    const float cs = cos_approx(omega);
+    const float omega = 2.0f * M_PIf * filterFreq * applyIntervalUs * 0.000001f;
+    const float sn = sinf(omega);
+    const float cs = cosf(omega);
     const float alpha = sn / (2.0f * Q);
 
     switch (filterType) {

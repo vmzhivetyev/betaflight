@@ -51,6 +51,7 @@
 #include "flight/mixer.h"
 #include "flight/pid.h"
 #include "flight/pid_init.h"
+#include "flight/rpm_filter.h"
 
 #include "pg/pg.h"
 
@@ -341,9 +342,10 @@ static const void *cmsx_simplifiedTuningOnExit(displayPort_t *pDisp, const OSD_E
 
 static const OSD_Entry cmsx_menuSimplifiedTuningEntries[] =
 {
-    { "-- SIMPLIFIED PID --", OME_Label, NULL, NULL},
-    { "PID TUNING",        OME_TAB,   NULL, &(OSD_TAB_t)   { &cmsx_simplified_pids_mode, PID_SIMPLIFIED_TUNING_MODE_COUNT - 1, lookupTableSimplifiedTuningPidsMode } },
+    { "SIMPLIFY",          OME_TAB,   NULL, &(OSD_TAB_t)   { &cmsx_simplified_pids_mode, PID_SIMPLIFIED_TUNING_MODE_COUNT - 1, lookupTableSimplifiedTuningPidsMode } },
 
+    { "MASTER MULT",       OME_FLOAT, NULL, &(OSD_FLOAT_t) { &cmsx_simplified_master_multiplier, SIMPLIFIED_TUNING_PIDS_MIN, SIMPLIFIED_TUNING_MAX, 5, 10 } },
+    
     { "-- BASIC --",       OME_Label, NULL, NULL},
     { "D GAINS",           OME_FLOAT, NULL, &(OSD_FLOAT_t) { &cmsx_simplified_d_gain,            SIMPLIFIED_TUNING_PIDS_MIN, SIMPLIFIED_TUNING_MAX, 5, 10 } },
     { "P&I GAINS",         OME_FLOAT, NULL, &(OSD_FLOAT_t) { &cmsx_simplified_pi_gain,           SIMPLIFIED_TUNING_PIDS_MIN, SIMPLIFIED_TUNING_MAX, 5, 10 } },
@@ -357,7 +359,6 @@ static const OSD_Entry cmsx_menuSimplifiedTuningEntries[] =
 
     { "PITCH:ROLL D",      OME_FLOAT, NULL, &(OSD_FLOAT_t) { &cmsx_simplified_roll_pitch_ratio,  SIMPLIFIED_TUNING_PIDS_MIN, SIMPLIFIED_TUNING_MAX, 5, 10 } },
     { "PITCH:ROLL P,I&FF", OME_FLOAT, NULL, &(OSD_FLOAT_t) { &cmsx_simplified_pitch_pi_gain,     SIMPLIFIED_TUNING_PIDS_MIN, SIMPLIFIED_TUNING_MAX, 5, 10 } },
-    { "MASTER MULT",       OME_FLOAT, NULL, &(OSD_FLOAT_t) { &cmsx_simplified_master_multiplier, SIMPLIFIED_TUNING_PIDS_MIN, SIMPLIFIED_TUNING_MAX, 5, 10 } },
 
     { "-- SIMPLIFIED FILTER --", OME_Label, NULL, NULL},
     { "GYRO TUNING",       OME_TAB,   NULL, &(OSD_TAB_t)   { &cmsx_simplified_gyro_filter,  1, lookupTableOffOn } },
@@ -557,6 +558,15 @@ static int8_t cmsx_tpa_low_rate;
 static uint16_t cmsx_tpa_low_breakpoint;
 static uint8_t cmsx_tpa_low_always;
 
+#ifdef USE_DYN_IDLE
+static uint8_t  cmsx_dyn_idle_min_rpm;
+static uint8_t  cmsx_dyn_idle_p_gain;
+static uint8_t  cmsx_dyn_idle_i_gain;
+static uint8_t  cmsx_dyn_idle_d_gain;
+static uint8_t  cmsx_dyn_idle_max_increase;
+static uint8_t  cmsx_dyn_idle_per_motor;
+#endif
+
 static const void *cmsx_profileOtherOnEnter(displayPort_t *pDisp)
 {
     UNUSED(pDisp);
@@ -613,6 +623,16 @@ static const void *cmsx_profileOtherOnEnter(displayPort_t *pDisp)
     cmsx_tpa_low_breakpoint = pidProfile->tpa_low_breakpoint;
     cmsx_tpa_low_always = pidProfile->tpa_low_always;
     cmsx_landing_disarm_threshold = pidProfile->landing_disarm_threshold;
+    
+#ifdef USE_DYN_IDLE
+    cmsx_dyn_idle_min_rpm = pidProfile->dyn_idle_min_rpm;
+    cmsx_dyn_idle_p_gain = pidProfile->dyn_idle_p_gain;
+    cmsx_dyn_idle_i_gain = pidProfile->dyn_idle_i_gain;
+    cmsx_dyn_idle_d_gain = pidProfile->dyn_idle_d_gain;
+    cmsx_dyn_idle_max_increase = pidProfile->dyn_idle_max_increase;
+    cmsx_dyn_idle_per_motor = pidProfile->dyn_idle_per_motor;
+#endif
+
     return NULL;
 }
 
@@ -672,6 +692,15 @@ static const void *cmsx_profileOtherOnExit(displayPort_t *pDisp, const OSD_Entry
     pidProfile->tpa_low_breakpoint = cmsx_tpa_low_breakpoint;
     pidProfile->tpa_low_always = cmsx_tpa_low_always;
     pidProfile->landing_disarm_threshold = cmsx_landing_disarm_threshold;
+
+#ifdef USE_DYN_IDLE
+    pidProfile->dyn_idle_min_rpm = cmsx_dyn_idle_min_rpm;
+    pidProfile->dyn_idle_p_gain = cmsx_dyn_idle_p_gain;
+    pidProfile->dyn_idle_i_gain = cmsx_dyn_idle_i_gain;
+    pidProfile->dyn_idle_d_gain = cmsx_dyn_idle_d_gain;
+    pidProfile->dyn_idle_max_increase = cmsx_dyn_idle_max_increase;
+    pidProfile->dyn_idle_per_motor = cmsx_dyn_idle_per_motor;
+#endif
 
     initEscEndpoints();
     return NULL;
@@ -736,6 +765,15 @@ static const OSD_Entry cmsx_menuProfileOtherEntries[] = {
     { "TPA LOW BRKPT", OME_UINT16, NULL, &(OSD_UINT16_t){ &cmsx_tpa_low_breakpoint, 1000, 2000, 10} },
     { "TPA LOW ALWYS", OME_Bool,   NULL, &cmsx_tpa_low_always },
     { "EZDISARM THR",  OME_UINT8,  NULL, &(OSD_UINT8_t) { &cmsx_landing_disarm_threshold, 0, 150, 1} },
+
+#ifdef USE_DYN_IDLE
+    { "DYN IDL MIN RPM", OME_UINT8,  NULL, &(OSD_UINT8_t) { &cmsx_dyn_idle_min_rpm,      0,    200,   1  }    },
+    { "DYN IDL P GAIN",  OME_UINT8,  NULL, &(OSD_UINT8_t) { &cmsx_dyn_idle_p_gain,       1,    250,   1  }    },
+    { "DYN IDL I GAIN",  OME_UINT8,  NULL, &(OSD_UINT8_t) { &cmsx_dyn_idle_i_gain,       1,    250,   1  }    },
+    { "DYN IDL D GAIN",  OME_UINT8,  NULL, &(OSD_UINT8_t) { &cmsx_dyn_idle_d_gain,       0,    250,   1  }    },
+    { "DYN IDL MAX INC", OME_UINT8,  NULL, &(OSD_UINT8_t) { &cmsx_dyn_idle_max_increase, 10,   255,   1  }    },
+    { "DYN IDL PER MTR", OME_TAB,    NULL, &(OSD_TAB_t)   { &cmsx_dyn_idle_per_motor,    1,    lookupTableOffOn } },
+#endif
 
     { "BACK", OME_Back, NULL, NULL },
     { NULL, OME_END, NULL, NULL}
@@ -923,6 +961,79 @@ static CMS_Menu cmsx_menuDynFilt = {
 
 #endif
 
+// RPM Filter CMS Menu Implementation
+
+#ifdef USE_RPM_FILTER
+static uint8_t  cmsx_rpm_filter_harmonics;
+static uint8_t  cmsx_rpm_filter_weights[RPM_FILTER_HARMONICS_MAX];
+static uint16_t cmsx_rpm_filter_q;
+static uint8_t  cmsx_rpm_filter_min_hz;
+static uint16_t cmsx_rpm_filter_fade_range_hz;
+static uint16_t cmsx_rpm_filter_lpf_hz;
+
+static const void *cmsx_menuRpmFilter_onEnter(displayPort_t *pDisp)
+{
+    UNUSED(pDisp);
+
+    const rpmFilterConfig_t *cfg = rpmFilterConfig();
+
+    cmsx_rpm_filter_harmonics = cfg->rpm_filter_harmonics;
+    for (int i = 0; i < RPM_FILTER_HARMONICS_MAX; i++) {
+        cmsx_rpm_filter_weights[i] = cfg->rpm_filter_weights[i];
+    }
+    cmsx_rpm_filter_q = cfg->rpm_filter_q;
+    cmsx_rpm_filter_min_hz = cfg->rpm_filter_min_hz;
+    cmsx_rpm_filter_fade_range_hz = cfg->rpm_filter_fade_range_hz;
+    cmsx_rpm_filter_lpf_hz = cfg->rpm_filter_lpf_hz;
+
+    return NULL;
+}
+
+static const void *cmsx_menuRpmFilter_onExit(displayPort_t *pDisp, const OSD_Entry *self)
+{
+    UNUSED(pDisp);
+    UNUSED(self);
+
+    rpmFilterConfigMutable()->rpm_filter_harmonics = cmsx_rpm_filter_harmonics;
+    for (int i = 0; i < RPM_FILTER_HARMONICS_MAX; i++) {
+        rpmFilterConfigMutable()->rpm_filter_weights[i] = cmsx_rpm_filter_weights[i];
+    }
+    rpmFilterConfigMutable()->rpm_filter_q = cmsx_rpm_filter_q;
+    rpmFilterConfigMutable()->rpm_filter_min_hz = cmsx_rpm_filter_min_hz;
+    rpmFilterConfigMutable()->rpm_filter_fade_range_hz = cmsx_rpm_filter_fade_range_hz;
+    rpmFilterConfigMutable()->rpm_filter_lpf_hz = cmsx_rpm_filter_lpf_hz;
+
+    return NULL;
+}
+
+static const OSD_Entry cmsx_menuRpmFilterEntries[] =
+{
+    { "-- RPM FILTER --", OME_Label, NULL, NULL },
+
+    { "HARMONICS",      OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_rpm_filter_harmonics,      0,    3,    1 } },
+    { "WEIGHT 1",       OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_rpm_filter_weights[0],     0,    100,  1 } },
+    { "WEIGHT 2",       OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_rpm_filter_weights[1],     0,    100,  1 } },
+    { "WEIGHT 3",       OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_rpm_filter_weights[2],     0,    100,  1 } },
+    { "MIN Q FACTOR",   OME_UINT16, NULL, &(OSD_UINT16_t) { &cmsx_rpm_filter_q,              10,   3000, 1 } },
+    { "MIN HZ",         OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_rpm_filter_min_hz,         30,   200,  1 } },
+    { "FADE RANGE HZ",  OME_UINT16, NULL, &(OSD_UINT16_t) { &cmsx_rpm_filter_fade_range_hz,  0,    1000, 1 } },
+    { "RPM LPF HZ",     OME_UINT16, NULL, &(OSD_UINT16_t) { &cmsx_rpm_filter_lpf_hz,         100,  500,  1 } },
+
+    { "BACK", OME_Back, NULL, NULL },
+    { NULL, OME_END, NULL, NULL}
+};
+
+CMS_Menu cmsx_menuRpmFilter = {
+#ifdef CMS_MENU_DEBUG
+    .GUARD_text = "MENURPMFILT",
+    .GUARD_type = OME_MENU,
+#endif
+    .onEnter = cmsx_menuRpmFilter_onEnter,
+    .onExit = cmsx_menuRpmFilter_onExit,
+    .entries = cmsx_menuRpmFilterEntries
+};
+#endif
+
 static uint16_t cmsx_dterm_lpf1_static_hz;
 static uint16_t cmsx_dterm_lpf2_static_hz;
 static uint16_t cmsx_dterm_notch_hz;
@@ -1078,6 +1189,10 @@ static const OSD_Entry cmsx_menuImuEntries[] =
     {"FILT GLB",  OME_Submenu, cmsMenuChange,                 &cmsx_menuFilterGlobal},
 #if  (defined(USE_DYN_NOTCH_FILTER) || defined(USE_DYN_LPF)) && defined(USE_EXTENDED_CMS_MENUS)
     {"DYN FILT",  OME_Submenu, cmsMenuChange,                 &cmsx_menuDynFilt},
+#endif
+
+#ifdef USE_RPM_FILTER
+    {"RPM FILT",  OME_Submenu, cmsMenuChange,                 &cmsx_menuRpmFilter},
 #endif
 
 #ifdef USE_EXTENDED_CMS_MENUS

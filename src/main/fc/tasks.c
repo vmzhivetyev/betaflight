@@ -502,7 +502,10 @@ void tasksInit(void)
     setTaskEnabled(TASK_SERIAL, true);
     rescheduleTask(TASK_SERIAL, TASK_PERIOD_HZ(serialConfig()->serial_update_rate_hz));
 
-    const bool useBatteryVoltage = batteryConfig()->voltageMeterSource != VOLTAGE_METER_NONE;
+    bool useBatteryVoltage = batteryConfig()->voltageMeterSource != VOLTAGE_METER_NONE;
+    #ifdef SITL
+    useBatteryVoltage = true; // In SITL we always use battery voltage
+    #endif
     setTaskEnabled(TASK_BATTERY_VOLTAGE, useBatteryVoltage);
 
     do {

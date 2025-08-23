@@ -23,15 +23,38 @@
 #include <stdint.h>
 
 #include "platform.h"
+#include "../fc/rc_controls.h"
 
 #ifdef USE_VIRTUAL_GPS
 
 #include "io/gps_virtual.h"
+#include <rx/rx.h>
 
 static gpsSolutionData_t gpsVirtualData;
 
+void setBadGPS(void)
+{
+    gpsVirtualData.numSat = 0;    // satellites_in_view
+    gpsVirtualData.acc.hAcc = 9999999; // horizontal_pos_accuracy - convert cm to mm
+    gpsVirtualData.acc.vAcc = 9999999; // vertical_pos_accuracy - convert cm to mm
+    gpsVirtualData.acc.sAcc = 9999999; // horizontal_vel_accuracy - convert cm to mm
+    gpsVirtualData.dop.pdop = 999; // hdop in 4.4 and earlier, pdop in 4.5 and above
+    gpsVirtualData.llh.lon = 0;
+    gpsVirtualData.llh.lat = 0;
+    gpsVirtualData.llh.altCm = 0; // alt, cm
+    gpsVirtualData.groundSpeed = 0;  // cm/sec
+    gpsVirtualData.speed3d = 0;    // cm/sec
+    gpsVirtualData.groundCourse = 0; // decidegrees
+}
+
 void setVirtualGPS(double latitude, double longitude, double altiutude, double speed, double speed3D, double course)
 {
+    LOG_UPDATE("AUX5", "%f", (double)rcData[AUX5]);
+
+    if (rcData[AUX5] < 1010.0f) {
+        setBadGPS();
+        return;
+    }
     gpsVirtualData.numSat = 12;    // satellites_in_view
     gpsVirtualData.acc.hAcc = 500; // horizontal_pos_accuracy - convert cm to mm
     gpsVirtualData.acc.vAcc = 500; // vertical_pos_accuracy - convert cm to mm
