@@ -1,0 +1,27 @@
+#!/bin/bash
+
+set -eu
+source build-common.sh
+
+TARGET="HDZERO_AIO15"
+
+DEFINES=(
+  "CLOUD_BUILD"
+  "USE_DSHOT"
+  "USE_LED_STRIP"
+  "USE_PINIO"
+  "USE_OSD"
+  "USE_OSD_HD"
+  "USE_SERIALRX"
+  "USE_SERIALRX_CRSF"
+  "USE_TELEMETRY"
+  "USE_TELEMETRY_CRSF"
+  "USE_VTX"
+  "USE_TELEMETRY_SMARTPORT"
+  "USE_BLACKBOX"
+  "DEFAULT_BLACKBOX_DEVICE=BLACKBOX_DEVICE_SERIAL"
+)
+
+build_target "$TARGET" "${DEFINES[@]}"
+
+copy_hex_to_downloads "$TARGET"
