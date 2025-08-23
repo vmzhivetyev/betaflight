@@ -60,6 +60,7 @@ typedef struct rpmFilter_s {
 
 // Singleton
 FAST_DATA_ZERO_INIT static rpmFilter_t rpmFilter;
+FAST_DATA_ZERO_INIT static pt1Filter_t loopTimeFilter;
 
 // batch processing of RPM notches
 FAST_DATA_ZERO_INIT static int notchUpdatesPerIteration;
@@ -88,6 +89,10 @@ void rpmFilterInit(const rpmFilterConfig_t *config, const timeUs_t expectedLoopt
     rpmFilter.fadeRangeHz = config->rpm_filter_fade_range_hz;
     rpmFilter.minQ = config->rpm_filter_q / 100.0f;
     rpmFilter.actualApplyDeltaTimeUs = expectedLooptimeUs;
+
+    float looptimeFilterGain = pt1FilterGain(100.0f, expectedLooptimeUs);
+    pt1FilterInit(&loopTimeFilter, looptimeFilterGain);
+    loopTimeFilter.state = expectedLooptimeUs;
 
     for (int n = 0; n < RPM_FILTER_HARMONICS_MAX; n++) {
         rpmFilter.weights[n] = constrainf(config->rpm_filter_weights[n] / 100.0f, 0.0f, 1.0f);
@@ -121,7 +126,10 @@ FAST_CODE_NOINLINE void rpmFilterUpdate(void)
     }
 
     float applyIntervalUs = rpmFilter.actualApplyDeltaTimeUs; // updated in rpmFilterApply calls.
-    const float rpmFilterMaxHz = 0.48f * 1e6f / applyIntervalUs; // don't go quite to nyquist to avoid oscillations
+    float nyquistHz = 0.5f * 1e6f / applyIntervalUs;
+    float safeNyquistHz = 0.4f * nyquistHz; // 40% of Nyquist for safety
+    float nyquistFadeStartHz = 0.35f * nyquistHz; // Start fading at 35%
+    // float rpmFilterMaxHz = 0.48f * 1e6f / applyIntervalUs; // don't go quite to nyquist to avoid oscillations
 
     DEBUG_SET(DEBUG_GYRO_SAMPLE, 7, applyIntervalUs);
 
@@ -134,13 +142,29 @@ FAST_CODE_NOINLINE void rpmFilterUpdate(void)
             // select current notch on ROLL
             biquadFilter_t *template = &rpmFilter.notch[0][motorIndex][harmonicIndex];
 
-            const float frequencyHz = constrainf((harmonicIndex + 1) * getMotorFrequencyHz(motorIndex), rpmFilter.minHz, rpmFilterMaxHz);
-            const float marginHz = frequencyHz - rpmFilter.minHz;
+            const float frequencyHz = constrainf(
+                (harmonicIndex + 1) * getMotorFrequencyHz(motorIndex), 
+                rpmFilter.minHz, 
+                safeNyquistHz
+            );
             float weight = 1.0f;
 
             // fade out notch when approaching minHz (turn it off)
+            float marginHz = frequencyHz - rpmFilter.minHz;
             if (marginHz < rpmFilter.fadeRangeHz) {
                 weight *= marginHz / rpmFilter.fadeRangeHz;
+            }
+
+            // NEW: Fade out when approaching Nyquist
+            if (frequencyHz > nyquistFadeStartHz) {
+                if (frequencyHz >= safeNyquistHz) {
+                    weight = 0.0f; // Completely disable above safe limit
+                } else {
+                    // Linear fade from nyquistFadeStartHz to safeNyquistHz
+                    const float nyquistMargin = safeNyquistHz - frequencyHz;
+                    const float nyquistFadeRange = safeNyquistHz - nyquistFadeStartHz;
+                    weight *= nyquistMargin / nyquistFadeRange;
+                }
             }
 
             // attenuate notches per harmonics group
@@ -194,7 +218,10 @@ FAST_CODE float rpmFilterApply(const int axis, float value)
             const int currentMicros = micros();
             const int actualLoopTimeUs = currentMicros - lastMicros;
             DEBUG_SET(DEBUG_GYRO_SAMPLE, 6, actualLoopTimeUs);
-            rpmFilter.actualApplyDeltaTimeUs = actualLoopTimeUs;
+
+            float smoothedLoopTimeUs = pt1FilterApply(&loopTimeFilter, (float)actualLoopTimeUs);
+        
+            rpmFilter.actualApplyDeltaTimeUs = (timeUs_t)smoothedLoopTimeUs;
             lastMicros = currentMicros;
         }
     }
