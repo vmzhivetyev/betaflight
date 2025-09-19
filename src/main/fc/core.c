@@ -55,6 +55,7 @@
 #include "fc/controlrate_profile.h"
 #include "fc/rc.h"
 #include "fc/rc_adjustments.h"
+#include "fc/rc_actions.h"
 #include "fc/rc_controls.h"
 #include "fc/runtime_config.h"
 #include "fc/stats.h"
@@ -1050,6 +1051,7 @@ void processRxModes(timeUs_t currentTimeUs)
 
     if (!cliMode && !(IS_RC_MODE_ACTIVE(BOXPARALYZE) && !ARMING_FLAG(ARMED))) {
         processRcAdjustments(currentControlRateProfile);
+        processRCActionsAUXInput();
     }
 
     bool canUseHorizonMode = true;

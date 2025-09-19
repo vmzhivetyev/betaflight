@@ -77,6 +77,12 @@ bool isAirmodeEnabled(void)
     return airmodeEnabled;
 }
 
+bool isRCRangeActive(uint8_t channelIndex, uint16_t min, uint16_t max)
+{
+    const uint16_t channelValue = rcData[channelIndex];
+    return channelValue >= min && channelValue <= max;
+}
+
 bool isRangeActive(uint8_t auxChannelIndex, const channelRange_t *range)
 {
     if (!IS_RANGE_USABLE(range)) {
