@@ -246,7 +246,11 @@ void processRCActionsAUXInput(void)
 
     rcAction_e activeAction = offcenterAction;
 
-    if (activeAction != prevActiveRCAction) {
+    if (activeAction >= RC_ACTION_COUNT) {
+        activeAction = RC_ACTION_NONE;
+    }
+
+    if (activeAction != prevActiveRCAction && activeAction != RC_ACTION_NONE) {
         performAction(activeAction);
         blackboxLogInflightActionEvent(activeAction, 0);
         lastTriggeredRCAction = activeAction;
