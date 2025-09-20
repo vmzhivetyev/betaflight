@@ -146,6 +146,7 @@
 #include "fc/core.h"
 #include "fc/gps_lap_timer.h"
 #include "fc/rc_adjustments.h"
+#include "fc/rc_actions.h"
 #include "fc/rc_controls.h"
 #include "fc/runtime_config.h"
 
@@ -779,6 +780,9 @@ static void osdElementAdjustmentRange(osdElementParms_t *element)
         } else {
             tfp_sprintf(element->buff, "%s: %3d", name, value);
         }
+    } else {
+        name = getOSDActivatedAction();
+        tfp_sprintf(element->buff, "%s", name);
     }
 }
 #endif // USE_OSD_ADJUSTMENTS
@@ -1119,7 +1123,7 @@ static void osdElementPidProfileName(osdElementParms_t *element)
 #ifdef USE_OSD_PROFILES
 static void osdElementOsdProfileName(osdElementParms_t *element)
 {
-    uint8_t profileIndex = getCurrentOsdProfileIndex();
+    uint8_t profileIndex = getCurrentOsdProfileNumber();
 
     if (strlen(osdConfig()->profile[profileIndex - 1]) == 0) {
         tfp_sprintf(element->buff, "OSD_%u", profileIndex);

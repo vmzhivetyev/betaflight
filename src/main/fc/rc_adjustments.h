@@ -117,3 +117,7 @@ void processRcAdjustments(struct controlRateConfig_s *controlRateConfig);
 const char *getAdjustmentsRangeName(void);
 int getAdjustmentsRangeValue(void);
 void activeAdjustmentRangeReset(void);
+
+// RC_ACTIONS
+void changeActiveAdjustmentIndex(bool next);
+void performActiveAdjustmentChange(controlRateConfig_t *controlRateConfig, bool increase);

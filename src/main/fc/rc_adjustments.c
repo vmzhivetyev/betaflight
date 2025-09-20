@@ -718,8 +718,9 @@ static uint8_t applySelectAdjustment(adjustmentFunction_e adjustmentFunction, ui
         break;
     case ADJUSTMENT_OSD_PROFILE:
 #ifdef USE_OSD_PROFILES
-        if (getCurrentOsdProfileIndex() != (position + 1)) {
-            changeOsdProfileIndex(position+1);
+        uint8_t osdProfileNum = position + 1; // convert 0-based to 1-based
+        if (getCurrentOsdProfileNumber() != osdProfileNum) {
+            setOsdProfileNumber(osdProfileNum);
         }
 #endif
         break;
@@ -807,7 +808,108 @@ static void updateOsdAdjustmentData(int newValue, adjustmentFunction_e adjustmen
 
 #define RESET_FREQUENCY_2HZ (1000 / 2)
 
-static void processStepwiseAdjustments(controlRateConfig_t *controlRateConfig, const bool canUseRxData)
+static void updateOSDBecauseActiveAdjustmentChanged(controlRateConfig_t *controlRateConfig, const adjustmentConfig_t *adjustmentConfig) {
+    #if defined(USE_OSD) && defined(USE_OSD_ADJUSTMENTS)
+    if (adjustmentConfig->mode == ADJUSTMENT_MODE_STEP) {
+        const int curValue = getCurrentAdjustmentValue(controlRateConfig, adjustmentConfig->adjustmentFunction);
+        updateOsdAdjustmentData(curValue, adjustmentConfig->adjustmentFunction);
+    } else {
+        updateOsdAdjustmentData(-2, adjustmentConfig->adjustmentFunction);
+    }
+    #else
+    UNUSED(getCurrentAdjustmentValue);
+    #endif
+}
+
+// RC_ACTIONS
+static int8_t activeAdjustmentIndex = 0;
+
+// RC_ACTIONS
+// Note: it will wrap around at stepwiseAdjustmentCount.
+void changeActiveAdjustmentIndex(bool next) {
+    if (stepwiseAdjustmentCount == 0) {
+        activeAdjustmentIndex = -1;
+        return;
+    }
+    activeAdjustmentIndex += next ? 1 : -1;
+    if (activeAdjustmentIndex >= stepwiseAdjustmentCount) {
+        activeAdjustmentIndex = 0;
+    } else if (activeAdjustmentIndex < 0) {
+        activeAdjustmentIndex = stepwiseAdjustmentCount - 1;
+    }
+}
+
+// RC_ACTIONS
+void performActiveAdjustmentChange(controlRateConfig_t *controlRateConfig, bool increase) {
+    if (activeAdjustmentIndex < 0 || activeAdjustmentIndex >= stepwiseAdjustmentCount) {
+        return;
+    }
+
+    timedAdjustmentState_t *adjustmentState = &stepwiseAdjustments[activeAdjustmentIndex];
+    const adjustmentRange_t *const adjustmentRange = adjustmentRanges(adjustmentState->adjustmentRangeIndex);
+    const adjustmentConfig_t *adjustmentConfig = &defaultAdjustmentConfigs[adjustmentRange->adjustmentConfig - ADJUSTMENT_FUNCTION_CONFIG_INDEX_OFFSET];
+
+    int delta = increase ? 
+        adjustmentConfig->data.step : 
+        -adjustmentConfig->data.step;
+
+    int newValue = applyStepAdjustment(controlRateConfig, adjustmentConfig->adjustmentFunction, delta);
+
+    setConfigDirty();
+    pidInitConfig(currentPidProfile);
+
+    #if defined(USE_OSD) && defined(USE_OSD_ADJUSTMENTS)
+    updateOsdAdjustmentData(newValue, adjustmentConfig->adjustmentFunction);
+    #else
+    UNUSED(newValue);
+    #endif
+}
+
+static void processAdjustmentModifierChannelAndPerformChanges(
+    controlRateConfig_t *controlRateConfig,
+    uint8_t index
+) {
+    timedAdjustmentState_t *adjustmentState = &stepwiseAdjustments[index];
+    const adjustmentRange_t *const adjustmentRange = adjustmentRanges(adjustmentState->adjustmentRangeIndex);
+    const adjustmentConfig_t *adjustmentConfig = &defaultAdjustmentConfigs[adjustmentRange->adjustmentConfig - ADJUSTMENT_FUNCTION_CONFIG_INDEX_OFFSET];
+
+    if (adjustmentConfig->mode != ADJUSTMENT_MODE_STEP) {
+        return;
+    }
+
+    const timeMs_t now = millis();
+
+    int delta;
+    const uint8_t channelIndex = NON_AUX_CHANNEL_COUNT + adjustmentRange->auxSwitchChannelIndex;
+    if (rcData[channelIndex] > rxConfig()->midrc + 200) {
+        delta = adjustmentConfig->data.step;
+    } else if (rcData[channelIndex] < rxConfig()->midrc - 200) {
+        delta = -adjustmentConfig->data.step;
+    } else {
+        // returning the switch to the middle immediately resets the ready state
+        adjustmentState->ready = true;
+        adjustmentState->timeoutAt = now + RESET_FREQUENCY_2HZ;
+        return;
+    }
+    if (!adjustmentState->ready) {
+        return;
+    }
+
+    int newValue = applyStepAdjustment(controlRateConfig, adjustmentConfig->adjustmentFunction, delta);
+
+    setConfigDirty();
+    pidInitConfig(currentPidProfile);
+
+    adjustmentState->ready = false;
+
+    #if defined(USE_OSD) && defined(USE_OSD_ADJUSTMENTS)
+    updateOsdAdjustmentData(newValue, adjustmentConfig->adjustmentFunction);
+    #else
+    UNUSED(newValue);
+    #endif
+}
+
+static void processStepwiseAdjustmentsBySetRange(controlRateConfig_t *controlRateConfig, const bool canUseRxData)
 {
     const timeMs_t now = millis();
 
@@ -834,53 +936,12 @@ static void processStepwiseAdjustments(controlRateConfig_t *controlRateConfig, c
             continue;
         }
 
-        const uint8_t channelIndex = NON_AUX_CHANNEL_COUNT + adjustmentRange->auxSwitchChannelIndex;
-
         if (adjustmentFunction != previousAdjustmentFunction) {
             previousAdjustmentFunction = adjustmentFunction;
-            
-            #if defined(USE_OSD) && defined(USE_OSD_ADJUSTMENTS)
-            if (adjustmentConfig->mode == ADJUSTMENT_MODE_STEP) {
-                const int curValue = getCurrentAdjustmentValue(controlRateConfig, adjustmentFunction);
-                updateOsdAdjustmentData(curValue, adjustmentFunction);
-            } else {
-                updateOsdAdjustmentData(-2, adjustmentFunction);
-            }
-            #else
-            UNUSED(getCurrentAdjustmentValue);
-            #endif
+            updateOSDBecauseActiveAdjustmentChanged(controlRateConfig, adjustmentConfig);
         }
 
-        if (adjustmentConfig->mode == ADJUSTMENT_MODE_STEP) {
-            int delta;
-            if (rcData[channelIndex] > rxConfig()->midrc + 200) {
-                delta = adjustmentConfig->data.step;
-            } else if (rcData[channelIndex] < rxConfig()->midrc - 200) {
-                delta = -adjustmentConfig->data.step;
-            } else {
-                // returning the switch to the middle immediately resets the ready state
-                adjustmentState->ready = true;
-                adjustmentState->timeoutAt = now + RESET_FREQUENCY_2HZ;
-                continue;
-            }
-            if (!adjustmentState->ready) {
-                continue;
-            }
-
-            int newValue = applyStepAdjustment(controlRateConfig, adjustmentFunction, delta);
-
-            setConfigDirty();
-
-            pidInitConfig(currentPidProfile);
-
-            adjustmentState->ready = false;
-
-#if defined(USE_OSD) && defined(USE_OSD_ADJUSTMENTS)
-            updateOsdAdjustmentData(newValue, adjustmentFunction);
-#else
-            UNUSED(newValue);
-#endif
-        }
+        processAdjustmentModifierChannelAndPerformChanges(controlRateConfig, index);
     }
 }
 
@@ -954,7 +1015,7 @@ void processRcAdjustments(controlRateConfig_t *controlRateConfig)
         calcActiveAdjustmentRanges();
     }
 
-    processStepwiseAdjustments(controlRateConfig, canUseRxData);
+    processStepwiseAdjustmentsBySetRange(controlRateConfig, canUseRxData);
 
     if (canUseRxData) {
         processContinuosAdjustments(controlRateConfig);

@@ -156,6 +156,7 @@ COMMON_SRC = \
             fc/gps_lap_timer.c \
             fc/rc.c \
             fc/rc_adjustments.c \
+            fc/rc_actions.c \
             fc/rc_controls.c \
             fc/rc_modes.c \
             flight/alt_hold_multirotor.c \

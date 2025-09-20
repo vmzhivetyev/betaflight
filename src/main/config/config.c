@@ -100,6 +100,8 @@ static bool rebootRequired = false;  // set if a config change requires a reboot
 static bool eepromWriteInProgress = false;
 
 pidProfile_t *currentPidProfile;
+// this is essentially a backup of `currentPidProfile` which is as-is once the profile was activated.
+pidProfile_t currentPidProfileBackup;
 
 #ifndef RX_SPI_DEFAULT_PROTOCOL
 #define RX_SPI_DEFAULT_PROTOCOL 0
@@ -131,9 +133,22 @@ uint8_t getCurrentPidProfileIndex(void)
     return systemConfig()->pidProfileIndex;
 }
 
+void backupCurrentPidProfile(void)
+{
+    memcpy(&currentPidProfileBackup, currentPidProfile, sizeof(currentPidProfileBackup));
+}
+
+// Restores it's last state when backup was called.
+// Note: backup is always called whenever pid profile is loaded/changed/etc.
+void restoreCurrentPidProfileFromBackup(void)
+{
+    memcpy(currentPidProfile, &currentPidProfileBackup, sizeof(currentPidProfileBackup));
+}
+
 static void loadPidProfile(void)
 {
     currentPidProfile = pidProfilesMutable(systemConfig()->pidProfileIndex);
+    backupCurrentPidProfile();
 }
 
 uint8_t getCurrentControlRateProfileIndex(void)
@@ -809,6 +824,17 @@ void changePidProfile(uint8_t pidProfileIndex)
     }
 
     beeperConfirmationBeeps(pidProfileIndex + 1);
+}
+
+void changePidProfileNext(bool next)
+{
+    int8_t newIndex = getCurrentPidProfileIndex() + (next ? 1 : -1);
+    if (newIndex >= PID_PROFILE_COUNT) {
+        newIndex = 0;
+    } else if (newIndex < 0) {
+        newIndex = PID_PROFILE_COUNT - 1;
+    }
+    changePidProfile(newIndex);
 }
 
 bool isSystemConfigured(void)

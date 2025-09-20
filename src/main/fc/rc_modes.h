@@ -147,6 +147,8 @@ void rcModeUpdate(const boxBitmask_t *newState);
 
 bool isAirmodeEnabled(void);
 
+// use PWM values for min and max (1000...2000)
+bool isRCRangeActive(uint8_t auxChannelIndex, uint16_t min, uint16_t max);
 bool isRangeActive(uint8_t auxChannelIndex, const channelRange_t *range);
 void updateActivatedModes(void);
 bool isModeActivationConditionPresent(boxId_e modeId);
