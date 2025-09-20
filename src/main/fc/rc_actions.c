@@ -168,6 +168,7 @@ static int performAction(rcAction_e action, controlRateConfig_t *controlRateConf
 
     case RC_ACTION_PID_PROFILE_RESET:
         restoreCurrentPidProfileFromBackup();
+        pidInitConfig(currentPidProfile);
         break;
 
     case RC_ACTION_BB_TOGGLE:
