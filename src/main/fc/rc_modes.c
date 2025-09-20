@@ -33,6 +33,7 @@
 #include "config/feature.h"
 
 #include "fc/rc_controls.h"
+#include "osd/osd.h"
 
 #include "io/piniobox.h"
 
@@ -150,6 +151,8 @@ void updateActivatedModes(void)
     memset(&stickyModes, 0, sizeof(stickyModes));
     bitArraySet(&stickyModes, BOXPARALYZE);
 
+    bool hideOSDModeIsBound = false;
+
     // determine which conditions set/clear the mode
     for (int i = 0; i < activeMacCount; i++) {
         const modeActivationCondition_t *mac = modeActivationConditions(activeMacArray[i]);
@@ -160,6 +163,10 @@ void updateActivatedModes(void)
             bool bActive = isRangeActive(mac->auxChannelIndex, &mac->range);
             updateMasksForMac(mac, &andMask, &newMask, bActive);
         }
+
+        if (mac->modeId == BOXOSD) {
+            hideOSDModeIsBound = true;
+        }
     }
 
     // Update linked modes
@@ -168,6 +175,10 @@ void updateActivatedModes(void)
         bool bActive = bitArrayGet(&andMask, mac->linkedTo) != bitArrayGet(&newMask, mac->linkedTo);
 
         updateMasksForMac(mac, &andMask, &newMask, bActive);
+
+        if (mac->modeId == BOXOSD) {
+            hideOSDModeIsBound = true;
+        }
     }
 
     bitArrayXor(&newMask, sizeof(newMask), &newMask, &andMask);
@@ -175,6 +186,11 @@ void updateActivatedModes(void)
     rcModeUpdate(&newMask);
 
     airmodeEnabled = featureIsEnabled(FEATURE_AIRMODE) || IS_RC_MODE_ACTIVE(BOXAIRMODE);
+
+    if (hideOSDModeIsBound) {
+        // when it's not bound, it will be controllable via RC_ACTIONS
+        forceHideOSD = IS_RC_MODE_ACTIVE(BOXOSD);
+    }
 }
 
 bool isModeActivationConditionPresent(boxId_e modeId)

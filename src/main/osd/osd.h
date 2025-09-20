@@ -339,7 +339,7 @@ typedef struct osdConfig_s {
     uint8_t osd_pid_slow_alarm;               // Percent drop in PID loop frequency that triggers alarm
     uint8_t core_temp_alarm;
     uint8_t ahInvert;                         // invert the artificial horizon
-    uint8_t osdProfileIndex;
+    uint8_t osdProfileNumber;
     uint8_t overlay_radio_mode;
     char profile[OSD_PROFILE_COUNT][OSD_PROFILE_NAME_LENGTH + 1];
     uint16_t link_quality_alarm;
@@ -414,6 +414,7 @@ typedef struct statistic_s {
 extern timeUs_t resumeRefreshAt;
 extern timeUs_t osdFlyTime;
 extern timeUs_t osdLaunchTime;
+extern bool forceHideOSD;
 
 #if defined(USE_ACC)
 extern float osdGForce;
@@ -431,8 +432,9 @@ void osdStatSetState(uint8_t statIndex, bool enabled);
 bool osdStatGetState(uint8_t statIndex);
 void osdSuppressStats(bool flag);
 void osdAnalyzeActiveElements(void);
-void changeOsdProfileIndex(uint8_t profileIndex);
-uint8_t getCurrentOsdProfileIndex(void);
+void setOsdProfileNumber(uint8_t profileIndex);
+void changeOSDProfileNext(bool next);
+uint8_t getCurrentOsdProfileNumber(void);
 displayPort_t *osdGetDisplayPort(osdDisplayPortDevice_e *displayPortDevice);
 
 void osdWarnSetState(uint8_t warningIndex, bool enabled);

@@ -1051,7 +1051,7 @@ void processRxModes(timeUs_t currentTimeUs)
 
     if (!cliMode && !(IS_RC_MODE_ACTIVE(BOXPARALYZE) && !ARMING_FLAG(ARMED))) {
         processRcAdjustments(currentControlRateProfile);
-        processRCActionsAUXInput();
+        processRCActionsAUXInput(currentControlRateProfile);
     }
 
     bool canUseHorizonMode = true;

@@ -60,4 +60,4 @@ typedef enum {
 const char* getOSDActivatedAction(void);
 #endif
 
-void processRCActionsAUXInput(void);
+void processRCActionsAUXInput(controlRateConfig_t *controlRateConfig);

@@ -42,6 +42,7 @@
 #include "config/config.h"
 #include "fc/controlrate_profile.h"
 #include "fc/rc_controls.h"
+#include "fc/rc_adjustments.h"
 #include "fc/rc.h"
 
 #include "flight/pid.h"
@@ -98,7 +99,7 @@ static const char * const rcActionLabels[] = {
     "BlackBox Toggle",
 };
 
-static int performAction(rcAction_e action)
+static int performAction(rcAction_e action, controlRateConfig_t *controlRateConfig)
 {
     beeperConfirmationBeeps(1);
     int32_t result = 0;
@@ -109,31 +110,31 @@ static int performAction(rcAction_e action)
         break;
 
     case RC_ACTION_ADJUSTMENT_NEXT:
-        // Handle adjustment next
+        changeActiveAdjustmentIndex(true);
         break;
 
     case RC_ACTION_ADJUSTMENT_PREV:
-        // Handle adjustment previous
+        changeActiveAdjustmentIndex(false);
         break;
 
     case RC_ACTION_ADJUSTMENT_INCREASE:
-        // Handle adjustment increase
+        performActiveAdjustmentChange(controlRateConfig, true);
         break;
 
     case RC_ACTION_ADJUSTMENT_DECREASE:
-        // Handle adjustment decrease
+        performActiveAdjustmentChange(controlRateConfig, false);
         break;
 
     case RC_ACTION_OSD_NEXT:
-        // Handle OSD next
+        changeOSDProfileNext(true);
         break;
 
     case RC_ACTION_OSD_PREV:
-        // Handle OSD previous
+        changeOSDProfileNext(false);
         break;
 
     case RC_ACTION_OSD_TOGGLE:
-        // Handle OSD toggle
+        forceHideOSD = !forceHideOSD;
         break;
 
     case RC_ACTION_VTX_TOGGLE:
@@ -149,19 +150,24 @@ static int performAction(rcAction_e action)
         break;
 
     case RC_ACTION_PID_PROFILE_NEXT:
-        // Handle PID profile next
+        // let's restore it before loading another since we will lose the backup with loading
+        restoreCurrentPidProfileFromBackup();
+        changePidProfileNext(true);
         break;
 
     case RC_ACTION_PID_PROFILE_PREV:
-        // Handle PID profile previous
+        // let's restore it before loading another since we will lose the backup with loading
+        restoreCurrentPidProfileFromBackup();
+        changePidProfileNext(false);
         break;
 
     case RC_ACTION_PID_PROFILE_SAVE:
-        // Handle PID profile save
+        // saves an in-ram backup, doesn't affect EEPROM
+        backupCurrentPidProfile();
         break;
 
     case RC_ACTION_PID_PROFILE_RESET:
-        // Handle PID profile reset
+        restoreCurrentPidProfileFromBackup();
         break;
 
     case RC_ACTION_BB_TOGGLE:
@@ -200,7 +206,7 @@ const char* getOSDActivatedAction(void)
 }
 #endif
 
-void processRCActionsAUXInput(void)
+void processRCActionsAUXInput(controlRateConfig_t *controlRateConfig)
 {
     const bool canUseRxData = isRxReceivingSignal();
 
@@ -251,7 +257,7 @@ void processRCActionsAUXInput(void)
     }
 
     if (activeAction != prevActiveRCAction && activeAction != RC_ACTION_NONE) {
-        performAction(activeAction);
+        performAction(activeAction, controlRateConfig);
         blackboxLogInflightActionEvent(activeAction, 0);
         lastTriggeredRCAction = activeAction;
         lastTriggeredRCActionMs = millis();

@@ -1123,7 +1123,7 @@ static void osdElementPidProfileName(osdElementParms_t *element)
 #ifdef USE_OSD_PROFILES
 static void osdElementOsdProfileName(osdElementParms_t *element)
 {
-    uint8_t profileIndex = getCurrentOsdProfileIndex();
+    uint8_t profileIndex = getCurrentOsdProfileNumber();
 
     if (strlen(osdConfig()->profile[profileIndex - 1]) == 0) {
         tfp_sprintf(element->buff, "OSD_%u", profileIndex);

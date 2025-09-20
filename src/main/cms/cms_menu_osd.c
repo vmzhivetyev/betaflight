@@ -352,7 +352,7 @@ static const void *cmsx_menuOsdOnEnter(displayPort_t *pDisp)
     UNUSED(pDisp);
 
 #ifdef USE_OSD_PROFILES
-    osdConfig_osdProfileIndex = osdConfig()->osdProfileIndex;
+    osdConfig_osdProfileIndex = osdConfig()->osdProfileNumber;
 #endif
 
 #ifdef USE_MAX7456
@@ -371,7 +371,7 @@ static const void *cmsx_menuOsdOnExit(displayPort_t *pDisp, const OSD_Entry *sel
     UNUSED(self);
 
 #ifdef USE_OSD_PROFILES
-    changeOsdProfileIndex(osdConfig_osdProfileIndex);
+    setOsdProfileNumber(osdConfig_osdProfileIndex);
 #endif
 
     return NULL;

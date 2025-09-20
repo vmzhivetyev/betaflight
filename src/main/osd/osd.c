@@ -129,6 +129,7 @@ const char * const osdTimerSourceNames[] = {
 
 timeUs_t osdFlyTime = 0;
 timeUs_t osdLaunchTime = 0;
+bool forceHideOSD = false;
 
 #if defined(USE_ACC)
 float osdGForce = 0;
@@ -295,18 +296,31 @@ static void setOsdProfile(uint8_t value)
     }
  }
 
-uint8_t getCurrentOsdProfileIndex(void)
+uint8_t getCurrentOsdProfileNumber(void)
 {
-    return osdConfig()->osdProfileIndex;
+    return osdConfig()->osdProfileNumber;
 }
 
-void changeOsdProfileIndex(uint8_t profileIndex)
+// possible number is 1...3
+void setOsdProfileNumber(uint8_t profileNum)
 {
-    if (profileIndex <= OSD_PROFILE_COUNT) {
-        osdConfigMutable()->osdProfileIndex = profileIndex;
-        setOsdProfile(profileIndex);
+    if (profileNum <= OSD_PROFILE_COUNT) {
+        osdConfigMutable()->osdProfileNumber = profileNum;
+        setOsdProfile(profileNum);
         osdAnalyzeActiveElements();
     }
+}
+
+// next/prev osd profile, will wrap around
+void changeOSDProfileNext(bool next) {
+    uint8_t osdProfileNum = getCurrentOsdProfileNumber();
+    osdProfileNum += next ? 1 : -1;
+    if (osdProfileNum > OSD_PROFILE_COUNT) {
+        osdProfileNum = 1; // osdProfileNumber can be 1...OSD_PROFILE_COUNT
+    } else if (osdProfileNum < 1) {
+        osdProfileNum = OSD_PROFILE_COUNT;
+    }
+    setOsdProfileNumber(osdProfileNum);
 }
 #endif
 
@@ -386,7 +400,7 @@ void pgResetFn_osdConfig(osdConfig_t *osdConfig)
     osdConfig->ahMaxPitch = 20; // 20 degrees
     osdConfig->ahMaxRoll = 40; // 40 degrees
 
-    osdConfig->osdProfileIndex = 1;
+    osdConfig->osdProfileNumber = 1;
     osdConfig->ahInvert = false;
     for (int i=0; i < OSD_PROFILE_COUNT; i++) {
         osdConfig->profile[i][0] = '\0';
@@ -529,7 +543,7 @@ static void osdCompleteInitialization(void)
 
     resumeRefreshAt = micros() + (4 * REFRESH_1S);
 #ifdef USE_OSD_PROFILES
-    setOsdProfile(osdConfig()->osdProfileIndex);
+    setOsdProfile(osdConfig()->osdProfileNumber);
 #endif
 
     osdElementsInit(backgroundLayerSupported);
@@ -1244,10 +1258,10 @@ STATIC_UNIT_TESTED bool osdProcessStats1(timeUs_t currentTimeUs)
             resumeRefreshAt = 0;
             stats.armed_time = 0;
         } else {
-            if (IS_RC_MODE_ACTIVE(BOXOSD) && osdStatsVisible) {
+            if (forceHideOSD && osdStatsVisible) {
                 osdStatsVisible = false;
                 displayClearScreen(osdDisplayPort, DISPLAY_CLEAR_NONE);
-            } else if (!IS_RC_MODE_ACTIVE(BOXOSD)) {
+            } else if (!forceHideOSD) {
                 if (!osdStatsVisible) {
                     osdStatsVisible = true;
                     osdStatsRefreshTimeUs = 0;
@@ -1464,7 +1478,7 @@ void osdUpdate(timeUs_t currentTimeUs)
 
     case OSD_STATE_UPDATE_CANVAS:
         // Hide OSD when OSDSW mode is active
-        if (IS_RC_MODE_ACTIVE(BOXOSD)) {
+        if (forceHideOSD) {
             displayClearScreen(osdDisplayPort, DISPLAY_CLEAR_NONE);
             osdState = OSD_STATE_COMMIT;
             break;

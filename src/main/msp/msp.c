@@ -1034,7 +1034,7 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
 
 #ifdef USE_OSD_PROFILES
         sbufWriteU8(dst, OSD_PROFILE_COUNT);            // available profiles
-        sbufWriteU8(dst, osdConfig()->osdProfileIndex); // selected profile
+        sbufWriteU8(dst, osdConfig()->osdProfileNumber); // selected profile
 #else
         // If the feature is not available there is only 1 profile and it's always selected
         sbufWriteU8(dst, 1);
@@ -4376,7 +4376,7 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
                     // API >= 1.41
                     // selected OSD profile
 #ifdef USE_OSD_PROFILES
-                    changeOsdProfileIndex(sbufReadU8(src));
+                    setOsdProfileNumber(sbufReadU8(src));
 #else
                     sbufReadU8(src);
 #endif // USE_OSD_PROFILES
