@@ -1588,10 +1588,20 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         pidData[axis].S = getSterm(axis, pidProfile, currentPidSetpointBeforeWingAdjust);
         applySpa(axis, pidProfile);
 
-        if (isFixedWing() && IS_RC_MODE_ACTIVE(BOXDISABLEPD) && !pidRuntime.isCurrentlyForcingItermReset && isInAcroMode()) {
-            // reset P and D when BOXDISABLEPD is active but only when I term is active.
-            pidData[axis].P = 0;
-            pidData[axis].D = 0;
+        if (isFixedWing()) {
+            if (IS_RC_MODE_ACTIVE(BOXDISABLEPD) && !pidRuntime.isCurrentlyForcingItermReset && isInAcroMode()) {
+                // reset P and D when BOXDISABLEPD is active but only when I term is active.
+                pidData[axis].P = 0;
+                pidData[axis].D = 0;
+            }
+            
+            // disable S term because main PID along with setpoint proportional to angle error easily has enough chooch to keep the craft level.
+            // also:
+            // 1) PID tune is often optimized for zero-stick acro flight without wobble, actively adding "stick input" can easily lead to overshoots.
+            // 2) S term can be set pretty high for aggressize acro feel that often overshoots setpoint but this is would cause nasty osciallations in angle mode.
+            if (IS_AXIS_IN_ANGLE_MODE(axis)) {
+                pidData[axis].S = 0;
+            }
         }
 
         // calculating the PID sum
