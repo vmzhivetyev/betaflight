@@ -50,14 +50,14 @@ typedef enum {
     RC_ACTION_OSD_NEXT,                    // -91: Switch to next OSD screen/page
     RC_ACTION_OSD_PREV,                    // -89: Switch to previous OSD screen/page
     RC_ACTION_OSD_TOGGLE,                  // -88: Toggle OSD on/off
-    RC_ACTION_VTX_TOGGLE,                  // -86: Toggle VTX power/channel settings
-    RC_ACTION_BEEPER_TOGGLE,               // -85: Toggle beeper on/off
-    RC_ACTION_LED_STRIP_TOGGLE,            // -83: Toggle LED strip on/off
+    RC_ACTION_VTX_TOGGLE,                  // [NOT IMPLEMENTED] -86: Toggle VTX power/channel settings
+    RC_ACTION_BEEPER_TOGGLE,               // [NOT IMPLEMENTED] -85: Toggle beeper on/off
+    RC_ACTION_LED_STRIP_TOGGLE,            // [NOT IMPLEMENTED] -83: Toggle LED strip on/off
     RC_ACTION_PID_PROFILE_NEXT,            // -82: Switch to next PID profile
     RC_ACTION_PID_PROFILE_PREV,            // -80: Switch to previous PID profile
     RC_ACTION_PID_PROFILE_SAVE,            // -79: Save current PID profile to EEPROM
     RC_ACTION_PID_PROFILE_RESET,           // -77: Reset current PID profile to defaults
-    RC_ACTION_BB_TOGGLE,                   // -76: Toggle blackbox logging on/off
+    RC_ACTION_BB_TOGGLE,                   // [NOT IMPLEMENTED, use the usual BB AUX MODE for now] -76: Toggle blackbox logging on/off
     RC_ACTION_COUNT,                       // Total number of actions (for validation)
 } rcAction_e;
 
