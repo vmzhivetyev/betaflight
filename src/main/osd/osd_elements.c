@@ -781,8 +781,7 @@ static void osdElementAdjustmentRange(osdElementParms_t *element)
             tfp_sprintf(element->buff, "%s: %3d", name, value);
         }
     } else {
-        name = getOSDActivatedAction();
-        tfp_sprintf(element->buff, "%s", name);
+        getOSDActivatedActionMessageIntoBuffer(element->buff);
     }
 }
 #endif // USE_OSD_ADJUSTMENTS

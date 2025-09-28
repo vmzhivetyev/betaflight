@@ -34,6 +34,7 @@
 #include "common/axis.h"
 #include "common/maths.h"
 #include "common/utils.h"
+#include "common/printf.h"
 
 #include "config/feature.h"
 
@@ -64,6 +65,16 @@
 
 #include "scheduler/scheduler.h"
 
+#define VALUE_DISPLAY_LATENCY_MS 2000
+
+// this just corresponds to last AUX8 value
+static rcAction_e prevActiveRCAction = 0;
+
+// triggered means it was actually performed
+static rcAction_e lastTriggeredRCAction = 0;
+static char lastTriggeredRCActionResult[10];
+static timeMs_t lastTriggeredRCActionMs = 0;
+
 static void blackboxLogInflightActionEvent(rcAction_e action, int32_t newValue)
 {
 #ifndef USE_BLACKBOX
@@ -81,28 +92,27 @@ static void blackboxLogInflightActionEvent(rcAction_e action, int32_t newValue)
 }
 
 static const char * const rcActionLabels[] = {
-    "None",
-    "Adjustment Next",
-    "Adjustment Prev",
-    "Adjustment Increase",
-    "Adjustment Decrease", 
-    "OSD Next",
-    "OSD Prev",
-    "OSD Toggle",
-    "VTX Toggle",
-    "Beeper Toggle",
-    "LED Strip Toggle",
-    "PID Profile Next",
-    "PID Profile Prev", 
-    "PID Profile Save",
-    "PID Profile Reset",
-    "BlackBox Toggle",
+    "NO ACTION",
+    "NEXT ADJ",
+    "PREV ADJ",
+    "ADJ++",
+    "ADJ--",
+    "NEXT OSD",
+    "PREV OSD",
+    "TOGGLE OSD",
+    "TOGGLE VTX",
+    "TOGGLE BPR",
+    "TOGGLE LED",
+    "NEXT PID",
+    "PREV PID", 
+    "SAVED PID",
+    "RESET PID",
+    "TOGGLE BB",
 };
 
-static int performAction(rcAction_e action, controlRateConfig_t *controlRateConfig)
+static void performAction(rcAction_e action, controlRateConfig_t *controlRateConfig)
 {
-    beeperConfirmationBeeps(1);
-    int32_t result = 0;
+    lastTriggeredRCActionResult[0] = '\0';
 
     switch (action) {
     case RC_ACTION_NONE:
@@ -110,27 +120,18 @@ static int performAction(rcAction_e action, controlRateConfig_t *controlRateConf
         break;
 
     case RC_ACTION_ADJUSTMENT_NEXT:
-        changeActiveAdjustmentIndex(true);
-        break;
-
     case RC_ACTION_ADJUSTMENT_PREV:
-        changeActiveAdjustmentIndex(false);
+        changeActiveAdjustmentIndex(action == RC_ACTION_ADJUSTMENT_NEXT);
         break;
 
     case RC_ACTION_ADJUSTMENT_INCREASE:
-        performActiveAdjustmentChange(controlRateConfig, true);
-        break;
-
     case RC_ACTION_ADJUSTMENT_DECREASE:
-        performActiveAdjustmentChange(controlRateConfig, false);
+        performActiveAdjustmentChange(controlRateConfig, action == RC_ACTION_ADJUSTMENT_INCREASE);
         break;
 
     case RC_ACTION_OSD_NEXT:
-        changeOSDProfileNext(true);
-        break;
-
     case RC_ACTION_OSD_PREV:
-        changeOSDProfileNext(false);
+        changeOSDProfileNext(action == RC_ACTION_OSD_NEXT);
         break;
 
     case RC_ACTION_OSD_TOGGLE:
@@ -150,15 +151,11 @@ static int performAction(rcAction_e action, controlRateConfig_t *controlRateConf
         break;
 
     case RC_ACTION_PID_PROFILE_NEXT:
-        // let's restore it before loading another since we will lose the backup with loading
-        restoreCurrentPidProfileFromBackup();
-        changePidProfileNext(true);
-        break;
-
     case RC_ACTION_PID_PROFILE_PREV:
         // let's restore it before loading another since we will lose the backup with loading
         restoreCurrentPidProfileFromBackup();
-        changePidProfileNext(false);
+        uint8_t newIndex = changePidProfileNext(action == RC_ACTION_PID_PROFILE_NEXT);
+        tfp_sprintf(lastTriggeredRCActionResult, "%d", newIndex + 1); // show 1-based index in osd
         break;
 
     case RC_ACTION_PID_PROFILE_SAVE:
@@ -179,31 +176,25 @@ static int performAction(rcAction_e action, controlRateConfig_t *controlRateConf
         // Handle unknown action
         break;
     }
-
-    return result;
 }
 
-#define VALUE_DISPLAY_LATENCY_MS 2000
-
-// this just corresponds to last AUX8 value
-static rcAction_e prevActiveRCAction = 0;
-
-// this was actually performed
-static rcAction_e lastTriggeredRCAction = 0;
-static timeMs_t lastTriggeredRCActionMs = 0;
-
 #if defined(USE_OSD) && defined(USE_OSD_ADJUSTMENTS)
-const char* getOSDActivatedAction(void)
+void getOSDActivatedActionMessageIntoBuffer(char *buffer)
 {
     // if invalid index
     if (lastTriggeredRCAction <= RC_ACTION_NONE || lastTriggeredRCAction >= RC_ACTION_COUNT) {
-        return NULL;
+        return;
     }
     // if too much time passed since trigger
     if (cmp32(millis(), lastTriggeredRCActionMs + VALUE_DISPLAY_LATENCY_MS) >= 0) {
-        return NULL;
+        return;
     }
-    return &rcActionLabels[prevActiveRCAction][0];
+    const char *name = &rcActionLabels[lastTriggeredRCAction][0];
+    int pos = tfp_sprintf(buffer, "%s", name);
+    // note: lastTriggeredRCActionResult[0] is 0 when there is no result description.
+    if (lastTriggeredRCActionResult[0]) {
+        tfp_sprintf(buffer + pos, " %s", lastTriggeredRCActionResult);
+    }
 }
 #endif
 
@@ -258,6 +249,7 @@ void processRCActionsAUXInput(controlRateConfig_t *controlRateConfig)
     }
 
     if (activeAction != prevActiveRCAction && activeAction != RC_ACTION_NONE) {
+        beeperConfirmationBeeps(1);
         performAction(activeAction, controlRateConfig);
         blackboxLogInflightActionEvent(activeAction, 0);
         lastTriggeredRCAction = activeAction;

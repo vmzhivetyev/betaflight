@@ -826,7 +826,7 @@ void changePidProfile(uint8_t pidProfileIndex)
     beeperConfirmationBeeps(pidProfileIndex + 1);
 }
 
-void changePidProfileNext(bool next)
+uint8_t changePidProfileNext(bool next)
 {
     int8_t newIndex = getCurrentPidProfileIndex() + (next ? 1 : -1);
     if (newIndex >= PID_PROFILE_COUNT) {
@@ -835,6 +835,7 @@ void changePidProfileNext(bool next)
         newIndex = PID_PROFILE_COUNT - 1;
     }
     changePidProfile(newIndex);
+    return newIndex;
 }
 
 bool isSystemConfigured(void)

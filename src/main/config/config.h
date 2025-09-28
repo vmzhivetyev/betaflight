@@ -69,7 +69,7 @@ uint8_t getCurrentPidProfileIndex(void);
 void changePidProfile(uint8_t pidProfileIndex);
 void changePidProfileFromCellCount(uint8_t cellCount);
 
-void changePidProfileNext(bool next);
+uint8_t changePidProfileNext(bool next);
 void backupCurrentPidProfile(void);
 void restoreCurrentPidProfileFromBackup(void);
 

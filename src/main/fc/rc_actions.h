@@ -72,7 +72,7 @@ typedef enum {
 #define RC_ACTION_AUX_RESOLUTION 128
 
 #if defined(USE_OSD) && defined(USE_OSD_ADJUSTMENTS)
-const char* getOSDActivatedAction(void);
+void getOSDActivatedActionMessageIntoBuffer(char *buffer);
 #endif
 
 void processRCActionsAUXInput(controlRateConfig_t *controlRateConfig);
