@@ -119,5 +119,5 @@ int getAdjustmentsRangeValue(void);
 void activeAdjustmentRangeReset(void);
 
 // RC_ACTIONS
-void changeActiveAdjustmentIndex(bool next);
+void changeActiveAdjustmentIndex(controlRateConfig_t *controlRateConfig, bool next);
 void performActiveAdjustmentChange(controlRateConfig_t *controlRateConfig, bool increase);

@@ -121,7 +121,7 @@ static void performAction(rcAction_e action, controlRateConfig_t *controlRateCon
 
     case RC_ACTION_ADJUSTMENT_NEXT:
     case RC_ACTION_ADJUSTMENT_PREV:
-        changeActiveAdjustmentIndex(action == RC_ACTION_ADJUSTMENT_NEXT);
+        changeActiveAdjustmentIndex(controlRateConfig, action == RC_ACTION_ADJUSTMENT_NEXT);
         break;
 
     case RC_ACTION_ADJUSTMENT_INCREASE:

@@ -824,9 +824,22 @@ static void updateOSDBecauseActiveAdjustmentChanged(controlRateConfig_t *control
 // RC_ACTIONS
 static int8_t activeAdjustmentIndex = 0;
 
+static void showActionsActiveAdjustment(controlRateConfig_t *controlRateConfig) {
+    if (activeAdjustmentIndex < 0 || activeAdjustmentIndex >= stepwiseAdjustmentCount) {
+        updateOsdAdjustmentData(-1, 0);
+        return;
+    }
+
+    timedAdjustmentState_t *adjustmentState = &stepwiseAdjustments[activeAdjustmentIndex];
+    const adjustmentRange_t *const adjustmentRange = adjustmentRanges(adjustmentState->adjustmentRangeIndex);
+    const adjustmentConfig_t *adjustmentConfig = &defaultAdjustmentConfigs[adjustmentRange->adjustmentConfig - ADJUSTMENT_FUNCTION_CONFIG_INDEX_OFFSET];
+
+    updateOSDBecauseActiveAdjustmentChanged(controlRateConfig, adjustmentConfig);
+}
+
 // RC_ACTIONS
 // Note: it will wrap around at stepwiseAdjustmentCount.
-void changeActiveAdjustmentIndex(bool next) {
+void changeActiveAdjustmentIndex(controlRateConfig_t *controlRateConfig, bool next) {
     if (stepwiseAdjustmentCount == 0) {
         activeAdjustmentIndex = -1;
         return;
@@ -837,6 +850,7 @@ void changeActiveAdjustmentIndex(bool next) {
     } else if (activeAdjustmentIndex < 0) {
         activeAdjustmentIndex = stepwiseAdjustmentCount - 1;
     }
+    showActionsActiveAdjustment(controlRateConfig);
 }
 
 // RC_ACTIONS
