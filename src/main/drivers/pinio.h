@@ -29,6 +29,7 @@
 #define PINIO_CONFIG_OUT_INVERTED 0x80
 #define PINIO_CONFIG_MODE_MASK    0x7F
 #define PINIO_CONFIG_MODE_OUT_PP  0x01
+#define PINIO_CONFIG_MODE_PWM     0x02
 
 struct pinioConfig_s;
 
