@@ -40,6 +40,8 @@
 #define USE_BARO_MS5611
 #define USE_BARO_BMP085
 #define USE_BARO_DPS310
+#define USE_BARO_SPL06
+#define USE_PITOT
 
 #ifndef USE_WING
 #define USE_WING
@@ -90,6 +92,7 @@
 #define ADC_VBAT_PIN       PC0
 #define ADC_RSSI_PIN       PC5
 #define ADC_CURR_PIN       PC1
+#define ADC_AIRSPEED_PIN   PC4
 #define PINIO1_PIN         PC13
 #define SDCARD_SPI_CS_PIN  PC14
 #define MAX7456_SPI_CS_PIN PB12
